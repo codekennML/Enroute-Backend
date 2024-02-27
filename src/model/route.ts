@@ -22,6 +22,7 @@ const routeSchema = new Schema<IRouteModel>(
       type: Schema.Types.ObjectId,
       required: false,
       ref: "Trip",
+      index : true
     },
 
     availableSeats: Number,
@@ -30,6 +31,7 @@ const routeSchema = new Schema<IRouteModel>(
       type: Schema.Types.ObjectId,
       required: false,
       ref: "Ride",
+      index : true
     },
 
     carId: {},

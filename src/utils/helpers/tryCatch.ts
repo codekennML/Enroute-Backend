@@ -21,8 +21,6 @@ export const tryCatch =
     errMsg?: string;
   }> => {
     try {
-      // throw new AppError("Wrong account", "User supplies wrong account", "403" )
-      //
       const result = await controller(res, req, requestBody);
       return result;
     } catch (error: unknown) {
@@ -38,7 +36,6 @@ export const tryCatch =
         return {
           error: true,
           errMsg: getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
-
           status: StatusCodes.INTERNAL_SERVER_ERROR,
         };
       }

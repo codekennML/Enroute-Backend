@@ -22,6 +22,7 @@ class User {
     const users = await this.user.getUsers(request);
 
     return users;
+    return users;
   }
 
   async getUserInfo(userId: string, select: string, session?: ClientSession) {

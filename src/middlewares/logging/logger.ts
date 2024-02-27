@@ -74,3 +74,9 @@ export const authLogger = winston.createLogger({
   format,
   transports: [new winston.transports.Console()],
 });
+
+export const criticalLogger = winston.createLogger({
+  level: "http",
+  format,
+  transports: [new winston.transports.Console()],
+});

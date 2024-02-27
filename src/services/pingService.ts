@@ -1,5 +1,8 @@
 import { Ping } from "../../types/types";
+import { scyllaDBClient } from "../config/connectDB";
 import { scyllaDataLayer } from "../repository/scylla/shared";
+
+//This class handles only location data pinging,  the main route location storage is in route service
 
 class PingService {
   //For drivers only
@@ -135,6 +138,26 @@ class PingService {
     const response = await scyllaDataLayer.executeDataQuery(query, params);
 
     return response;
+  }
+
+  async deleteTripRidePings(data: { tripId: string; rideId: string }) {
+    const { tripId, rideId } = data;
+
+    let query = "";
+    let params = [];
+
+    //Remove pings for this trip
+    if (tripId) {
+      query = `DELETE * FROM TRIP`;
+    }
+
+    //Remove all pings for this ride
+    if (rideId) {
+    }
+
+    const data = await scyllaDBClient.execute(query, params, { prepare: true });
+
+    return data;
   }
 }
 

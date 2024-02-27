@@ -1,13 +1,19 @@
-class Message {
-  async handlePubSubMessage(channel: string, message: string): Promise<void> {
-    if (channel !== `channel:${process.env.APP_SERVER_ADRESS}`) return;
+// class Message {
 
-    const parsedMessage = JSON.parse(message);
+//     async handlePubSubMessage(channel: string, message: string): Promise<void> {
+//     if (channel !== `channel:${process.env.APP_SERVER_ADRESS}`) return;
 
-    const { topic, ...data } = parsedMessage;
-  }
-}
+//     const parsedMessage = JSON.parse(message);
 
-const CachePubSubMessageHandler = new Message();
+//     // const { topic, ...data } = parsedMessage;
+//   }
 
-export default CachePubSubMessageHandler;
+//   async handleWSMessages () {
+
+//   }
+
+// }
+
+// const CachePubSubMessageHandler = new Message();
+
+// export default CachePubSubMessageHandler;

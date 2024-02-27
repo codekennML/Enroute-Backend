@@ -41,13 +41,13 @@ const tripSchema = new Schema<ITripModel>({
     required: [true, "Trip status required"],
   },
 
-  rides: [
-    {
-      type: Schema.Types.ObjectId,
-      required: true,
-      ref: "Ride",
-    },
-  ],
+  // rides: [
+  //   {
+  //     type: Schema.Types.ObjectId,
+  //     required: true,
+  //     ref: "Ride",
+  //   },
+  // ],
 });
 
 tripSchema.index({

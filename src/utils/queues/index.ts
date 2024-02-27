@@ -2,10 +2,9 @@ import { Job, Queue, Worker, JobsOptions } from "bullmq";
 // import { Prettify } from "../../../types/types";
 
 export type QueueRequest<T> = {
-  name: string;
   data: T[];
   options?: JobsOptions;
-};
+} & { name: string };
 
 class JobQueue<T> {
   private queue: Queue;

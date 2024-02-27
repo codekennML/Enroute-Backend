@@ -1,5 +1,4 @@
 import { latLngCoordinates } from "../../types/types";
-import { Coordinates } from "../model/interfaces";
 import MapsRepository, { mapsDataLayer } from "../repository/data/maps";
 
 class DirectionService {
