@@ -21,7 +21,7 @@ interface UpgradeOptions {
 const activeConnections: Record<string, WebSocket<UserData>> = {};
 
 //Start the database and connect
-startDB();
+// startDB();
 
 //Initialize the pubsub mechanism for receiving data to this server
 // const serverPubSubChannel = `channel:${

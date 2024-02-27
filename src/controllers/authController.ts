@@ -160,6 +160,8 @@ class AuthController {
 
     return result;
   }
+ 
+ 
 
   async activateAccount(res: HttpResponse) {
     const data: ActivateAccountData = await readJSON(res);
@@ -234,7 +236,20 @@ class AuthController {
     return response;
   }
 
-  async webLogin() {}
+  async webLogin(data) {
+   
+    const { email , password } =  data
+
+     const user  =  await UserService.getUsers({ 
+      query : { email : { $eq : email.trim().toLocaleLowerCase() }},
+      select : "password", 
+     })
+    
+
+     if(!user || user.length) 
+
+
+  }
 
   async mobileLogin(res: HttpResponse, req: HttpRequest) {
     const data = await readJSON<AuthData>(res);

@@ -20,6 +20,8 @@ class User {
 
   async getUsers(request: QueryData) {
     const users = await this.user.getUsers(request);
+
+    return users;
   }
 
   async getUserInfo(userId: string, select: string, session?: ClientSession) {
