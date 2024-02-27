@@ -40,7 +40,7 @@ export const setTokens = async (
     updateData: {
       $set: {
         refreshToken: OtpServiceLayer.hashOTP(refreshToken),
-        mobileAuthId: mobileId ? mobileId : undefined,
+        mobileAuthId: mobileId,
       },
     },
     options: { new: false },
@@ -55,9 +55,9 @@ export const setTokens = async (
   // const cookieHeaders  =  cookie.parser(req.getHeader("cookie"))
 
   const cookieOptions = {
-    httpOnly: isProduction ? true : false,
+    httpOnly: isProduction,
     sameSite: isProduction ? "strict" : "none",
-    secure: isProduction ? true : false,
+    secure: isProduction,
   };
 
   const accessCookie = cookie.serialize(
@@ -73,25 +73,4 @@ export const setTokens = async (
 
   res.writeHeader("Set-Cookie", accessCookie);
   res.writeHeader("Set-Cookie", refreshCookie);
-
-  // res.writeHeader("Set-Cookie", `
-
-  //       ${REFRESH_TOKEN_ID}=${refreshToken};
-  //        HttpOnly=${isProduction ? "true" : "false"};
-  //        SameSite=${isProduction ? "Strict" : "none"};
-  //        Secure=${isProduction ? "true" : "false"};
-  //        `
-  //     )
-
-  // res.writeHeader("Set-Cookie", `
-
-  //       ${ACCESS_TOKEN_ID}=${accessToken};
-  //        HttpOnly=${isProduction ? "true" : "false"};
-  //        SameSite=${isProduction ? "Strict" : "none"};
-  //        Secure=${isProduction ? "true" : "false"};
-  //        `
-
-  //     )
-
-  return;
 };

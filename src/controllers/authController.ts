@@ -9,6 +9,7 @@ import {
 } from "../../types/types";
 import { getReasonPhrase, StatusCodes } from "http-status-codes";
 import { hasError, retryTransaction } from "../utils/helpers/retryTransaction";
+
 import { readJSON } from "../utils/helpers/decodePostJSON";
 import { HttpResponse, HttpRequest } from "uWebsockets.js";
 import AppError from "../middlewares/errors/BaseError";
@@ -21,7 +22,6 @@ import { Prettify } from "../../types/types";
 import UserService from "../services/userService";
 import { setTokens } from "../middlewares/auth/setTokens";
 import { checkUserCanAuthenticate } from "../utils/helpers/canLogin";
-import verifyGoogleToken from "../services/3rdParty/Google/auth";
 
 type signupHandlerData = {
   success: boolean;
@@ -161,8 +161,6 @@ class AuthController {
 
     return result;
   }
- 
- 
 
   async activateAccount(res: HttpResponse) {
     const data: ActivateAccountData = await readJSON(res);
@@ -237,19 +235,32 @@ class AuthController {
     return response;
   }
 
-  async webLogin(data) {
-   
-    const { email , password } =  data
+  async webLogin(res: HttpResponse, req: HttpRequest) {
+    const data = await readJSON<{ email: string; password: string }>(res);
 
-     const user  =  await UserService.getUsers({ 
-      query : { email : { $eq : email.trim().toLocaleLowerCase() }},
-      select : "password", 
-     })
-    
+    const { email, password } = data;
 
-     if(!user || user.length) 
+    const users = await UserService.getUsers({
+      query: { email: { $eq: email.trim().toLocaleLowerCase() } },
+      select: "password",
+    });
 
+    if (!users || !Array.isArray(users) || users.length === 0)
+      throw new AppError("Invalid username or password", StatusCodes.NOT_FOUND);
 
+    const existingUser = users[0];
+
+    const isMatchingPassword = await existingUser.comparePassword(
+      existingUser.password!,
+      password
+    );
+
+    if (!isMatchingPassword)
+      throw new AppError("Invalid username or password", StatusCodes.NOT_FOUND);
+
+    await setTokens(res, req, existingUser._id);
+
+    return { status: StatusCodes.OK, data: { message: "Login successful" } };
   }
 
   async mobileLogin(res: HttpResponse, req: HttpRequest) {
@@ -264,6 +275,7 @@ class AuthController {
 
     const result = await this.authenticateOTPAccess(data);
 
+    //The mobile of the user needs verification
     if (data?.vfm)
       await UserService.updateUser({
         docToUpdate: { _id: { $eq: result.user } },
@@ -276,7 +288,7 @@ class AuthController {
       });
 
     //This will set the token in the headers, which we will pick in the response handler function and send back  along with the response
-    setTokens(res, req, result.user._id);
+    await setTokens(res, req, result.user._id);
 
     return { status: StatusCodes.OK, data: { message: "Login successful" } };
   }
@@ -394,98 +406,9 @@ class AuthController {
     return { status: StatusCodes.CREATED, data: loggedOut };
   }
 
-  async validateGoogleToken(token) {
-    const payload = await verifyGoogleToken(token);
+  async signInWithFacebook(res: HttpResponse, req: HttpRequest) {}
 
-    const user = await this.authService.socialLoginCheck("google", payload);
-  }
-
-  // async signInWithFacebook() {
-  //   passport.use(
-  //     new Google.Strategy(
-  //       {
-  //         clientID: process.env.GOOGLE_CLIENT_ID as string,
-  //         clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-  //         callbackURL: "/auth/facebook/callback",
-  //         scope: ["profile"],
-  //         passReqToCallback: true,
-  //       },
-  //       async (accessToken, refreshToken, email, profile, done) => {
-  //         const user = await this.authService.socialLoginCheck(
-  //           "facebook",
-  //           profile
-  //         );
-
-  //         done(null, user);
-  //       }
-  //     )
-  //   );
-
-  //   passport.serializeUser((fbId, done) => {
-  //     done(null, fbId);
-  //   });
-
-  //   passport.deserializeUser(async (fbId, done) => {
-  //     const user = await this.authService.authDataLayer.getUsers({
-  //       query: { fbId: { $eq: fbId } },
-  //       select: "fbId",
-  //     });
-
-  //     if (!user || user[0].fbId !== fbId)
-  //       throw new Error(`Authentication Error.`);
-
-  //     done(null, user[0]);
-  //   });
-  // }
-
-  // async signInWithGoogle() {
-  //   passport.use(
-  //     new Google.Strategy(
-  //       {
-  //         clientID: process.env.GOOGLE_CLIENT_ID as string,
-  //         clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-  //         callbackURL: "/auth/google/callback",
-  //         scope: ["profile"],
-  //         passReqToCallback: true,
-  //       },
-  //       async (accessToken, refreshToken, email, profile, done) => {
-  //         const user = await this.authService.socialLoginCheck(
-  //           "google",
-  //           profile
-  //         );
-
-  //         const shouldSendWelcomeMail =
-  //           new Date().getTime() - user.createdAt.getTime() < 60 * 1000;
-
-  //         if (shouldSendWelcomeMail && profile?.emails)
-  //           await Notification.sendEmailMessage({
-  //             recipient: profile.emails[0].value,
-  //             subject: `Welcome to ${process.env.COMPANY_URL}`,
-  //             from: `onboarding@${process.env.COMPANY_NAME}.com`,
-  //             mailHTML: "",
-  //           });
-
-  //         done(null, user);
-  //       }
-  //     )
-  //   );
-
-  //   passport.serializeUser((googleId, done) => {
-  //     done(null, googleId);
-  //   });
-
-  //   passport.deserializeUser(async (googleId, done) => {
-  //     const user = await this.authService.authDataLayer.getUsers({
-  //       query: { googleId: { $eq: googleId } },
-  //       select: "googleId",
-  //     });
-
-  //     if (!user || user[0].googleId !== googleId)
-  //       throw new Error(`Authentication Error.`);
-
-  //     done(null, user[0]);
-  //   });
-  // }
+  async signInWithGoogle(res: HttpResponse, req: HttpRequest) {}
 
   //TODO :rEMEMBER TO IMPLEEMENT A LOGOUT ALL USERS FUNCTIONALITY FROM THE CACHE
 }

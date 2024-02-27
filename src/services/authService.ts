@@ -145,13 +145,9 @@ class AuthService {
         session
       );
 
-      // const link = `${process.env.PRIME_COMPANY_URL}/${createdUser[0]._id}/${activationToken}`;
       result.success = true;
       result.data.user = createdUser[0]._id.toString();
       result.data.email = createdUser[0].email;
-
-      // result.actlink =  link
-
       await session.commitTransaction();
     });
 

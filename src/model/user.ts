@@ -23,7 +23,7 @@ const userSchema = new Schema<IUserModel>(
       unique: true,
       max: 255,
       required: function () {
-        return !this.mobile ? true : false;
+        return !this.mobile;
       },
       index: true,
       trim: true,
