@@ -25,12 +25,6 @@ const rideSchema = new Schema<IRideModel>(
       default: false,
     },
 
-    alighted: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
-
     dropOffTime: {
       type: Date,
 

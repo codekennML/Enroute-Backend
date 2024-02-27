@@ -36,7 +36,10 @@ class OTPService {
   }
 
   async createDBOtpEntry(
-    request: Pick<IOtp, "user" | "type"> & { expiryInMins: number; otpHash },
+    request: Pick<IOtp, "user" | "type"> & {
+      expiryInMins: number;
+      otpHash: string;
+    },
     session?: ClientSession
   ): Promise<string> {
     const otpRecord = {

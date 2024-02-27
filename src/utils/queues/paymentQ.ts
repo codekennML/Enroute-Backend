@@ -3,6 +3,7 @@ import JobQueue, { QueueRequest } from ".";
 import { PaymentServiceLayer } from "../../services/paymentService";
 
 type PaymentData = {
+  user: string;
   amount: number;
   reference: string;
   recipient: string;

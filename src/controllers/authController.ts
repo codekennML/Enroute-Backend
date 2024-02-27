@@ -21,6 +21,7 @@ import { Prettify } from "../../types/types";
 import UserService from "../services/userService";
 import { setTokens } from "../middlewares/auth/setTokens";
 import { checkUserCanAuthenticate } from "../utils/helpers/canLogin";
+import verifyGoogleToken from "../services/3rdParty/Google/auth";
 
 type signupHandlerData = {
   success: boolean;
@@ -378,92 +379,98 @@ class AuthController {
     return { status: StatusCodes.CREATED, data: loggedOut };
   }
 
-  async signInWithFacebook() {
-    passport.use(
-      new Google.Strategy(
-        {
-          clientID: process.env.GOOGLE_CLIENT_ID as string,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-          callbackURL: "/auth/facebook/callback",
-          scope: ["profile"],
-          passReqToCallback: true,
-        },
-        async (accessToken, refreshToken, email, profile, done) => {
-          const user = await this.authService.socialLoginCheck(
-            "facebook",
-            profile
-          );
+  async validateGoogleToken(token) {
+    const payload = await verifyGoogleToken(token);
 
-          done(null, user);
-        }
-      )
-    );
-
-    passport.serializeUser((fbId, done) => {
-      done(null, fbId);
-    });
-
-    passport.deserializeUser(async (fbId, done) => {
-      const user = await this.authService.authDataLayer.getUsers({
-        query: { fbId: { $eq: fbId } },
-        select: "fbId",
-      });
-
-      if (!user || user[0].fbId !== fbId)
-        throw new Error(`Authentication Error.`);
-
-      done(null, user[0]);
-    });
+    const user = await this.authService.socialLoginCheck("google", payload);
   }
 
-  async signInWithGoogle() {
-    passport.use(
-      new Google.Strategy(
-        {
-          clientID: process.env.GOOGLE_CLIENT_ID as string,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-          callbackURL: "/auth/google/callback",
-          scope: ["profile"],
-          passReqToCallback: true,
-        },
-        async (accessToken, refreshToken, email, profile, done) => {
-          const user = await this.authService.socialLoginCheck(
-            "google",
-            profile
-          );
+  // async signInWithFacebook() {
+  //   passport.use(
+  //     new Google.Strategy(
+  //       {
+  //         clientID: process.env.GOOGLE_CLIENT_ID as string,
+  //         clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+  //         callbackURL: "/auth/facebook/callback",
+  //         scope: ["profile"],
+  //         passReqToCallback: true,
+  //       },
+  //       async (accessToken, refreshToken, email, profile, done) => {
+  //         const user = await this.authService.socialLoginCheck(
+  //           "facebook",
+  //           profile
+  //         );
 
-          const shouldSendWelcomeMail =
-            new Date().getTime() - user.createdAt.getTime() < 60 * 1000;
+  //         done(null, user);
+  //       }
+  //     )
+  //   );
 
-          if (shouldSendWelcomeMail && profile?.emails)
-            await Notification.sendEmailMessage({
-              recipient: profile.emails[0].value,
-              subject: `Welcome to ${process.env.COMPANY_URL}`,
-              from: `onboarding@${process.env.COMPANY_NAME}.com`,
-              mailHTML: "",
-            });
+  //   passport.serializeUser((fbId, done) => {
+  //     done(null, fbId);
+  //   });
 
-          done(null, user);
-        }
-      )
-    );
+  //   passport.deserializeUser(async (fbId, done) => {
+  //     const user = await this.authService.authDataLayer.getUsers({
+  //       query: { fbId: { $eq: fbId } },
+  //       select: "fbId",
+  //     });
 
-    passport.serializeUser((googleId, done) => {
-      done(null, googleId);
-    });
+  //     if (!user || user[0].fbId !== fbId)
+  //       throw new Error(`Authentication Error.`);
 
-    passport.deserializeUser(async (googleId, done) => {
-      const user = await this.authService.authDataLayer.getUsers({
-        query: { googleId: { $eq: googleId } },
-        select: "googleId",
-      });
+  //     done(null, user[0]);
+  //   });
+  // }
 
-      if (!user || user[0].googleId !== googleId)
-        throw new Error(`Authentication Error.`);
+  // async signInWithGoogle() {
+  //   passport.use(
+  //     new Google.Strategy(
+  //       {
+  //         clientID: process.env.GOOGLE_CLIENT_ID as string,
+  //         clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+  //         callbackURL: "/auth/google/callback",
+  //         scope: ["profile"],
+  //         passReqToCallback: true,
+  //       },
+  //       async (accessToken, refreshToken, email, profile, done) => {
+  //         const user = await this.authService.socialLoginCheck(
+  //           "google",
+  //           profile
+  //         );
 
-      done(null, user[0]);
-    });
-  }
+  //         const shouldSendWelcomeMail =
+  //           new Date().getTime() - user.createdAt.getTime() < 60 * 1000;
+
+  //         if (shouldSendWelcomeMail && profile?.emails)
+  //           await Notification.sendEmailMessage({
+  //             recipient: profile.emails[0].value,
+  //             subject: `Welcome to ${process.env.COMPANY_URL}`,
+  //             from: `onboarding@${process.env.COMPANY_NAME}.com`,
+  //             mailHTML: "",
+  //           });
+
+  //         done(null, user);
+  //       }
+  //     )
+  //   );
+
+  //   passport.serializeUser((googleId, done) => {
+  //     done(null, googleId);
+  //   });
+
+  //   passport.deserializeUser(async (googleId, done) => {
+  //     const user = await this.authService.authDataLayer.getUsers({
+  //       query: { googleId: { $eq: googleId } },
+  //       select: "googleId",
+  //     });
+
+  //     if (!user || user[0].googleId !== googleId)
+  //       throw new Error(`Authentication Error.`);
+
+  //     done(null, user[0]);
+  //   });
+  // }
 
   //TODO :rEMEMBER TO IMPLEEMENT A LOGOUT ALL USERS FUNCTIONALITY FROM THE CACHE
 }

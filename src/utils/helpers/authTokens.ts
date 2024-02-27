@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import crypto from "node:crypto";
-import otpGenerator from "otpGenerator";
+import otpGenerator from "otp-generator";
 import AppError from "../../middlewares/errors/BaseError";
 
 export const createJWTAuthToken = (
@@ -16,7 +16,10 @@ export const createJWTAuthToken = (
 
 // Decode jwt tokens
 export const decodeJWTAuthToken = (token: string, signer: string) => {
-  const dataToReturn: { error: boolean; data?: object } = { error: true };
+  const dataToReturn: {
+    error: boolean;
+    data?: Record<string, string>;
+  } = { error: true };
 
   jwt.verify(token, signer, (err, decoded) => {
     if (err || !decoded) {
@@ -46,6 +49,8 @@ export const createCryptoHashToken = (
 
   const hashedToken = hashCryptoToken(hashData);
 
+  console.log(hashData, hashedToken, mainHash);
+
   return { token: hashData, hashedToken, mainHash };
 };
 
@@ -53,15 +58,6 @@ export const hashCryptoToken = (token: string): string => {
   const hash = crypto.createHash("sha256").update(token).digest("hex");
 
   return hash;
-};
-
-export const decodeCryptoHashToken = (token: string) => {
-  const receivedTokenHash = crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
-
-  return receivedTokenHash;
 };
 
 export const generateOTP = (): string => {

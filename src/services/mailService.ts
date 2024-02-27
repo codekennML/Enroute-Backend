@@ -43,12 +43,7 @@ class NotificationService {
   }
 
   async sendEmailMessage(messageData: EmailMessage) {
-    const {
-      recipient,
-      subject = "Hey there! ",
-      from = ONBOARDING_MAIL,
-      body,
-    } = messageData;
+    const { recipient, subject = "Hey there! ", from, body } = messageData;
 
     const transporter = nodemailer.createTransport({
       host: "smtp.resend.com",

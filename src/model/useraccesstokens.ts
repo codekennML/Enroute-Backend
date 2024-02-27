@@ -1,7 +1,7 @@
 import { Schema, model, Model, Document, Types } from "mongoose";
-import { IAccess } from "./interfaces";
+import { IUserAccess } from "./interfaces";
 
-export default interface IUserAccessModel extends IAccess, Document {}
+export default interface IUserAccessModel extends IUserAccess, Document {}
 
 const accessTokenSchema = new Schema({
   user: {
@@ -28,17 +28,6 @@ const accessTokenSchema = new Schema({
     },
   },
 
-  // active :  {
-  //     type : Boolean,
-  //     default : true,
-  //     required : true
-  // },
-
-  // blacklisted : {
-  //     type : Boolean,
-  //     required : true ,
-  //     default : false
-  // }
 });
 
 export const UserAccessLogs: Model<IUserAccessModel> = model<IUserAccessModel>(

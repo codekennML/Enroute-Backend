@@ -9,20 +9,17 @@ import PaymentService, {
 import crypto from "node:crypto";
 import { HttpRequest, HttpResponse } from "uWebsockets.js";
 import { readJSON } from "../utils/helpers/decodePostJSON";
-import { Paystack, TransferData, TransferRecipient } from "../../types/types";
+import {
+  Paystack,
+  TransactionSuccess,
+  TransferData,
+  TransferRecipient,
+} from "../../types/types";
 import { ClientSession, Types } from "mongoose";
-import TransactionService, {
-  TransactionServiceLayer,
-} from "../services/transactionService";
+import { TransactionServiceLayer } from "../services/transactionService";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET as string;
-
-// type TransferItem = {
-//   amount: number;
-//   reference: string;
-//   recipient: string;
-// };
 
 class PaymentController {
   private payService: PaymentService;
@@ -32,7 +29,7 @@ class PaymentController {
   }
 
   async handlePaystackWebhooks(req: HttpRequest, res: HttpResponse) {
-    const data = readJSON(res);
+    const data: Paystack.WebhookResponse = await readJSON(res);
 
     //validate event
     const hash = crypto
@@ -47,7 +44,12 @@ class PaymentController {
         `Paystack Webhook event error - Foreign request detected / received`
       );
 
-    const basefn = async (request, session: ClientSession) => {
+    const basefn = async (
+      request: Paystack.WebhookResponse,
+      session: ClientSession
+    ): Promise<TransactionSuccess> => {
+      const result: { success: boolean } = { success: true };
+
       await session.withTransaction(async () => {
         const response = await this.payService.handlePayHooks(data, session);
 
@@ -98,6 +100,8 @@ class PaymentController {
           //  Bulkwrite here -  insert one and updateOne
         }
 
+        //Note  we do not handle failed transactions until all manual and automatic retries are exhausted and the transaction still fails., in which case the transaction is marked as failed
+
         if (
           response.type === "withdrawal" &&
           response.shouldGiveValue &&
@@ -118,11 +122,13 @@ class PaymentController {
 
         await session.commitTransaction();
       });
+
+      return result;
     };
 
     const response = await retryTransaction(basefn, 1, data);
 
-    res.send(200);
+    return { status: StatusCodes.OK, data: { message: response } };
   }
 
   async approvePayouts(request: {

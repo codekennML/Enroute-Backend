@@ -1,14 +1,15 @@
 import mongoose, { ClientSession } from "mongoose";
 import {
   // TransactionError,
-  TransactionSuccess,
+  // TransactionSuccess,
   TransactionResponse,
+  TransactionError,
 } from "../../../types/types";
 
-function isTransactionSuccess<T>(
+export function hasError<T>(
   response: TransactionResponse<T>
-): response is TransactionSuccess<T> {
-  return response.success;
+): response is TransactionError {
+  return !response.success;
 }
 
 export const retryTransaction = async <T, U>(
@@ -18,7 +19,7 @@ export const retryTransaction = async <T, U>(
   ) => Promise<TransactionResponse<U>>,
   retryCount: number,
   args: T
-): Promise<U | string> => {
+) => {
   let retries = 0;
   let processingError: Error | undefined;
 
@@ -28,10 +29,7 @@ export const retryTransaction = async <T, U>(
     try {
       const result = await baseFunction(args, session);
 
-      if (isTransactionSuccess(result)) return result.data;
-
-      return result.errorMsg;
-
+      return result;
       // handleTransactionError(result);
     } catch (error: unknown) {
       processingError = error as Error;
