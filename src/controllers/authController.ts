@@ -1,418 +1,351 @@
+import { EmailSigninData, SocialAuthData } from "./../../types/types.d";
+import cookie from "cookie";
+import { UserServiceLayer } from "./../services/userService";
 import AuthService, { authService } from "../services/authService";
-import {
-  LoginData,
-  SignupData,
-  AuthData,
-  RegistrationData,
-  MobileSignupData,
-  ActivateAccountData,
-} from "../../types/types";
+import { FacebokAuthResponse, MobileSigninData } from "../../types/types";
 import { getReasonPhrase, StatusCodes } from "http-status-codes";
-import { hasError, retryTransaction } from "../utils/helpers/retryTransaction";
-
 import { readJSON } from "../utils/helpers/decodePostJSON";
 import { HttpResponse, HttpRequest } from "uWebsockets.js";
+import AppResponse from "../utils/helpers/AppResponse";
 import AppError from "../middlewares/errors/BaseError";
-import { OtpServiceLayer } from "../services/otpService";
-import { Notification } from "../services/mailService";
-import { ClientSession, Types } from "mongoose";
-
-// import { SignupMailTemplate } from "../views/mails";
-import { Prettify } from "../../types/types";
-import UserService from "../services/userService";
+import {
+  ACCESS_TOKEN_ID,
+  FACEBOOK_APP_ID,
+  FACEBOOK_APP_SECRET,
+  REFRESH_TOKEN_ID,
+} from "../config/constants/auth";
+import axios from "axios";
+import verifyGoogleToken from "../services/3rdParty/Google/auth";
 import { setTokens } from "../middlewares/auth/setTokens";
+import { ROLES } from "../config/enums";
+import { retryTransaction } from "../utils/helpers/retryTransaction";
 import { checkUserCanAuthenticate } from "../utils/helpers/canLogin";
 
-type signupHandlerData = {
-  success: boolean;
-  data: {
-    otp?: string;
-    user: string;
-    token?: string;
-    otpId?: string;
-  };
-};
-
 class AuthController {
-  protected authService: AuthService;
+  public authService: AuthService;
 
   constructor(auth: AuthService) {
     this.authService = auth;
   }
 
-  async signup(res: HttpResponse, req: HttpRequest) {
-    //RateLimit here
+  signInUserMobile = async (res: HttpResponse, req: HttpRequest) => {
+    const data = await readJSON<MobileSigninData>(res);
 
-    const mobileId = req.getHeader("mobile_device_id");
+    const { mobile, countryCode, role } = data;
 
-    const data = await readJSON<SignupData>(res);
-
-    if (!data)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST,
-        `Error decoding post data`
-      );
-
-    if ("mobileId" in data) data.mobileId = mobileId;
-
-    const response = await retryTransaction(this.signupHandler, 1, data);
-
-    //Send an email for web email/password signIn here
-
-    return { status: StatusCodes.CREATED, data: response };
-  }
-
-  async signupHandler(
-    request: SignupData,
-    session: ClientSession
-  ): Promise<signupHandlerData> {
-    function isMobileSignup(request: SignupData): request is MobileSignupData {
-      return "mobileId" in request;
-    }
-
-    const result: signupHandlerData = {
-      success: false,
-      data: {
-        otp: "",
-        otpId: "",
-        user: "",
-        token: "",
-      },
-    };
-
-    //Intialize the message object
-    const info: {
-      user: string;
-      expiryInMins: number;
-      type: "signup";
-      otpHash: string;
-    } = { user: "", expiryInMins: 10, type: "signup", otpHash: "" };
-
-    //Split the signups based on type
-
-    if (isMobileSignup(request)) {
-      const response = await this.authService.mobileSignup(request, session);
-
-      info.user = response.data.user;
-
-      //Generate & hash OTP
-      const otp = OtpServiceLayer.generateOTP(6);
-      const hashedOTP = OtpServiceLayer.hashOTP(otp);
-
-      //Create the otp here and save to DB
-      const otpId = await OtpServiceLayer.createDBOtpEntry(
-        {
-          ...info,
-          user: new Types.ObjectId(info.user),
-          otpHash: hashedOTP,
-        },
-        session
-      );
-
-      result.success = true;
-      (result.data.otp = otp),
-        (result.data.user = info.user),
-        (result.data.otpId = otpId);
-
-      //Send  otp to mobile
-      await Notification.sendMobileMessage({
-        message: `Welcome to ${
-          process.env.COMPANY_NAME as string
-        }, Here is your verification code - ${otp}`,
-        recipient: response.data.mobile,
-      });
-    } else {
-      //Send an email instead
-      const response = await this.authService.webSignup(request, session);
-
-      info.user = response.data.user;
-      info.expiryInMins = 60 * 24;
-
-      const { hashedToken, token } = OtpServiceLayer.appendAndHashOTP(
-        response.data.user
-      );
-
-      await OtpServiceLayer.createDBOtpEntry(
-        {
-          ...info,
-          user: new Types.ObjectId(info.user),
-          otpHash: hashedToken,
-        },
-        session
-      );
-
-      result.success = true;
-      result.data.user = info.user; //TODO :Remove this eventually
-      result.data.token = token; //TODO :Remove this eventually
-
-      //Send  email activation link
-      await Notification.sendEmailMessage({
-        body: `Welcome to ${
-          process.env.COMPANY_NAME as string
-        }, Here is your verification link - https://www.${
-          process.env.COMPANY_URL as string
-        }/activate_account/${info.user}/account/${token}`,
-        from: `${process.env.ONBOARDING_MAIL as string}`,
-        recipient: response.data.email,
-        subject: `Welcome to ${process.env.COMPANY_NAME as string}`,
-      });
-    }
-
-    return result;
-  }
-
-  async activateAccount(res: HttpResponse) {
-    const data: ActivateAccountData = await readJSON(res);
-
-    const { token, user } = data;
-
-    const response = await retryTransaction(
-      this.activateEmailSignupHandler,
-      1,
-      {
-        token,
-        user,
-      }
-    );
-
-    if (hasError(response))
-      throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST
-      );
-
-    return { status: StatusCodes.OK, data: response };
-  }
-
-  async activateEmailSignupHandler(
-    request: ActivateAccountData,
-    session: ClientSession
-  ) {
-    const response: {
-      success: boolean;
-      data: { message: string; user: string };
-    } = {
-      success: false,
-      data: { message: "", user: "" },
-    };
-
-    await session.withTransaction(async () => {
-      const hashString = `${request.token}${request.user}`;
-
-      const hashedToken = OtpServiceLayer.hashOTP(hashString.trim());
-
-      //validate the token
-      const isValidToken = await OtpServiceLayer.getOtps({
-        query: { hash: hashedToken, expiry: { $lte: new Date() } },
-        select: "_id",
-        session,
-      });
-
-      if (!isValidToken || isValidToken.length === 0)
-        throw new AppError(
-          getReasonPhrase(StatusCodes.BAD_REQUEST),
-          StatusCodes.BAD_REQUEST
-        );
-
-      const updatedUser = await UserService.updateUser({
-        docToUpdate: { _id: { $eq: request.user } },
-        updateData: {
-          $set: {
-            active: true,
-          },
-        },
-        options: { session, new: true, select: "_id" },
-      });
-
-      response.data = {
-        message: "User account activated successfully",
-        user: updatedUser?._id.toString(),
-      };
-      response.success = true;
+    const user = await this.authService.signInMobile({
+      mobile,
+      countryCode,
+      role,
     });
 
-    return response;
-  }
-
-  async webLogin(res: HttpResponse, req: HttpRequest) {
-    const data = await readJSON<{ email: string; password: string }>(res);
-
-    const { email, password } = data;
-
-    const users = await UserService.getUsers({
-      query: { email: { $eq: email.trim().toLocaleLowerCase() } },
-      select: "password",
-    });
-
-    if (!users || !Array.isArray(users) || users.length === 0)
-      throw new AppError("Invalid username or password", StatusCodes.NOT_FOUND);
-
-    const existingUser = users[0];
-
-    const isMatchingPassword = await existingUser.comparePassword(
-      existingUser.password!,
-      password
-    );
-
-    if (!isMatchingPassword)
-      throw new AppError("Invalid username or password", StatusCodes.NOT_FOUND);
-
-    await setTokens(res, req, existingUser._id);
-
-    return { status: StatusCodes.OK, data: { message: "Login successful" } };
-  }
-
-  async mobileLogin(res: HttpResponse, req: HttpRequest) {
-    const data = await readJSON<AuthData>(res);
-
-    if (!data)
+    //This should never happen, but since the updateUser method can return null, we should handle it here, instead of setting the resukt to not null
+    if (!user)
       throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST,
-        `Error decoding post data`
+        getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
+        StatusCodes.INTERNAL_SERVER_ERROR
       );
-
-    const result = await this.authenticateOTPAccess(data);
-
-    //The mobile of the user needs verification
-    if (data?.vfm)
-      await UserService.updateUser({
-        docToUpdate: { _id: { $eq: result.user } },
-        updateData: {
-          $set: {
-            mobileVerified: true,
-          },
-        },
-        options: { new: false },
-      });
-
-    //This will set the token in the headers, which we will pick in the response handler function and send back  along with the response
-    await setTokens(res, req, result.user._id);
-
-    return { status: StatusCodes.OK, data: { message: "Login successful" } };
-  }
-
-  async generateMobileLoginOTP(res: HttpResponse) {
-    const data = await readJSON<LoginData>(res);
-
-    if (!data)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST,
-        `Error decoding login  post data`
-      );
-
-    const response = await retryTransaction(this.authService.login, 1, data);
-
-    if (hasError(response))
-      throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST
-      );
-
-    const otp = OtpServiceLayer.generateOTP(6);
-    const hashedOTP = OtpServiceLayer.hashOTP(otp);
-
-    const info = {
-      ...response.data,
-      type: "login",
-      expiryInMins: 10,
-      otpHash: hashedOTP,
-    };
-
-    const createdOtpEntry = await OtpServiceLayer.createDBOtpEntry(info);
-
-    //Send  otp mobile
-    await Notification.sendMobileMessage({
-      message: ` ${
-        process.env.COMPANY_NAME as string
-      }, Here is your verification code - ${otp}`,
-      recipient: response.data.mobile,
-    });
-
-    return {
-      status: StatusCodes.OK,
-      data: { otpId: createdOtpEntry, type: "login" },
-    };
-  }
-
-  async authenticateOTPAccess(data: AuthData) {
-    //check the otp first (validity and expiration)
-
-    const { otpId, otp, type } = data;
-
-    const hashedOTP = OtpServiceLayer.hashOTP(otp);
-
-    const otps = await OtpServiceLayer.getOtps({
-      query: {
-        _id: otpId,
-        hash: hashedOTP,
-        type,
-      },
-      lean: true,
-    });
-
-    if (!otps || otps.length === 0 || new Date() > otps[0].expiry)
-      throw new AppError(
-        `Invalid or expired otp received`,
-        StatusCodes.BAD_REQUEST,
-        `Error retrieving ${type} token for user ${otps[0].user}`
-      );
-
-    const user = await UserService.getUserInfo(
-      otps[0].user.toString(),
-      "active banned suspended mobileVerified _id"
-    );
 
     checkUserCanAuthenticate(user);
 
-    return {
-      user,
-    };
-  }
+    return AppResponse(res, req, StatusCodes.CREATED, user);
+  };
 
-  async completeRegistration(res: HttpResponse) {
-    const data: RegistrationData = await readJSON(res);
+  signInUserEmail = async (res: HttpResponse, req: HttpRequest) => {
+    const data = await readJSON<EmailSigninData>(res);
 
-    if (!data)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST,
-        `Error decoding login  post data`
-      );
+    const { email, role, mobile, countryCode } = data;
 
-    //Update the user with their data
-
-    const updatedUserData = await this.authService.completeRegistration({
-      ...data,
+    const user = await this.authService.signInEmail({
+      email,
+      role,
+      mobile,
+      countryCode,
     });
 
-    return { status: StatusCodes.OK, data: updatedUserData };
-  }
-
-  async logout(res: HttpResponse) {
-    const data = await readJSON<{ user: string }>(res);
-
-    if (!data)
+    //This should never happen, but since the updateUser method can return null, we should handle it here, instead of setting the resukt to not null
+    if (!user)
       throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST,
-        `Error decoding login  post data`
+        getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
+        StatusCodes.INTERNAL_SERVER_ERROR
       );
 
-    const loggedOut = await this.authService.logout(data.user);
+    checkUserCanAuthenticate(user);
 
-    return { status: StatusCodes.CREATED, data: loggedOut };
-  }
+    return AppResponse(res, req, StatusCodes.CREATED, user);
+  };
 
-  async signInWithFacebook(res: HttpResponse, req: HttpRequest) {}
+  // async completeRegistration(res: HttpResponse) {
+  //   const data: RegistrationData = await readJSON(res);
 
-  async signInWithGoogle(res: HttpResponse, req: HttpRequest) {}
+  //   if (!data)
+  //     throw new AppError(
+  //       getReasonPhrase(StatusCodes.BAD_REQUEST),
+  //       StatusCodes.BAD_REQUEST,
+  //       `Error decoding login  post data`
+  //     );
 
-  //TODO :rEMEMBER TO IMPLEEMENT A LOGOUT ALL USERS FUNCTIONALITY FROM THE CACHE
+  //   //Update the user with their data
+
+  //   const updatedUserData = await this.authService.completeRegistration({
+  //     ...data,
+  //   });
+
+  //   return { status: StatusCodes.OK, data: updatedUserData };
+  // }
+
+  // async logout(res: HttpResponse) {
+  //   const data = await readJSON<{ user: string }>(res);
+
+  //   if (!data)
+  //     throw new AppError(
+  //       getReasonPhrase(StatusCodes.BAD_REQUEST),
+  //       StatusCodes.BAD_REQUEST,
+  //       `Error decoding login  post data`
+  //     );
+
+  //   const loggedOut = await this.authService.logout(data.user);
+
+  //   return { status: StatusCodes.CREATED, data: loggedOut };
+  // }
+
+  replaceExistingAccountViaMobile = async (
+    res: HttpResponse,
+    req: HttpRequest
+  ) => {
+    interface AccountDataToCreate {
+      countryCode: string;
+      mobile: string;
+      googleId?: string;
+      googleEmail: string;
+      role: ROLES;
+      appleId?: string;
+      appleEmail?: string;
+      fbId?: string;
+      fbEmail?: string;
+      email?: string;
+    }
+
+    const data = await readJSON<AccountDataToCreate>(res);
+
+    const operations = [
+      {
+        deleteOne: {
+          filter: {
+            mobile: data.mobile,
+            countryCode: data.countryCode,
+            role: ROLES,
+          },
+        },
+      },
+      {
+        insertOne: {
+          document: {
+            ...data,
+          },
+        },
+      },
+    ];
+
+    const response = await retryTransaction(
+      UserServiceLayer.bulkUpdateUsers,
+      1,
+      {
+        operations,
+      }
+    );
+
+    const newUser: string = response.data?.insertedIds[0];
+
+    return AppResponse(res, req, StatusCodes.OK, {
+      message: "Account updated successfully",
+      newUser,
+    });
+  };
+
+  replaceExistingAccountViaEmail = async (
+    res: HttpResponse,
+    req: HttpRequest
+  ) => {
+    interface AccountDataToCreate {
+      countryCode: string;
+      mobile: string;
+      googleId?: string;
+      role: ROLES;
+      appleId?: string;
+      fbId: string;
+      email: string;
+    }
+
+    const data = await readJSON<AccountDataToCreate>(res);
+
+    const operations = [
+      {
+        deleteOne: {
+          filter: {
+            email,
+            role,
+          },
+        },
+      },
+      {
+        insertOne: {
+          document: {
+            ...data,
+          },
+        },
+      },
+    ];
+
+    const response = await retryTransaction(
+      UserServiceLayer.bulkUpdateUsers,
+      1,
+      {
+        operations,
+      }
+    );
+
+    const newUser: string = response.data?.insertedIds[0];
+
+    return AppResponse(res, req, StatusCodes.OK, {
+      message: "Account updated successfully",
+      newUser,
+    });
+  };
+
+  signInWithFacebook = async (res: HttpResponse, req: HttpRequest) => {
+    const data = await readJSON<SocialAuthData>(res);
+
+    const { token, email: fbEmail, roles } = data;
+
+    const url = `https://graph.facebook.com/debug_token?
+     input_token=${token}
+     &access_token=${FACEBOOK_APP_ID}|${FACEBOOK_APP_SECRET}`;
+
+    const accessTokenData: FacebokAuthResponse = (await axios.get(url)).data;
+
+    const { app_id, user_id: fb_user_id } = accessTokenData;
+
+    if (app_id !== FACEBOOK_APP_ID)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.FORBIDDEN),
+        StatusCodes.FORBIDDEN,
+        `Illegal attempt to use fb token generated by foreign app_id for verification`
+      );
+
+    const userData = await UserServiceLayer.getUsers({
+      query: {
+        fbId: { $eq: fb_user_id },
+        fbEmail,
+        roles,
+      },
+      select: "fbId mobile firstName countryCode email fbEmail _id",
+    });
+
+    const result = {
+      facebookId: fb_user_id,
+      mobile: userData[0]?.mobile,
+      countryCode: userData[0]?.countryCode,
+      firstname: userData[0]?.firstName,
+      email: userData[0].email,
+      fbEmail: userData[0].fbEmail,
+      user: userData[0]?._id,
+    };
+
+    return AppResponse(res, req, StatusCodes.OK, result);
+  };
+
+  signInWithGoogle = async (res: HttpResponse, req: HttpRequest) => {
+    const data = await readJSON<SocialAuthData>(res);
+
+    const { token, roles } = data;
+
+    const userGoogleData = await verifyGoogleToken(token);
+
+    if (!userGoogleData)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.BAD_REQUEST),
+        StatusCodes.BAD_REQUEST
+      );
+
+    const { sub, email: googleEmail } = userGoogleData;
+
+    const userData = await UserServiceLayer.getUsers({
+      query: {
+        googleId: { $eq: sub },
+        googleEmail,
+        roles,
+      },
+      select: "googleId mobile firstName countryCode email googleEmail",
+    });
+
+    const result = {
+      googleId: sub,
+      mobile: userData[0]?.mobile,
+      countryCode: userData[0]?.countryCode,
+      firstname: userData[0]?.firstName,
+      email: userData[0]?.email,
+      googleEmail,
+    };
+
+    return AppResponse(res, req, StatusCodes.OK, result);
+  };
+
+  logOut = async (res: HttpResponse, req: HttpRequest) => {
+    const { user } = await readJSON<{ user: string }>(res);
+
+    const loggedOutUser = await UserServiceLayer.updateUser({
+      docToUpdate: {
+        _id: { $eq: user },
+      },
+      updateData: {
+        $set: {
+          refreshToken: undefined,
+        },
+      },
+      options: { new: false, select: "_id" },
+    });
+
+    //remove the headers
+    res.cork(() => {
+      if (req.getHeader("mobile-device-id")) {
+        res.writeHeader(REFRESH_TOKEN_ID, "");
+        res.writeHeader(ACCESS_TOKEN_ID, "");
+      } else {
+        //clear the web cookies
+
+        const refreshToken = "";
+        const accessToken = "";
+
+        const refreshCookie = cookie.serialize(REFRESH_TOKEN_ID, refreshToken, {
+          expires: new Date("Thu, 01 Jan 1970 00:00:00 GMT"),
+        });
+
+        const accessCookie = cookie.serialize(ACCESS_TOKEN_ID, accessToken, {
+          expires: new Date("Thu, 01 Jan 1970 00:00:00 GMT"),
+        });
+
+        res.writeHeader("Set-Cookie", accessCookie);
+        res.writeHeader("Set-Cookie", refreshCookie);
+      }
+    });
+
+    return AppResponse(res, req, StatusCodes.OK, {
+      loggedOut: true,
+      loggedOutUser,
+    });
+  };
+
+  assignTokens = async (res: HttpResponse, req: HttpRequest) => {
+    const { user } = await readJSON<{ user: string }>(res);
+
+    setTokens(res, req, user);
+
+    return AppResponse(res, req, StatusCodes.OK, {
+      message: "Access granted ",
+    });
+  };
 }
-
 export const authController = new AuthController(authService);
 
 export default AuthController;

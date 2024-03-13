@@ -12,7 +12,7 @@ export enum PAYSTACKCHANNELS {
 export enum ROLES {
   DRIVER = "driver",
   RIDER = "rider",
-  ADMIN = "admin",
+  ADMIN = "admin_xxgofar",
 }
 
 export enum USER {
@@ -22,7 +22,6 @@ export enum USER {
 
 export enum ADMINROLES {
   MAIN = 9230,
-  DEV = 8240,
   ACCOUNT = 7230,
   SALES = 6430,
 }

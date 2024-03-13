@@ -1,6 +1,5 @@
 import { Schema, Model, model, Document } from "mongoose";
 import { IUser } from "./interfaces";
-import bcrypt from "bcrypt";
 
 export interface IUserModel extends IUser, Document {
   hashPassword(password: string): void;
@@ -20,7 +19,6 @@ const userSchema = new Schema<IUserModel>(
 
     email: {
       type: String,
-      unique: true,
       max: 255,
       required: function () {
         return !this.mobile;
@@ -45,6 +43,8 @@ const userSchema = new Schema<IUserModel>(
       required: true,
     },
 
+    countryCode: Number,
+
     subRole: {
       type: Number,
     },
@@ -57,15 +57,11 @@ const userSchema = new Schema<IUserModel>(
 
     mobile: {
       type: String,
+      unique: true,
       max: 13, // +2348105481234
       required: [true, "User Phone number is required"],
       index: true,
     },
-
-    // deviceId: {
-    //   type: String,
-    //   index: true,
-    // },
 
     avatar: {
       type: String,
@@ -82,16 +78,39 @@ const userSchema = new Schema<IUserModel>(
       index: true,
     },
 
+    googleEmail: {
+      type: String,
+      required: function () {
+        return this?.googleId;
+      },
+    },
+
     fbId: {
       type: String,
       index: true,
     },
-
-    verifyHash: {
+    fbEmail: {
       type: String,
+      required: function () {
+        return this?.fbId;
+      },
     },
 
-    password: {
+    appleId: {
+      type: String,
+      index: true,
+    },
+
+    appleEmail: {
+      type: String,
+      required: function () {
+        return this?.appleId;
+      },
+    },
+
+    socialName: String,
+
+    verifyHash: {
       type: String,
     },
 
@@ -163,10 +182,6 @@ const userSchema = new Schema<IUserModel>(
     ],
 
     lastLoginAt: Date,
-
-    mobileAuthId: {
-      type: String,
-    },
   },
 
   {
@@ -176,23 +191,23 @@ const userSchema = new Schema<IUserModel>(
   }
 );
 
-userSchema.pre("save", async function (next) {
-  if (this.password && this.isModified(this.password)) {
-    this.hashPassword(this.password);
-  }
-  next();
-});
+// userSchema.pre("save", async function (next) {
+//   if (this.password && this.isModified(this.password)) {
+//     this.hashPassword(this.password);
+//   }
+//   next();
+// });
 
-userSchema.methods.hashPassword = async (currentPassword: string) => {
-  await bcrypt.hash(currentPassword, 12);
-};
+// userSchema.methods.hashPassword = async (currentPassword: string) => {
+//   await bcrypt.hash(currentPassword, 12);
+// };
 
-userSchema.methods.comparePassword = async (
-  existingPassword: string,
-  newPassword: string
-) => {
-  return await bcrypt.compare(existingPassword, newPassword);
-};
+// userSchema.methods.comparePassword = async (
+//   existingPassword: string,
+//   newPassword: string
+// ) => {
+//   return await bcrypt.compare(existingPassword, newPassword);
+// };
 
 const User: Model<IUserModel> = model<IUserModel>("User", userSchema);
 

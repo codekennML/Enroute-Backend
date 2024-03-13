@@ -1,6 +1,6 @@
 import User, { IUserModel } from "../../model/user";
 import DBLayer from "./shared";
-import { ClientSession, Model } from "mongoose";
+import { ClientSession, Model, MongooseBulkWriteOptions } from "mongoose";
 import { QueryData, PaginationRequestData } from "./shared";
 import { SignupData } from "../../../types/types";
 
@@ -42,6 +42,7 @@ class UserRepository {
       session?: ClientSession;
       select?: string;
       upsert?: boolean;
+      includeResultMetadata?: boolean;
     };
   }) {
     const updatedUser = await this.userDBLayer.updateDoc({
@@ -51,6 +52,17 @@ class UserRepository {
     });
 
     return updatedUser;
+  }
+
+  async bulkUpdateUsers(request: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    operations: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    options: any;
+  }) {
+    const result = await this.userDBLayer.bulkWriteDocs(request);
+
+    return result;
   }
 }
 

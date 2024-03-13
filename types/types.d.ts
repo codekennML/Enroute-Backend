@@ -1,4 +1,4 @@
-import { ADMINROLES } from "../src/config/enums";
+import { ADMINROLES, ROLES } from "../src/config/enums";
 import { Coordinates } from "../src/model/interfaces";
 import { LocationCacheData } from "./types";
 
@@ -37,21 +37,39 @@ export type UpdateManyData = Omit<UpdateRequestData, "docToUpdate"> & {
   filter: { [key: string]: object };
 };
 
-export type MobileSignupData = {
-  readonly mobile: string;
-  userId?: Types.ObjectId;
-  mobile: boolean;
-  // mobileId: string;
-  roles: ADMINROLES | USER;
-} & Request;
+interface MobileSigninData {
+  mobile: string;
+  countryCode: string;
+  role: ROLES;
+}
 
-export type WebSignupData = {
+export type EmailSigninData = {
   email: string;
-  password: string;
-  roles: Pick<MobileSignupData, "roles">;
-} & Request;
+  role: ROLES;
+};
 
 export type SignupData = MobileSignupData | WebSignupData;
+
+export type SocialAuthData = {
+  id: string;
+  token: string;
+  email: string;
+  roles: ADMINROLES | USER;
+};
+
+export type FacebokAuthResponse = {
+  app_id: string;
+  type: string;
+  application: string;
+  expires_at: number;
+  is_valid: boolean;
+  issued_at: number;
+  metadata?: {
+    sso: string;
+  };
+  scopes?: string[];
+  user_id: string;
+};
 
 export type RegistrationData = {
   firstName: string;

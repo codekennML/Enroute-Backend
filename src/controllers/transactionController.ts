@@ -10,7 +10,7 @@ import { readJSON } from "../utils/helpers/decodePostJSON";
 import { ClientSession, Types } from "mongoose";
 import UserService from "../services/userService";
 import { ADMINROLES, SUBROLES, USER } from "../config/enums";
-import { criticalLogger } from "../middlewares/logging/logger";
+import { criticalLogger } from "../model/logging/logger";
 
 class TransactionController {
   protected transaction: TransactionService;

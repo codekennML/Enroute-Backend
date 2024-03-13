@@ -9,6 +9,7 @@ import {
   UpdateQuery,
   QueryOptions,
 } from "mongoose";
+import { AnyBulkWriteOperation } from "mongodb";
 
 export interface QueryData {
   query: Record<string, unknown>;
@@ -150,6 +151,19 @@ class DBLayer<T extends Document> {
     const data = await this.model.findOneAndUpdate(filter, update, options);
 
     return data;
+  }
+
+  async bulkWriteDocs(request: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    operations: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    options: any;
+  }) {
+    const { operations, options } = request;
+
+    const result = await this.model.bulkWrite(operations, options);
+
+    return result;
   }
 
   // async updateManyDocs(request: {

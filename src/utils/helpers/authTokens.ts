@@ -14,26 +14,6 @@ export const createJWTAuthToken = (
   return token;
 };
 
-// Decode jwt tokens
-export const decodeJWTAuthToken = (token: string, signer: string) => {
-  const dataToReturn: {
-    error: boolean;
-    data?: Record<string, string>;
-  } = { error: true };
-
-  jwt.verify(token, signer, (err, decoded) => {
-    if (err || !decoded) {
-      dataToReturn.error = true;
-    } else {
-      dataToReturn.error = false;
-      dataToReturn.data = decoded;
-    }
-    return;
-  });
-
-  return dataToReturn;
-};
-
 export const createCryptoHashToken = (
   stringToAppend?: string
 ): { token: string; hashedToken: string; mainHash: string } => {
@@ -63,6 +43,7 @@ export const hashCryptoToken = (token: string): string => {
 export const generateOTP = (): string => {
   const otp = otpGenerator.generate(6, {
     upperCaseAlphabets: false,
+    lowerCaseAlphabets: false,
     specialChars: false,
   });
 

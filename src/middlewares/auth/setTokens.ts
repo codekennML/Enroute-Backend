@@ -2,7 +2,7 @@ import { HttpResponse, HttpRequest } from "uWebsockets.js";
 import jwt from "jsonwebtoken";
 import UserService from "../../services/userService";
 import { OtpServiceLayer } from "../../services/otpService";
-import cookie from "cookie";
+import cookie, { CookieSerializeOptions } from "cookie";
 
 export const setTokens = async (
   res: HttpResponse,
@@ -47,14 +47,16 @@ export const setTokens = async (
   });
 
   if (mobileId) {
-    res.writeHeader(REFRESH_TOKEN_ID, refreshToken);
-    res.writeHeader(ACCESS_TOKEN_ID, accessToken);
+    res.cork(() => {
+      res.writeHeader(REFRESH_TOKEN_ID, refreshToken);
+      res.writeHeader(ACCESS_TOKEN_ID, accessToken);
+    });
     return;
   }
 
   // const cookieHeaders  =  cookie.parser(req.getHeader("cookie"))
 
-  const cookieOptions = {
+  const cookieOptions: CookieSerializeOptions = {
     httpOnly: isProduction,
     sameSite: isProduction ? "strict" : "none",
     secure: isProduction,

@@ -10,6 +10,10 @@ import { app, port } from "./app";
 import { handleArrayBuffer as handleBuffer } from "./utils/helpers/handleBuffer";
 import { DOMAINURL } from "./config/enums";
 
+import responseHandler from "./utils/helpers/decodePostJSON";
+import { authController } from "./controllers/authController";
+import OtpController from "./controllers/otpController";
+
 // const urlParser = require("node:url")
 
 const domain = DOMAINURL.BASEURL_USER as string;
@@ -21,7 +25,7 @@ interface UpgradeOptions {
 const activeConnections: Record<string, WebSocket<UserData>> = {};
 
 //Start the database and connect
-// startDB();
+startDB();
 
 //Initialize the pubsub mechanism for receiving data to this server
 // const serverPubSubChannel = `channel:${
@@ -38,11 +42,17 @@ const activeConnections: Record<string, WebSocket<UserData>> = {};
 
 //Inititalize app and routes
 app
-  .get("/healthCheck", (res, req) => {
-    // console.log(req);
-
+  .get("/api/healthCheck", (res) => {
     res.end("All good");
   })
+  //SignInMobile
+  .post("/api/auth/mobile", responseHandler(authController.signInUserMobile))
+  //Send otp
+  .post("/api/otp/send", responseHandler(OtpController.createOtp))
+  //Verify otp
+  .post("/api/otp/verify", responseHandler(OtpController.verifyOTP))
+  .post("/api/otp/update", responseHandler(OtpController.updateOTP))
+
   .ws(`${domain}/initialize_trip`, {
     compression: SHARED_COMPRESSOR,
     maxPayloadLength: 16 * 1024 * 1024,

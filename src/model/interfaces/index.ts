@@ -51,42 +51,47 @@ export interface IRide {
 }
 
 export interface IUser {
-  firstName: string;
-  email: string;
+  firstName?: string;
+  email?: string;
   avatar?: string;
-  lastName: string;
-  birthDate: Date;
+  socialName?: string;
+  lastName?: string;
+  birthDate?: Date;
   mobile: string;
-  gender: "male" | "female" | "others";
+  gender?: "male" | "female" | "others";
   roles: ADMINROLES | USER;
   subRole?: SUBROLES;
   googleId?: string;
+  googleEmail?: string;
   fbId?: string;
+  fbEmail?: string;
+  appleId?: string;
+  appleEmail?: string;
   verifyHash?: { token: string; expiresAt: Date };
-  hasSuppliedInfo: boolean;
+  hasSuppliedInfo?: boolean;
   verified?: boolean;
-  active: boolean;
+  active?: boolean;
   suspended?: boolean;
   banned?: boolean;
   password?: string;
   lastLoginAt: Date;
-  mobileAuthId?: string;
   emailVerificationData?: { token: string; expiry: Date };
   mobileVerificationData?: { token: string; expiry: Date };
   emailVerified?: boolean;
   mobileVerified?: boolean;
   resetTokenHash?: string;
   refreshToken?: string;
+  countryCode?: number;
   resetTokenData?: { [key: string]: Date | boolean };
   // deviceId?: string;
   balance: number;
-  userTransferRef: string[];
+  userTransferRef?: string[];
   paymentMethod?: {
     authorization: Paystack.Authorization;
     customer: Paystack.Customer;
   };
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface ITransaction {
@@ -129,13 +134,15 @@ export interface IPay {
   manualRetries: number;
 }
 
-export interface IOtp {
-  user: Types.ObjectId;
-  hash: string;
-  expiry: Date;
-  type: string;
-  active: boolean;
-}
+export type IOtp = {
+  user?: Types.ObjectId;
+  email?: string;
+  hash?: string;
+  expiry?: Date;
+  active?: boolean;
+  channel: string;
+  next?: string;
+};
 
 export interface IUserAccess {
   user: Types.ObjectId;

@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import createAxiosInstance from "../config/axios";
+import { COMPANY_MAIL_SENDER_ADDRESS } from "../config/constants/mail";
 
 const smsClient = createAxiosInstance({
   baseURL: "https://api.ng.termii.com/api/",
@@ -56,7 +57,7 @@ class NotificationService {
     });
 
     await transporter.sendMail({
-      from,
+      from: from ?? COMPANY_MAIL_SENDER_ADDRESS,
       to: recipient,
       subject,
       html: body,

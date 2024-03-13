@@ -1,11 +1,11 @@
 import UserRepository, { UserDataLayer } from "../repository/mongo/User";
-import { HttpResponse } from "uWebsockets.js";
-import { readJSON } from "../utils/helpers/decodePostJSON";
+
 import AppError from "../middlewares/errors/BaseError";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { ClientSession } from "mongoose";
 import { UpdateRequestData } from "../../types/types";
 import { QueryData } from "../repository/mongo/shared";
+import { IUser } from "../model/interfaces";
 
 class User {
   private user: UserRepository;
@@ -14,8 +14,12 @@ class User {
     this.user = dataLayer;
   }
 
-  async createUser() {
-    const user = await this.user.createUser();
+  async createUser(
+    userData: Required<Pick<IUser, "firstName" | "lastName" | "mobile">>
+  ) {
+    const user = await this.user.createUser(userData);
+
+    return user;
   }
 
   async getUsers(request: QueryData) {
@@ -45,8 +49,23 @@ class User {
     const updatedUser = await this.user.updateUser(request);
     return updatedUser;
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async bulkUpdateUser(request: any, session: ClientSession) {
+    const { operations } = request;
+
+    const updatedAccountData = await this.user.bulkUpdateUsers({
+      operations,
+      options: { session },
+    });
+
+    return {
+      success: true,
+      data: updatedAccountData,
+    };
+  }
 }
 
-const UserService = new User(UserDataLayer);
+export const UserServiceLayer = new User(UserDataLayer);
 
-export default UserService;
+export default User;

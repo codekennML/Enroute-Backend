@@ -3,37 +3,47 @@ import { IOtp } from "./interfaces";
 
 export default interface IOtpModel extends IOtp, Document {}
 
-const otpSchema = new Schema<IOtpModel>({
-  user: {
-    type: Schema.Types.ObjectId,
-    required: [true, "Hash User is required"],
-    ref: "User",
-    index: true,
-  },
-  type: {
-    type: String,
-    enum: ["signup", "login", "tripVerify"],
-    required: true,
-    index: true,
-  },
+const otpSchema = new Schema<IOtpModel>(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
 
-  expiry: {
-    type: Date,
-    required: true,
-    index: true,
-  },
+    email: {
+      type: String,
+      index: true,
+    },
 
-  hash: {
-    type: String,
-    required: true,
-    index: true,
-  },
+    channel: {
+      type: String,
+      enum: ["whatsapp", "sms", "email"],
+      required: true,
+      default: "sms",
+    },
 
-  active: {
-    type: Boolean,
-    required: true,
-    default: false,
+    expiry: {
+      type: Date,
+      index: true,
+    },
+
+    hash: {
+      type: String,
+      index: true,
+    },
+
+    next: String,
+
+    active: {
+      type: Boolean,
+      required: true,
+      default: true,
+    },
   },
-});
+  {
+    versionKey: false,
+  }
+);
 
 export const Otp: Model<IOtpModel> = model<IOtpModel>("Otp", otpSchema);

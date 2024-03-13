@@ -9,6 +9,7 @@ import { IOtp } from "../model/interfaces";
 
 import { QueryData } from "../repository/mongo/shared";
 import { UpdateRequestData } from "../../types/types";
+import IOtpModel from "../model/otp";
 
 class OTPService {
   private otpDataLayer: OtpRepository;
@@ -20,6 +21,8 @@ class OTPService {
   generateOTP(length: number) {
     const otp = otpGenerator.generate(length, {
       upperCaseAlphabets: false,
+      lowerCaseAlphabets: false,
+      digits: true,
       specialChars: false,
     });
 
@@ -28,6 +31,8 @@ class OTPService {
 
   hashOTP(otp: string) {
     const hashedOTP = hashCryptoToken(JSON.stringify(otp));
+
+    console.log(hashedOTP);
     return hashedOTP;
   }
 
@@ -35,31 +40,55 @@ class OTPService {
     return createCryptoHashToken(stringToAppend);
   }
 
-  async createDBOtpEntry(
-    request: Pick<IOtp, "user" | "type"> & {
-      expiryInMins: number;
-      otpHash: string;
-    },
+  async updateOtpForResend(
+    request: Omit<IOtp, "expiry" | "channel"> & {
+      otpId: string;
+    }
+    // session?: ClientSession
+  ) {
+    const otp = this.generateOTP(6);
+    const hashedOTP = this.hashOTP(otp);
+
+    const expiry = 10;
+
+    //get the otp and the resultant data , copy it over to a new otp : P:S : This should never be null
+    const otpData = (await this.updateOTP({
+      docToUpdate: {
+        _id: request.otpId,
+      },
+      updateData: { active: false },
+      options: { new: true, select: "-_id -active" },
+    })!) as IOtpModel;
+
+    const newCreatedOtp = await this.createOtp({
+      ...otpData,
+      expiry,
+      hash: hashedOTP,
+      active: true,
+    });
+
+    //If there is an error , the global error handler will pick it and return a 500
+
+    return { otpData: newCreatedOtp, otp };
+  }
+
+  async createOtp(
+    request: Omit<IOtp, "expiry"> & { expiry: number },
     session?: ClientSession
-  ): Promise<string> {
+  ) {
     const otpRecord = {
       user: request.user,
-      type: request.type,
-      hash: request.otpHash,
-      expiry: new Date(Date.now() + request.expiryInMins * 60 * 1000),
+      email: request.email,
+      hash: request.hash,
+      expiry: new Date(Date.now() + request.expiry * 60 * 1000),
       active: true,
+      next: request.next,
+      channel: request.channel,
     };
 
     const otp = await this.otpDataLayer.createOTP(otpRecord, session);
 
-    return otp[0]._id.toString();
-  }
-
-  compareHash(hash: string, token: number) {
-    const hashedToken = this.hashOTP(token);
-    const isMatchingHash = hash === hashedToken;
-
-    return isMatchingHash;
+    return otp[0];
   }
 
   async getOtps(request: QueryData) {
@@ -68,10 +97,38 @@ class OTPService {
     return Otps;
   }
 
-  async updateOtp(request: UpdateRequestData) {
-    const updatedOtp = await this.otpDataLayer.updateOtp(request);
-    return updatedOtp;
+  async updateOTP(request: UpdateRequestData) {
+    const updatedOTP = await this.otpDataLayer.updateOtp(request);
+
+    return updatedOTP;
   }
+
+  async verifyOTPs(request: { otpId: string; otp: string }) {
+    const { otpId, otp } = request;
+    console.log("request,", request);
+
+    const hashedOtp = this.hashOTP(otp);
+    //Change this to an update so we just update teh Otp statsus to used , once its been verified
+    const otpData = await this.otpDataLayer.updateOtp({
+      docToUpdate: {
+        _id: otpId,
+        hash: hashedOtp,
+        expiry: { $gte: new Date() },
+        active: true,
+      },
+      updateData: { $set: { active: false } },
+      options: { new: true },
+    });
+
+    console.log(otpData);
+
+    return { otpData, otp };
+  }
+
+  // async updateOtp(request: UpdateRequestData) {
+  //   const updatedOtp = await this.otpDataLayer.updateOtp(request);
+  //   return updatedOtp;
+  // }
 }
 
 export const OtpServiceLayer = new OTPService(otpDataLayer);
