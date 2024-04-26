@@ -1,10 +1,18 @@
 import { ADMINROLES, ROLES } from "../src/config/enums";
 import { Coordinates } from "../src/model/interfaces";
 import { LocationCacheData } from "./types";
+import { Request } from "express";
 
 declare module "@turf/turf";
 declare module "@mapbox/polyline";
 declare module "jsonwebtoken";
+
+declare module "express" {
+  interface Request {
+    role?: string;
+    // user?: string;
+  }
+}
 
 export interface BasicUserData {
   name: string;
@@ -33,8 +41,13 @@ export interface UpdateRequestData {
     projection?: { [key: string]: number };
   };
 }
+
 export type UpdateManyData = Omit<UpdateRequestData, "docToUpdate"> & {
-  filter: { [key: string]: object };
+  filter: {
+    _id: {
+      $in: ObjectId[] | string[]; // Array of ObjectId or string IDs
+    };
+  };
 };
 
 interface MobileSigninData {
@@ -95,6 +108,26 @@ export type AuthData = {
   otp: string;
   vfm: boolean;
   type: string;
+};
+
+type EmergencyContact = {
+  name: string;
+  mobile: string;
+  countryCode: string;
+  address: string;
+};
+
+// export enum IDENTITYTYPES {
+//   NIN = "nin",
+//   DRIVERLICENSE = "driverlicense",
+//   LASDRI = "lasdri",
+//   LASRAA = "lasraa",
+// }
+
+export type MatchQuery = Record<string, unknown>;
+
+export type SortQuery = {
+  $sort: Record<string, 1 | -1>; // $sort operator with dynamic keys for sorting fields and values for sort direction
 };
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -231,6 +264,14 @@ export type TransferData = {
   reason: string;
   paymentId: string;
 };
+
+export namespace Flutterwave {
+  export interface Verification {
+    status: "error" | "success";
+    message: string;
+    data: Record<string, string | object>;
+  }
+}
 
 export namespace Paystack {
   export type Customer = {

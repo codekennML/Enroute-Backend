@@ -1,29 +1,28 @@
-import { HttpResponse } from "uWebsockets.js";
-import { HttpRequest } from "uWebsockets.js";
+import { Request, Response } from "express";
 
 const AppResponse = <T>(
-  res: HttpResponse,
-  req: HttpRequest,
+  req: Request,
+  res: Response,
   status: number,
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: T
 ) => {
-  res.cork(() => {
-    res.writeHeader("MOBILE_ACCESS_ID", "145366477474");
-  });
-  // const tokens = {
-  //   accessToken: req.getHeader(process.env.ACCESS_TOKEN_ID as string),
-  //   refreshToken: req.getHeader(process.env.REFRESH_TOKEN_ID as string),
-  // };
+  // res.cork(() => {
+  //   res.writeHeader("MOBILE_ACCESS_ID", "145366477474");
+  // });
 
-  const response = {
-    status,
-    data,
-    // ...(tokens && { tokens: { ...tokens } }),
+  const tokens = {
+    accessToken: req.headers[process.env.ACCESS_TOKEN_ID as string],
+    refreshToken: req.headers[process.env.REFRESH_TOKEN_ID as string],
   };
 
-  return response;
+  const response = {
+    data,
+    ...(tokens && { tokens: { ...tokens } }),
+  };
+
+  res.status(status).json(response);
 };
 
 export default AppResponse;

@@ -11,13 +11,13 @@ import {
   StartTripData,
   EndedRideType,
 } from "../../types/types";
-import { tripsDataLayer } from "../repository/mongo/trips";
+import { tripsDataLayer } from "../repository/trips";
 import { ITrip } from "../model/interfaces";
 import { WebSocket } from "uWebSockets.js";
 // import { keyDBLayer, pubSubCacheLayer } from "../repository/data/KeyDB";
 import polylineUtilities from "../utils/helpers/locationDescriptor";
-import { ridesDataLayer } from "../repository/mongo/ride";
-import { routesDataLayer } from "../repository/mongo/route";
+import { ridesDataLayer } from "../repository/ride";
+import { routesDataLayer } from "../repository/route";
 import axios from "axios";
 // import { Prettify } from '../../types/types';
 

@@ -1,11 +1,10 @@
-import UserRepository, { UserDataLayer } from "../repository/mongo/User";
+import UserRepository, { UserDataLayer } from "../repository/user";
 
-import AppError from "../middlewares/errors/BaseError";
-import { StatusCodes, getReasonPhrase } from "http-status-codes";
-import { ClientSession } from "mongoose";
+import { ClientSession, PopulateOptions } from "mongoose";
 import { UpdateRequestData } from "../../types/types";
-import { QueryData } from "../repository/mongo/shared";
+import { PaginationRequestData } from "../repository/shared";
 import { IUser } from "../model/interfaces";
+import Documents from "../model/documents";
 
 class User {
   private user: UserRepository;
@@ -21,28 +20,55 @@ class User {
 
     return user;
   }
-
-  async getUsers(request: QueryData) {
-    const users = await this.user.getUsers(request);
-
-    return users;
-    return users;
+  //This returns a paginated result based on cursors supplied
+  async findUsers(request: PaginationRequestData) {
+    return this.user.returnPaginatedUsers(request);
   }
 
-  async getUserInfo(userId: string, select: string, session?: ClientSession) {
-    const user = await this.user.getUsers({
+  // async getUsers(request: QueryData) {
+  //   const users = await this.user.getUsers(request);
+  //   return users;
+  // }
+
+  async getUserById(userId: string, select: string, session?: ClientSession) {
+    const verificationDataArray = [
+      "vehicle",
+      "identification",
+      "selfie",
+      "license",
+      "lasraa",
+    ];
+
+    //always include the adddress
+    const populateQuery: PopulateOptions[] = [
+      {
+        path: "address",
+        model: Documents,
+        populate: {
+          path: "documents",
+          select: "imageUrl status isVerified ",
+          model: Documents,
+        },
+      },
+    ];
+
+    for (const key of verificationDataArray) {
+      if (select.includes(key)) {
+        populateQuery.push({
+          path: key,
+          model: Documents,
+        });
+      }
+    }
+
+    const user = await this.user.getUserById({
       query: { id: userId },
       select,
       session,
+      populatedQuery: populateQuery,
     });
 
-    if (!user || user.length === 0)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
-      );
-
-    return user[0];
+    return user;
   }
 
   async updateUser(request: UpdateRequestData) {

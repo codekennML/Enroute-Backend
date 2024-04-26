@@ -3,11 +3,10 @@ import {
   createCryptoHashToken,
   hashCryptoToken,
 } from "../utils/helpers/authTokens";
-import OtpRepository, { otpDataLayer } from "../repository/mongo/otp";
+import OtpRepository, { otpDataLayer } from "../repository/otp";
 import otpGenerator from "otp-generator";
 import { IOtp } from "../model/interfaces";
 
-import { QueryData } from "../repository/mongo/shared";
 import { UpdateRequestData } from "../../types/types";
 import IOtpModel from "../model/otp";
 
@@ -91,11 +90,17 @@ class OTPService {
     return otp[0];
   }
 
-  async getOtps(request: QueryData) {
-    const Otps = await this.otpDataLayer.findOtp(request);
+  // async getOneOtp(request: QueryData) {
+  //   const Otps = await this.otpDataLayer.findOtp(request);
 
-    return Otps;
-  }
+  //   return Otps;
+  // }
+
+  // async getOtps(request: QueryData) {
+  //   const Otps = await this.otpDataLayer.findOtp(request);
+
+  //   return Otps;
+  // }
 
   async updateOTP(request: UpdateRequestData) {
     const updatedOTP = await this.otpDataLayer.updateOtp(request);

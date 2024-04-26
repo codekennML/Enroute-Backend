@@ -1,7 +1,7 @@
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { ADMINROLES, SUBROLES } from "../config/enums";
 import AppError from "../middlewares/errors/BaseError";
-import UserService from "../services/userService";
+import { UserServiceLayer } from "../services/userService";
 // import { retryTransaction } from "../utils/helpers/retryTransaction";
 import PaymentService, {
   PaymentServiceLayer,
@@ -9,12 +9,7 @@ import PaymentService, {
 import crypto from "node:crypto";
 import { HttpRequest, HttpResponse } from "uWebsockets.js";
 import { readJSON } from "../utils/helpers/decodePostJSON";
-import {
-  Paystack,
-  TransactionSuccess,
-  TransferData,
-  TransferRecipient,
-} from "../../types/types";
+import { Paystack, TransferData, TransferRecipient } from "../../types/types";
 import { ClientSession, Types } from "mongoose";
 import { TransactionServiceLayer } from "../services/transactionService";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
@@ -44,91 +39,95 @@ class PaymentController {
         `Paystack Webhook event error - Foreign request detected / received`
       );
 
-    const basefn = async (
-      request: Paystack.WebhookResponse,
-      session: ClientSession
-    ): Promise<TransactionSuccess> => {
-      const result: { success: boolean } = { success: true };
-
-      await session.withTransaction(async () => {
-        const response = await this.payService.handlePayHooks(data, session);
-
-        if (response.shouldGiveValue && response.type === "deposit") {
-          //Update the transaction status
-          await TransactionServiceLayer.updateTransaction({
-            docToUpdate: { _id: { $eq: response.data?.transactionId } },
-            updateData: {
-              $set: {
-                status: "success",
-              },
-            },
-            options: { new: false },
-          });
-        }
-
-        if (response.type === "deposit" && response.shouldFail) {
-          //mark the transaction as failed
-
-          await TransactionServiceLayer.updateTransaction({
-            docToUpdate: { _id: { $eq: response.data?.transactionId } },
-            updateData: {
-              $set: {
-                status: "failed",
-              },
-            },
-            options: { session, new: true, select: "status" },
-          });
-        }
-
-        if (
-          response.type === "withdrawal" &&
-          response.shouldGiveValue &&
-          !response.shouldFail
-        ) {
-          //Mark the transaction as failed
-
-          await TransactionServiceLayer.updateTransaction({
-            docToUpdate: { _id: { $eq: response.data?.transactionId } },
-            updateData: {
-              $set: {
-                status: "success",
-              },
-            },
-            options: { session, new: true, select: "status" },
-          });
-
-          //  Bulkwrite here -  insert one and updateOne
-        }
-
-        //Note  we do not handle failed transactions until all manual and automatic retries are exhausted and the transaction still fails., in which case the transaction is marked as failed
-
-        if (
-          response.type === "withdrawal" &&
-          response.shouldGiveValue &&
-          response.shouldFail
-        ) {
-          await TransactionServiceLayer.updateTransaction({
-            docToUpdate: { _id: { $eq: response.data?.transactionId } },
-            updateData: {
-              $set: {
-                status: "failed",
-              },
-            },
-            options: { session, new: true, select: "status" },
-          });
-
-          //update the transaction status to success
-        }
-
-        await session.commitTransaction();
-      });
-
-      return result;
-    };
-
-    const response = await retryTransaction(basefn, 1, data);
+    const response = await retryTransaction(
+      this.handlePaystackHooksTransaction,
+      1,
+      data
+    );
 
     return { status: StatusCodes.OK, data: { message: response } };
+  }
+
+  async handlePaystackHooksTransaction(
+    request: Paystack.WebhookResponse,
+    session: ClientSession
+  ) {
+    const result: { success: boolean } = { success: true };
+
+    await session.withTransaction(async () => {
+      const response = await this.payService.handlePayHooks(request, session);
+
+      if (response.shouldGiveValue && response.type === "deposit") {
+        //Update the transaction status
+        await TransactionServiceLayer.updateTransaction({
+          docToUpdate: { _id: { $eq: response.data?.transactionId } },
+          updateData: {
+            $set: {
+              status: "success",
+            },
+          },
+          options: { new: false },
+        });
+      }
+
+      if (response.type === "deposit" && response.shouldFail) {
+        //mark the transaction as failed
+
+        await TransactionServiceLayer.updateTransaction({
+          docToUpdate: { _id: { $eq: response.data?.transactionId } },
+          updateData: {
+            $set: {
+              status: "failed",
+            },
+          },
+          options: { session, new: true, select: "status" },
+        });
+      }
+
+      if (
+        response.type === "withdrawal" &&
+        response.shouldGiveValue &&
+        !response.shouldFail
+      ) {
+        //Mark the transaction as failed
+
+        await TransactionServiceLayer.updateTransaction({
+          docToUpdate: { _id: { $eq: response.data?.transactionId } },
+          updateData: {
+            $set: {
+              status: "success",
+            },
+          },
+          options: { session, new: true, select: "status" },
+        });
+
+        //  Bulkwrite here -  insert one and updateOne
+      }
+
+      //Note  we do not handle failed transactions until all manual and automatic retries are exhausted and the transaction still fails., in which case the transaction is marked as failed
+
+      if (
+        response.type === "withdrawal" &&
+        response.shouldGiveValue &&
+        response.shouldFail
+      ) {
+        await TransactionServiceLayer.updateTransaction({
+          docToUpdate: { _id: { $eq: response.data?.transactionId } },
+          updateData: {
+            $set: {
+              status: "failed",
+            },
+          },
+          options: { session, new: true, select: "status" },
+        });
+
+        //update the transaction status to success
+      }
+
+      await session.commitTransaction();
+    });
+
+    return result;
   }
 
   async approvePayouts(request: {
@@ -139,7 +138,7 @@ class PaymentController {
 
     //Update the payment with the userId of the approving admin
 
-    const userInfo = await UserService.getUserInfo(user, "roles subrole");
+    const userInfo = await UserServiceLayer.getUserInfo(user, "roles subrole");
 
     if (
       (userInfo.roles !== ADMINROLES.ACCOUNT &&
@@ -211,7 +210,7 @@ class PaymentController {
         `Error adding debit card`
       );
 
-    const updatedUser = await UserService.updateUser({
+    const updatedUser = await UserServiceLayer.updateUser({
       docToUpdate: { _id: { $eq: data.user } },
       updateData: {
         $set: {
@@ -232,7 +231,7 @@ class PaymentController {
 
     const response = await this.payService.createTransferRecipient(data);
 
-    const userData = await UserService.updateUser({
+    const userData = await UserServiceLayer.updateUser({
       docToUpdate: { _id: { $eq: new Types.ObjectId(data.user) } },
       updateData: {
         $push: {

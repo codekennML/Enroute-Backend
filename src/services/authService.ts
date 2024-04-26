@@ -1,6 +1,6 @@
 import { IUserModel } from "./../model/user";
 
-import UserRepository, { UserDataLayer } from "../repository/mongo/User";
+import UserRepository, { UserDataLayer } from "../repository/user";
 import { MobileSigninData } from "../../types/types";
 // import { authLogger } from "../model/logging/logger";
 import AppError from "../middlewares/errors/BaseError";

@@ -1,17 +1,45 @@
-import { Schema, model, Model, Document } from "mongoose";
+import { Schema, model, Model, SchemaTypes } from "mongoose";
 import { IRide } from "./interfaces";
 
-export default interface IRideModel extends IRide, Document {
-  //Specify the methods her
-  hashPassword(password: string): string;
-}
-
-const rideSchema = new Schema<IRideModel>(
+const rideSchema = new Schema<IRide>(
   {
+    driverId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    tripId: {
+      type: Schema.Types.ObjectId,
+      required: false,
+    },
+
     riderId: {
       type: Schema.Types.ObjectId,
-      required: [true, "riderId is required to create new ride"],
+      required: [
+        function () {
+          return !this.packageRequestId;
+        },
+        "riderId is required to create new ride",
+      ],
       ref: "User",
+    },
+
+    packageRequestId: {
+      type: Schema.Types.ObjectId,
+      required: [
+        function () {
+          return !this.riderId;
+        },
+        "packagerequestId is required to create new ride",
+      ],
+      ref: "PackageRequest",
+    },
+
+    type: {
+      type: String,
+      enum: ["package", "selfride", "thirdParty"],
+      default: "package",
+      required: true,
     },
 
     pickupTime: {
@@ -19,19 +47,101 @@ const rideSchema = new Schema<IRideModel>(
       required: false,
     },
 
-    droppedOffLocation: {
-      type: String,
+    pickedUp: Boolean,
+
+    alighted: Boolean,
+
+    category: {
+      type: "String",
+      enum: ["charter", "pool"],
+      default: "pool",
+    },
+
+    origin: {
+      name: String,
+      location: {
+        type: {
+          String,
+          enum: ["Point"],
+          default: "Point",
+        },
+        coordinates: [Number],
+      },
+    },
+
+    pickupTown: {
+      type: SchemaTypes.ObjectId,
       required: true,
-      default: false,
+      ref: "Town",
+    },
+
+    pickupState: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "State",
+    },
+
+    pickupCountry: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "Country",
+    },
+
+    dropOffTown: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "Town",
+    },
+
+    dropOffState: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "State",
+    },
+
+    dropOffCountry: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "Country",
+    },
+
+    pickupStation: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+    },
+
+    dropOffLocation: {
+      name: String,
+      location: {
+        type: {
+          String,
+          enum: ["Point"],
+          default: "Point",
+        },
+        coordinates: [Number],
+      },
+      state: String,
+      town: String,
+      country: String,
+      placeId: String,
+    },
+
+    destination: {
+      type: SchemaTypes.ObjectId,
+      required: true,
     },
 
     dropOffTime: {
       type: Date,
-
       required: false,
     },
 
-    cancelled: {
+    route: {
+      type: SchemaTypes.ObjectId,
+      required: false,
+    },
+
+    cancellationData: {
       status: {
         type: Boolean,
         required: true,
@@ -46,61 +156,104 @@ const rideSchema = new Schema<IRideModel>(
         ref: "User",
       },
       time: Date,
-    },
-
-    rideData: {
-      destination: {
-        placeId: String,
-        coordinates: {
-          type: [Number],
-          required: true,
-        },
-      },
-      start_location: {
-        placeId: String,
-        coordinates: {
-          type: [Number],
-          required: true,
-        },
-      },
-      polyline: {
-        type: String,
-        required: true,
-      },
-      lineString: {
-        type: String,
-        required: true,
-      },
-      rideTotalDistance: {
+      initiator: Schema.Types.ObjectId,
+      cancellationReason: String,
+      driverDistanceFromPickup: {
         type: Number,
+        required: true,
+        default: 0,
+      },
+      driverEstimatedETA: {
+        type: Number,
+        required: true,
         default: 0,
       },
     },
 
-    ride_fare_estimate: [Number],
+    driverCommission: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
 
-    accepted_fare: {
+    riderCommission: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
+
+    totalCommission: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
+
+    commissionPaid: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+
+    acceptedFare: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
+
+    seatsOccupied: {
+      type: Number,
+      required: true,
+      default: 1,
+    },
+
+    rideTotalDistance: {
       type: Number,
       default: 0,
       required: false,
     },
-    ongoing: {
-      type: Boolean,
-      required: [true, "Trip status is required"],
-      default: false,
+
+    settlement: {
+      identifier: SchemaTypes.ObjectId,
+      amount: {
+        type: Number,
+        required: false,
+        default: 0,
+      },
     },
-    completed: {
-      type: Boolean,
-      default: false,
+    initialStatus: {
+      type: String,
+      required: true,
+      enum: ["none", "scheduled"],
+      default: "none",
+    },
+    status: {
+      type: String,
+      enum: [
+        "scheduled",
+        "cancelled",
+        "ongoing",
+        "completed",
+        "crashed",
+        "abandoned",
+      ],
     },
 
-    driverId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
+    packageDetails: {
+      recipient: {
+        firstname: String,
+        lastname: String,
+        countryCode: String,
+        mobile: String,
+      },
+      description: String,
+      comments: String,
     },
-    tripId: {
-      type: Schema.Types.ObjectId,
-      required: false,
+
+    thirdPartyData: {
+      firstname: String,
+      lastname: String,
+      countryCode: String,
+      mobile: String,
     },
   },
   {
@@ -109,4 +262,20 @@ const rideSchema = new Schema<IRideModel>(
   }
 );
 
-export const Ride: Model<IRideModel> = model<IRideModel>("Ride", rideSchema);
+rideSchema.index({
+  status: 1,
+  tripId: 1,
+  riderId: 1,
+  packageRequestId: 1,
+  "settlement.identifier": 1,
+  type: 1,
+  category: 1,
+  initialStatus: 1,
+  pickupTown: 1,
+  pickupState: 1,
+  pickupCountry: 1,
+  dropOffTown: 1,
+  dropOffState: 1,
+});
+
+export const Ride: Model<IRide> = model<IRide>("Ride", rideSchema);

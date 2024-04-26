@@ -2,13 +2,13 @@ import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import createAxiosInstance from "../config/axios";
 import AppError from "../middlewares/errors/BaseError";
 import { AxiosResponse } from "axios";
-import PaymentRepository, { payDataLayer } from "../repository/mongo/payment";
+import PaymentRepository, { payDataLayer } from "../repository/payment";
 import { IPay } from "../model/interfaces/index";
 import { Paystack, TransferData, TransferRecipient } from "../../types/types";
 
 import { ClientSession, PipelineStage, Types } from "mongoose";
-import { criticalLogger } from "../model/logging/logger";
-import { QueryData } from "../repository/mongo/shared";
+import { criticalLogger } from "../middlewares/logging/logger";
+import { QueryData } from "../repository/shared";
 
 const paystackClient = createAxiosInstance({
   baseURL: "api.paystack.co",

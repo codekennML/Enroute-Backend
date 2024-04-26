@@ -13,10 +13,7 @@ export function hasError<T>(
 }
 
 export const retryTransaction = async <T, U>(
-  baseFunction: (
-    args: T,
-    session: ClientSession
-  ) => Promise<TransactionResponse<U>>,
+  baseFunction: (args: T, session: ClientSession) => Promise<U>,
   retryCount: number,
   args: T
 ) => {
@@ -25,12 +22,10 @@ export const retryTransaction = async <T, U>(
 
   while (retries < retryCount) {
     const session = await mongoose.startSession();
-
     try {
       const result = await baseFunction(args, session);
-
+      await session.commitTransaction();
       return result;
-      // handleTransactionError(result);
     } catch (error: unknown) {
       processingError = error as Error;
       retries++;

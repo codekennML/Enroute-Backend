@@ -1,15 +1,15 @@
-import { Schema, Model, model, Document } from "mongoose";
+import { Schema, Model, model, SchemaTypes } from "mongoose";
 import { IUser } from "./interfaces";
 
-export interface IUserModel extends IUser, Document {
-  hashPassword(password: string): void;
-  comparePassword(
-    existingPassword: string,
-    newPassword: string
-  ): Promise<boolean>;
-}
+// export interface IUserModel extends IUser, Document {
+//   hashPassword(password: string): void;
+//   comparePassword(
+//     existingPassword: string,
+//     newPassword: string
+//   ): Promise<boolean>;
+// }
 
-const userSchema = new Schema<IUserModel>(
+const userSchema = new Schema<IUser>(
   {
     firstName: {
       type: String,
@@ -71,11 +71,16 @@ const userSchema = new Schema<IUserModel>(
 
     gender: {
       type: String,
+      enum: ["male", "female", "other"],
     },
 
     googleId: {
       type: String,
       index: true,
+    },
+
+    deviceToken: {
+      type: String,
     },
 
     googleEmail: {
@@ -89,6 +94,7 @@ const userSchema = new Schema<IUserModel>(
       type: String,
       index: true,
     },
+
     fbEmail: {
       type: String,
       required: function () {
@@ -104,14 +110,15 @@ const userSchema = new Schema<IUserModel>(
     appleEmail: {
       type: String,
       required: function () {
-        return this?.appleId;
+        return this.appleId;
       },
     },
 
     socialName: String,
 
     verifyHash: {
-      type: String,
+      token: String,
+      expires: Date,
     },
 
     verified: { type: Boolean, default: false },
@@ -142,12 +149,8 @@ const userSchema = new Schema<IUserModel>(
       default: false,
       required: true,
     },
-
-    hasSuppliedInfo: {
-      type: Boolean,
-      default: false,
-      required: true,
-    },
+    emailVerifiedAt: Date,
+    mobileVerifiedAt: Date,
 
     resetTokenHash: {
       type: String,
@@ -157,12 +160,6 @@ const userSchema = new Schema<IUserModel>(
     resetTokenData: {
       expiry: Date,
       used: Boolean,
-    },
-
-    balance: {
-      type: Number,
-      required: true,
-      default: 0,
     },
 
     paymentMethod: {
@@ -175,13 +172,62 @@ const userSchema = new Schema<IUserModel>(
       type: String,
     },
 
-    userTransferRef: [
-      {
-        type: String,
-      },
-    ],
-
     lastLoginAt: Date,
+
+    serviceType: {
+      type: [String],
+      enum: ["dispatch", "ride"],
+      required: true,
+    },
+
+    dispatchType: {
+      type: [String],
+      enum: ["STS", "HTS", "HTH", "STH"],
+      required: true,
+    },
+
+    street: String,
+
+    town: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "Town",
+    },
+
+    state: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "State",
+    },
+
+    country: {
+      type: SchemaTypes.ObjectId,
+      required: true,
+      ref: "Country",
+    },
+
+    status: {
+      type: String,
+      required: true,
+      default: "new",
+      enum: ["new", "verified"],
+    },
+
+    isOnline: Boolean,
+
+    rating: {
+      type: Number,
+      default: 5.0,
+    },
+
+    emergencyContacts: [],
+
+    stateOfOrigin: String,
+
+    about: {
+      type: String,
+      max: 640,
+    },
   },
 
   {
@@ -191,6 +237,17 @@ const userSchema = new Schema<IUserModel>(
   }
 );
 
+userSchema.index({
+  town: 1,
+  country: 1,
+  state: 1,
+  gender: 1,
+  roles: 1,
+  banned: 1,
+  suspended: 1,
+  verified: 1,
+  status: 1,
+});
 // userSchema.pre("save", async function (next) {
 //   if (this.password && this.isModified(this.password)) {
 //     this.hashPassword(this.password);
@@ -209,6 +266,6 @@ const userSchema = new Schema<IUserModel>(
 //   return await bcrypt.compare(existingPassword, newPassword);
 // };
 
-const User: Model<IUserModel> = model<IUserModel>("User", userSchema);
+const User: Model<IUser> = model<IUser>("User", userSchema);
 
 export default User;

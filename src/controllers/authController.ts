@@ -8,18 +8,14 @@ import { readJSON } from "../utils/helpers/decodePostJSON";
 import { HttpResponse, HttpRequest } from "uWebsockets.js";
 import AppResponse from "../utils/helpers/AppResponse";
 import AppError from "../middlewares/errors/BaseError";
-import {
-  ACCESS_TOKEN_ID,
-  FACEBOOK_APP_ID,
-  FACEBOOK_APP_SECRET,
-  REFRESH_TOKEN_ID,
-} from "../config/constants/auth";
+import { FACEBOOK_APP_ID, FACEBOOK_APP_SECRET } from "../config/constants/auth";
 import axios from "axios";
 import verifyGoogleToken from "../services/3rdParty/Google/auth";
 import { setTokens } from "../middlewares/auth/setTokens";
 import { ROLES } from "../config/enums";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 import { checkUserCanAuthenticate } from "../utils/helpers/canLogin";
+import { Request, Response } from "express";
 
 class AuthController {
   public authService: AuthService;
@@ -28,9 +24,8 @@ class AuthController {
     this.authService = auth;
   }
 
-  signInUserMobile = async (res: HttpResponse, req: HttpRequest) => {
-    const data = await readJSON<MobileSigninData>(res);
-
+  signInUserMobile = async (req: Request, res: Response) => {
+    const data: MobileSigninData = req.body;
     const { mobile, countryCode, role } = data;
 
     const user = await this.authService.signInMobile({
@@ -148,7 +143,7 @@ class AuthController {
     ];
 
     const response = await retryTransaction(
-      UserServiceLayer.bulkUpdateUsers,
+      UserServiceLayer.bulkUpdateUser,
       1,
       {
         operations,
@@ -198,7 +193,7 @@ class AuthController {
     ];
 
     const response = await retryTransaction(
-      UserServiceLayer.bulkUpdateUsers,
+      UserServiceLayer.bulkUpdateUser,
       1,
       {
         operations,
@@ -345,6 +340,29 @@ class AuthController {
       message: "Access granted ",
     });
   };
+
+  async updateUserAuthData(res: HttpResponse, req: HttpRequest) {
+    const { mobile, email, userId, countryCode } = data;
+
+    //Check if the signIn type is email and mobile or mobile only
+
+    const user = await this.#getUsers(
+      { _id: userId },
+      "_id email mobile countryCode"
+    );
+
+    if (!email && !mobile) {
+    }
+
+    //if there is an email, you want the user to use their email to verify the otp before entering the new number
+    if (email && countryCode && mobile) {
+      //Send OTP to the existing email for verification
+    }
+
+    if (countryCode && mobile) {
+      //Just send an otp to the number and validate it, the user only has a mobile number on record
+    }
+  }
 }
 export const authController = new AuthController(authService);
 

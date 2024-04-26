@@ -1,19 +1,37 @@
-// class Message {
+import { PaginationRequestData, QueryData } from "./../repository/shared";
+import { IMessage } from "../model/interfaces";
+import messageRepository, { MessageDataLayer } from "../repository/message";
+import { ClientSession } from "mongoose";
+import { UpdateRequestData } from "../../types/types";
 
-//     async handlePubSubMessage(channel: string, message: string): Promise<void> {
-//     if (channel !== `channel:${process.env.APP_SERVER_ADRESS}`) return;
+class messageService {
+  private message: messageRepository;
 
-//     const parsedMessage = JSON.parse(message);
+  constructor(service: messageRepository) {
+    this.message = service;
+  }
 
-//     // const { topic, ...data } = parsedMessage;
-//   }
+  async createMessage(request: IMessage, session?: ClientSession) {
+    const message = await this.message.createMessage(request, session);
 
-//   async handleWSMessages () {
+    return message; //tThis should return an array of one message only
+  }
 
-//   }
+  async findMessages(request: PaginationRequestData) {
+    return this.message.returnPaginatedMessages(request);
+  }
 
-// }
+  async getMessageById(request: QueryData) {
+    const message = await this.message.findMessageById(request);
 
-// const CachePubSubMessageHandler = new Message();
+    return message;
+  }
 
-// export default CachePubSubMessageHandler;
+  async updateMessage(request: UpdateRequestData) {
+    return await this.message.updateMessage(request);
+  }
+}
+
+export const MessageServiceLayer = new messageService(MessageDataLayer);
+
+export default messageService;

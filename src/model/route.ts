@@ -1,52 +1,51 @@
 import { Schema, Model, model, Document } from "mongoose";
 import { IRoute } from "./interfaces/index.js";
 
-export default interface IRouteModel extends IRoute, Document {}
+export default interface RouteModel extends IRoute, Document {}
 
-const routeSchema = new Schema<IRouteModel>(
+const routeSchema = new Schema<RouteModel>(
   {
-    user: {
-      type: Schema.Types.ObjectId,
-      required: true,
-      ref: "User",
-    },
-
-    userType: {
-      type: String,
-      required: true,
-      enum: ["driver", "rider"],
-      default: "driver",
-    },
-
     tripId: {
       type: Schema.Types.ObjectId,
       required: false,
       ref: "Trip",
-      index : true
+      index: true,
     },
-
-    availableSeats: Number,
 
     rideId: {
       type: Schema.Types.ObjectId,
       required: false,
       ref: "Ride",
-      index : true
+      index: true,
     },
 
-    carId: {},
+    vehicleId: {
+      type: Schema.Types.ObjectId,
+      required: false,
+      ref: "Vehicle",
+      index: true,
+    },
 
-    coordinates: [Number],
+    geojson: [
+      {
+        type: {
+          type: String,
+          enum: ["Point"],
+          default: "Point",
+        },
+        coordinates: [Number, Number],
+      },
+    ],
 
-    createdAt: Date.now(),
+    timestamps: [Date],
+
+    lineString: String,
   },
 
   {
+    timestamps: true,
     versionKey: false,
   }
 );
 
-export const Route: Model<IRouteModel> = model<IRouteModel>(
-  "Route",
-  routeSchema
-);
+export const Route: Model<RouteModel> = model<RouteModel>("Route", routeSchema);

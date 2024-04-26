@@ -1,5 +1,5 @@
 import { latLngCoordinates } from "../../types/types";
-import MapsRepository, { mapsDataLayer } from "../repository/data/maps";
+import MapsRepository, { mapsDataLayer } from "./3rdParty/Google/maps";
 
 class DirectionService {
   private mapsInterface: MapsRepository;

@@ -1,9 +1,7 @@
-import { Schema, Model, model, Document } from "mongoose";
+import { Schema, Model, model, SchemaTypes } from "mongoose";
 import { ITrip } from "./interfaces";
 
-export default interface ITripModel extends ITrip, Document {}
-
-const tripSchema = new Schema<ITripModel>({
+const tripSchema = new Schema<ITrip>({
   driverId: {
     type: Schema.Types.ObjectId,
     required: [true, "Trip Driver Id required"],
@@ -11,48 +9,79 @@ const tripSchema = new Schema<ITripModel>({
     index: true,
   },
 
-  tripLocations: {
-    start: {
-      coordinates: {
-        type: [Number],
-        required: ["true", "start Coordinates are required"],
-      },
-      name: {
-        type: String,
-      },
-
-      placeId: String,
-    },
-    end: {
-      coordinates: {
-        type: [Number],
-        required: ["true", "End coordinates are required"],
-      },
-      name: {
-        type: String,
-      },
-      placeId: String,
-    },
-    polylines: [String],
+  seatAllocationsForTrip: {
+    type: Number,
+    required: true,
+    default: 0,
   },
 
-  ongoing: {
-    type: Boolean,
-    required: [true, "Trip status required"],
+  origin: {
+    name: String,
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+
+      coordinates: [Number, Number],
+    },
   },
 
-  // rides: [
-  //   {
-  //     type: Schema.Types.ObjectId,
-  //     required: true,
-  //     ref: "Ride",
-  //   },
-  // ],
+  originTown: {
+    type: SchemaTypes.ObjectId,
+    ref: "Town",
+  },
+
+  originState: {
+    type: SchemaTypes.ObjectId,
+    ref: "State",
+  },
+
+  originCountry: {
+    type: SchemaTypes.ObjectId,
+    ref: "Country",
+  },
+
+  destination: {
+    name: String,
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+
+      coordinates: [Number, Number],
+    },
+  },
+
+  destinationTown: {
+    type: SchemaTypes.ObjectId,
+    ref: "Town",
+  },
+
+  destinationState: {
+    type: SchemaTypes.ObjectId,
+    ref: "State",
+  },
+
+  status: {
+    type: String,
+    enum: ["scheduled", "cancelled", "ongoing", "completed", "crashed"],
+  },
+
+  vehicleId: {
+    type: SchemaTypes.ObjectId,
+    required: true,
+  },
 });
 
 tripSchema.index({
   driverId: 1,
-  ongoing: 1,
+  status: 1,
 });
 
-export const Trips: Model<ITripModel> = model<ITripModel>("Trip", tripSchema);
+const Trips: Model<ITrip> = model<ITrip>("Trip", tripSchema);
+
+export default Trips;

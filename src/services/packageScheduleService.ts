@@ -1,0 +1,60 @@
+import { PaginationRequestData } from "./../repository/shared";
+import { ClientSession } from "mongoose";
+import { IPackageSchedule } from "../model/interfaces";
+import PackageScheduleRepository, {
+  PackageScheduleDataLayer,
+} from "../repository/packageSchedule";
+import { UpdateRequestData } from "../../types/types";
+
+class PackageScheduleService {
+  private PackageSchedule: PackageScheduleRepository;
+
+  constructor(service: PackageScheduleRepository) {
+    this.PackageSchedule = service;
+  }
+
+  async createPackageSchedule(request: IPackageSchedule) {
+    const PackageSchedule = await this.PackageSchedule.createPackageSchedule(
+      request
+    );
+
+    return PackageSchedule; //tThis should return an array of one PackageSchedule only
+  }
+
+  async findPackageSchedules(request: PaginationRequestData) {
+    return this.PackageSchedule.returnPaginatedPackageSchedules(request);
+  }
+
+  async updatePackageSchedule(request: UpdateRequestData) {
+    const updatedPackageSchedule =
+      await this.PackageSchedule.updatePackageSchedule(request);
+    return updatedPackageSchedule;
+  }
+
+  async getPackageScheduleById(
+    PackageScheduleId: string,
+    select?: string,
+    session?: ClientSession
+  ) {
+    const PackageSchedule = await this.PackageSchedule.findPackageScheduleById({
+      query: { id: PackageScheduleId },
+      select,
+      session,
+    });
+
+    return PackageSchedule;
+  }
+
+  async deletePackageSchedules(request: string[]) {
+    const deletedPackageSchedules =
+      await this.PackageSchedule.deletePackageSchedules(request);
+
+    return deletedPackageSchedules;
+  }
+}
+
+export const PackageScheduleServiceLayer = new PackageScheduleService(
+  PackageScheduleDataLayer
+);
+
+export default PackageScheduleService;
