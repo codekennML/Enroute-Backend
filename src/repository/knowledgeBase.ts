@@ -1,7 +1,7 @@
 import { IKnowledgeBase } from "./../model/interfaces/index";
 import KnowledgeBase from "../model/knowledgeBase";
 import { ClientSession, Model } from "mongoose";
-import DBLayer, { PaginationRequestData, QueryData } from "./shared";
+import DBLayer, { AggregateData, PaginationRequestData, QueryData } from "./shared";
 
 class KnowledgeBaseRepository {
   private KnowledgeBaseDBLayer: DBLayer<IKnowledgeBase>;
@@ -58,6 +58,10 @@ class KnowledgeBaseRepository {
 
   async deleteKnowledgeBases(request: string[]) {
     return this.KnowledgeBaseDBLayer.deleteDocs(request);
+  }
+
+  async aggregateData(request: AggregateData) {
+    return await this.KnowledgeBaseDBLayer.aggregateData(request)
   }
 }
 

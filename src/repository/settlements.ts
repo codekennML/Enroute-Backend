@@ -1,6 +1,7 @@
 import Settlement from "../model/settlements";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, {
+  AggregateData,
   PaginationRequestData,
   QueryData,
   updateManyQuery,
@@ -17,10 +18,10 @@ class SettlementRepository {
   async createSettlement(
     request: ISettlements,
     session?: ClientSession
-  ): Promise<ISettlements[]> {
-    let createdsettlements: ISettlements[] = [];
+  ) {
 
-    createdsettlements = await this.settlementDBLayer.createDocs(
+
+    const createdsettlements = await this.settlementDBLayer.createDocs(
       [request],
       session
     );
@@ -63,8 +64,8 @@ class SettlementRepository {
   }
 
   async findSettlementById(request: QueryData) {
-    const busStation = await this.settlementDBLayer.findDocById(request);
-    return busStation;
+    const settlement = await this.settlementDBLayer.findDocById(request);
+    return settlement;
   }
 
   async deleteSettlements(request: string[]) {
@@ -74,6 +75,11 @@ class SettlementRepository {
   async getPopulatedSettlement(request: QueryData) {
     return this.settlementDBLayer.findDocs(request);
   }
+
+  async aggregateData(request: AggregateData) {
+    return await this.settlementDBLayer.aggregateData(request)
+  }
+
 }
 
 export const settlementDataLayer = new SettlementRepository(Settlement);

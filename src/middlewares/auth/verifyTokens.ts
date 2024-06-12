@@ -1,94 +1,98 @@
+
 import { getReasonPhrase, StatusCodes } from "http-status-codes";
 import AppError from "../errors/BaseError";
-import { HttpRequest, HttpResponse } from "uWebsockets.js";
-import { setTokens } from "./setTokens";
-import UserService from "../../services/userService";
+
+import { setAccessToken, } from "./setTokens";
+import  { UserServiceLayer } from "../../services/userService";
 import { OtpServiceLayer } from "../../services/otpService";
 import { checkUserCanAuthenticate } from "../../utils/helpers/canLogin";
-import jwt from "jsonwebtoken";
-import cookie from "cookie";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { NextFunction, Request, Response} from "express"
 
-const REFRESH_TOKEN_ID = process.env.REFRESH_TOKEN_ID as string;
-const ACCESS_TOKEN_ID = process.env.REFRESH_TOKEN_ID as string;
+interface DecodedToken extends JwtPayload {
+  user: string;  // Adjust the type based on your actual payload
+  role: number;  // Adjust the type based on your actual payload
+  mobileId?: string; // This field is optional based on your conditional checks
+  subRole : number
+}
+
+// const REFRESH_TOKEN_ID = process.env.REFRESH_TOKEN_ID as string;
+// const ACCESS_TOKEN_ID = process.env.REFRESH_TOKEN_ID as string;
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET as string;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET as string;
 
-const AuthGuard = (res: HttpResponse, req: HttpRequest, next: () => void) => {
-  const mobileId = req.getHeader("mobile-device-id");
+const AuthGuard = (req: Request, res: Response, next: NextFunction) => {
 
-  let refreshToken = "";
-  let accessToken = "";
+  const mobileId = req.headers["mobile-device-id"] as string |  undefined
 
-  //Parse the cookies here
+  const accessToken = req.headers["X_A_T"] as string
+  const refreshToken  =  req.headers["X_R_T"] as string
 
-  if (mobileId) {
-    refreshToken = req.getHeader(`${REFRESH_TOKEN_ID}`);
-    accessToken = req.getHeader(`${ACCESS_TOKEN_ID}`);
-  } else {
-    const cookies = cookie.parse(req.getHeader("cookie"));
-
-    refreshToken = cookies[REFRESH_TOKEN_ID];
-    accessToken = cookies[ACCESS_TOKEN_ID];
-  }
-
-  if (!accessToken && !refreshToken)
+  if (!accessToken || !refreshToken)
     throw new AppError(
       getReasonPhrase(StatusCodes.UNAUTHORIZED),
       StatusCodes.UNAUTHORIZED
     );
 
-  jwt.verify(accessToken, ACCESS_TOKEN_SECRET, async (err, decoded) => {
+  jwt.verify(accessToken, ACCESS_TOKEN_SECRET, async(err, decoded ) => {
     if (err) {
       await refreshUserToken(
-        res,
         req,
+        res,
         refreshToken,
-        mobileId ? mobileId : undefined
+        next,
+        mobileId
       );
-      next();
+
     }
     //If the device does not match the device this token was created for ,or this accessToken was created for a mobile device and is being used via another platform
 
-    if (
-      (mobileId && mobileId !== decoded?.mobileId) ||
-      (!mobileId && decoded.mobileId)
+    const {mobileId  : userMobileId, user,  role, subRole } =  decoded as DecodedToken
+
+    if (!mobileId || 
+      (mobileId && mobileId !== userMobileId) 
+      
     )
       throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST
+        getReasonPhrase(StatusCodes.UNAUTHORIZED),
+        StatusCodes.UNAUTHORIZED
       );
 
+    req.user = user
+    req.role = role
+    req.subRole =  subRole
     next();
   });
 };
 
 const refreshUserToken = async (
-  res: HttpResponse,
-  req: HttpRequest,
+  req: Request ,
+  res: Response,
   refreshToken: string,
-  mobileId?: string
+  next : NextFunction,
+  mobileId?: string,
 ) => {
   jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, async (err, decoded) => {
     if (err)
       throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
-        StatusCodes.BAD_REQUEST
+        getReasonPhrase(StatusCodes.UNAUTHORIZED),
+        StatusCodes.UNAUTHORIZED
       );
 
     //Check that the token matches the one in the db, hash & compare
 
-    const { user } = decoded;
+    const { user }  = decoded as DecodedToken
 
     const hashedRefreshToken = OtpServiceLayer.hashOTP(refreshToken);
 
-    const userWithRefreshToken = await UserService.getUsers({
+    const userWithRefreshToken = await UserServiceLayer.getUsers({
       query: {
         refreshToken: hashedRefreshToken,
         _id: user,
         mobileAuthId: mobileId,
       },
-      select: "suspended active banned",
+      select: "suspended active banned roles subRole",
       lean: true,
     });
 
@@ -100,7 +104,9 @@ const refreshUserToken = async (
 
     checkUserCanAuthenticate(userWithRefreshToken[0]);
 
-    setTokens(res, req, user);
+    setAccessToken(req, res, user, userWithRefreshToken[0].roles, userWithRefreshToken[0]?.subRole)
+  
+    next()
   });
 };
 

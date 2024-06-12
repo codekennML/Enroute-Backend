@@ -13,15 +13,8 @@ const documentsSchema = new Schema<IDocumentsModel>(
 
     name: {
       type: String,
-      enum: [
-        "IDENTIFICATION", //User
-        "LASRAA", //User
-        "SELFIE", //User
-        "LICENSE", //User
-        "INSURANCE", //Car
-        "INSPECTION", //Car
-        "ADDRESS", //User
-      ],
+      required : true
+
     },
 
     imageUrl: [String],

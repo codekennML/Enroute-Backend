@@ -1,6 +1,7 @@
 import BusStation from "../model/busStation";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, {
+  AggregateData,
   PaginationRequestData,
   QueryData,
   updateManyQuery,
@@ -80,6 +81,10 @@ class BusStationRepository {
 
   async deleteBusStations(request: string[]) {
     return this.busStationDBLayer.deleteDocs(request);
+  }
+
+  async aggregateData(request: AggregateData) {
+    return await this.busStationDBLayer.aggregateData(request)
   }
 }
 

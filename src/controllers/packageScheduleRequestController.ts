@@ -11,8 +11,8 @@ import { sortRequest } from "../utils/helpers/sortQuery";
 import AppError from "../middlewares/errors/BaseError";
 import { cronEventsLogger } from "../middlewares/logging/logger";
 import { UserServiceLayer } from "../services/userService";
-import { PackageScheduleServiceLayer } from "../services/packageScheduleService";
-import CommunicationService from "../services/communicationService";
+import { PackageScheduleServiceLayer } from "../services/packageScheduleTripService";
+// import CommunicationService from "../services/communicationService";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 
 class PackageScheduleRequestController {
@@ -22,7 +22,7 @@ class PackageScheduleRequestController {
     this.packageScheduleRequest = service;
   }
 
-  async createPackageScheduleRequestRequest(req: Request, res: Response) {
+  async createPackageScheduleRequest(req: Request, res: Response) {
     const data: Omit<
       IPackageScheduleRequest,
       "status" | "createdBy" | "packageScheduleId"
@@ -107,7 +107,7 @@ class PackageScheduleRequestController {
         );
 
       //TODO : Send the push notification to the package owner
-      await CommunicationService.sendPushNotification();
+      // await CommunicationService.sendPushNotification();
 
       return createdPackageScheduleRequest;
     });
@@ -138,6 +138,9 @@ class PackageScheduleRequestController {
         `Illegal attempt to approve scheduleRequest by user ${user}`
       );
 
+
+      //TODO Implement check to ensure that this schedule has not been accepted previously
+
     const approvedRequest =
       await this.packageScheduleRequest.updatePackageScheduleRequest({
         docToUpdate: {
@@ -148,6 +151,8 @@ class PackageScheduleRequestController {
         },
         options: { new: true, select: "_id" },
       });
+
+
 
     if (!approvedRequest)
       throw new AppError(
@@ -275,7 +280,7 @@ class PackageScheduleRequestController {
   }
 
   //Admin only
-  async deletePackageScheduleRequest(req: Request, res: Response) {
+  async deletePackageScheduleRequests(req: Request, res: Response) {
     const data: { scheduleIds: string[] } = req.body;
 
     const { scheduleIds } = data;
@@ -304,7 +309,7 @@ class PackageScheduleRequestController {
       });
 
     cronEventsLogger.info(
-      `${result.deletedCount} expires package schedules cleaned - CRON `
+      `${result.deletedCount} expired package schedules cleaned - CRON `
     );
 
     return;

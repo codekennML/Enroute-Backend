@@ -1,4 +1,5 @@
-import { ADMINROLES, ROLES } from "../src/config/enums";
+import { SUBROLES } from './../src/config/enums';
+import { ROLES, SUBROLES } from "../src/config/enums";
 import { Coordinates } from "../src/model/interfaces";
 import { LocationCacheData } from "./types";
 import { Request } from "express";
@@ -7,13 +8,14 @@ declare module "@turf/turf";
 declare module "@mapbox/polyline";
 declare module "jsonwebtoken";
 
-declare module "express" {
+declare module 'express-serve-static-core' {
   interface Request {
-    role?: string;
-    // user?: string;
+    role?: ROLES;
+    subRole?: SUBROLES;
+    allowedRoles : number[]
+    allowedSubRoles : number[]
   }
 }
-
 export interface BasicUserData {
   name: string;
   avatar: string;
@@ -32,7 +34,7 @@ interface Request {
 
 export interface UpdateRequestData {
   docToUpdate: Types.ObjectId;
-  updateData: Record<string, string | boolean | object>;
+  updateData: Record<string, string | boolean | object | number>;
   options: {
     session?: ClientSession;
     new?: boolean;
@@ -51,14 +53,18 @@ export type UpdateManyData = Omit<UpdateRequestData, "docToUpdate"> & {
 };
 
 interface MobileSigninData {
-  mobile: string;
-  countryCode: string;
+  mobile: number;
+  countryCode: number;
   role: ROLES;
+  subRole : SUBROLES
+  googleId? : string 
+  googleEmail : string
+  facebookId ? : string
 }
 
-export type EmailSigninData = {
+export type EmailSigninData =MobileSignInData &  {
   email: string;
-  role: ROLES;
+ 
 };
 
 export type SignupData = MobileSignupData | WebSignupData;
@@ -67,7 +73,6 @@ export type SocialAuthData = {
   id: string;
   token: string;
   email: string;
-  roles: ADMINROLES | USER;
 };
 
 export type FacebokAuthResponse = {
@@ -116,6 +121,32 @@ type EmergencyContact = {
   countryCode: string;
   address: string;
 };
+
+export interface MailData {
+  to: string,
+  template: string,
+  from: string,
+  subject: string,
+  reply_to?: string,
+  text: string,
+  cc?: string[],
+  bcc?: string[],
+  attachments?: { [key: string]: string | object }[]
+}
+
+export interface PushData {
+  deviceTokens: string | string[],
+  message: { [k: string]: string },
+  callToAction?: string,
+  imageUrl?: string, topic?: string,
+}
+
+export interface SMSData {
+  message: string,
+  mobile: number[],
+  channel: "dnd" | "non_dnd"
+}
+
 
 // export enum IDENTITYTYPES {
 //   NIN = "nin",

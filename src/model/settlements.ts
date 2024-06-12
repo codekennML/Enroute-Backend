@@ -27,6 +27,18 @@ const settlementsSchema = new Schema<ISettlements>(
     rides: [{ type: SchemaTypes.ObjectId }],
 
     data: Object,
+
+    isPaymentInit: {
+      type: Boolean,
+      required: true
+    },
+    failedCount: {
+      type: Number,
+      max: 3,
+      default: 0,
+      required: true,
+
+    }
   },
   {
     timestamps: true,

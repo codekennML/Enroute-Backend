@@ -7,3 +7,5 @@ export const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_WEB_CLIENT_ID as string;
 export const DRIVER_APP_ID = process.env.DRIVER_APP_ID as string;
 
 export const RIDER_APP_ID = process.env.RIDER_APP_ID as string;
+
+export const OTP_TOKEN_SECRET = process.env.OTP_TOKEN_SECRET as string

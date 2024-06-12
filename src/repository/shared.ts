@@ -24,7 +24,11 @@ export interface PaginationRequestData extends commonKeys {
   aggregatePipeline: PipelineStage.FacetPipelineStage[];
   pagination: {
     pageSize: number;
-  };
+  }
+}
+
+export interface AggregateData {
+  pipeline: PipelineStage[]
 }
 
 interface PaginationMeta {
@@ -136,9 +140,23 @@ class DBLayer<T> {
     return null;
   }
 
+  async aggregateData(request: AggregateData) {
+
+    const data = await this.model.aggregate(
+
+      request.pipeline
+    )
+
+    return data
+
+  }
+
   async paginateData(
     request: PaginationRequestData
   ): Promise<PaginatedResult<T> | void> {
+
+
+
     const data = await this.model.aggregate([
       {
         $match: request.query,
@@ -231,6 +249,7 @@ class DBLayer<T> {
   }
 
   async deleteDocs(request: string[] | FilterQuery<T>) {
+
     if (Array.isArray(request)) {
       const data = { _id: { $in: request } };
 

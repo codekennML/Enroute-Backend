@@ -1,6 +1,6 @@
 import User from "../model/user";
 import { ClientSession, Model } from "mongoose";
-import DBLayer, { QueryData, PaginationRequestData } from "./shared";
+import DBLayer, { QueryData, PaginationRequestData, AggregateData } from "./shared";
 import { SignupData } from "../../types/types";
 import { IUser } from "../model/interfaces";
 
@@ -12,9 +12,9 @@ class UserRepository {
   }
 
   async createUser(request: SignupData, session?: ClientSession) {
-    let createdUsers: IUser[] = [];
 
-    createdUsers = await this.userDBLayer.createDocs([request], session);
+
+    const createdUsers = await this.userDBLayer.createDocs([request], session);
 
     return createdUsers;
   }
@@ -38,8 +38,8 @@ class UserRepository {
   }
 
   async updateUser(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
+    docToUpdate: { [key: string]: Record<"$eq", string | number> };
+    updateData: { [k: string]: string | object | boolean | number };
     options: {
       new?: boolean;
       session?: ClientSession;
@@ -67,6 +67,11 @@ class UserRepository {
 
     return result;
   }
+
+  async aggregateUsers(request: AggregateData) {
+    return await this.userDBLayer.aggregateData(request)
+  }
+
 }
 
 export const UserDataLayer = new UserRepository(User);

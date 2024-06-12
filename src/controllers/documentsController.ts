@@ -239,7 +239,7 @@ class DocumentsController {
       hasData ? StatusCodes.OK : StatusCodes.NOT_FOUND,
       {
         message: hasData
-          ? `Documents retrieved retrieved succesfully`
+          ? `Documents retrieved succesfully`
           : `No documents were found for this request `,
         data: result,
       }
@@ -266,15 +266,7 @@ class DocumentsController {
   async markDocumentApproved(req: Request, res: Response) {
     const data: { documentId: string; adminId: string } = req.body;
 
-    const userInfo = [
-      "address",
-      "selfie",
-      "lasraa",
-      "license",
-      "identification",
-    ];
-
-    const vehicleInfo = ["vehicleinsurance", "vehicleinspection"];
+    const vehicleInfo = ["insurance", "inspection"];
 
     const approveDocumentSessionFn = async (
       args: typeof data,
@@ -299,25 +291,7 @@ class DocumentsController {
             StatusCodes.NOT_FOUND
           );
         //Update the user data with the approved document id
-        if (userInfo.includes(approvedDocument.name.toUpperCase())) {
-          await UserServiceLayer.updateUser({
-            docToUpdate: { _id: approvedDocument.userId },
-            updateData:
-              approvedDocument.name === "address"
-                ? {
-                    $set: {
-                      ...approvedDocument?.fieldData,
-                      documents: approvedDocument?._id,
-                    },
-                  }
-                : {
-                    $set: {
-                      [approvedDocument.name]: approvedDocument?._id,
-                    },
-                  },
-            options: { session, select: "_id" },
-          });
-        }
+       
         //Update the vehicleInfo if the changed or approved document belongs to the vehicle model , not the user model
         if (vehicleInfo.includes(approvedDocument.name.toUpperCase())) {
           await VehicleServiceLayer.updateVehicle({
@@ -325,46 +299,15 @@ class DocumentsController {
             updateData: {
               $set: {
                 [approvedDocument.name]: approvedDocument?._id,
-                status: "assessed",
-                isVerified: true,
-                approvedBy: data.adminId,
+              
               },
             },
             options: { session, select: "_id" },
           });
         }
 
-        //Finally, loop through this users documents and if all their documents have been verified, set the user and vehicle status to verified
-
-        const userDocuments = await this.documents.getDocumentsWithPopulate({
-          query: {
-            userId: approvedDocument.userId,
-            isArchived: false,
-            isVerified: true,
-          },
-        });
-
-        const hasCompleteDocumentsUserArray = userDocuments.map((document) => {
-          if (document.name in userInfo.concat(vehicleInfo)) {
-            return true;
-          }
-        });
-
-        if (
-          hasCompleteDocumentsUserArray.every((element) => element === true)
-        ) {
-          await UserServiceLayer.updateUser({
-            docToUpdate: { _id: approvedDocument.userId },
-            updateData: { $set: { verified: true } },
-            options: { new: true, select: "_id" },
-          });
-
-          await VehicleServiceLayer.updateVehicle({
-            docToUpdate: { driverId: approvedDocument.userId },
-            updateData: { $set: { isVerified: true } },
-            options: { new: true, select: "_id" },
-          });
-        }
+      
+    
 
         return args.documentId;
       });

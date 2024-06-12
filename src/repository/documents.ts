@@ -1,6 +1,7 @@
 import Documents, { IDocumentsModel } from "../model/documents";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, {
+  AggregateData,
   PaginationRequestData,
   QueryData,
   updateManyQuery,
@@ -76,6 +77,10 @@ class DocumentsRepository {
     const deletedDocs = await this.documentsDBLayer.deleteDocs(request);
 
     return deletedDocs;
+  }
+
+  async aggregateData(request: AggregateData) {
+    return await this.documentsDBLayer.aggregateData(request)
   }
 }
 

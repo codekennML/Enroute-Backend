@@ -1,4 +1,4 @@
-import { PaginationRequestData, QueryData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData, QueryData } from "./../repository/shared";
 import { ClientSession } from "mongoose";
 import { ISettlements } from "../model/interfaces";
 import SettlementsRepository, {
@@ -52,6 +52,11 @@ class SettlementService {
   async deleteSettlements(request: string[]) {
     return this.settlements.deleteSettlements(request);
   }
+
+  async aggregateSettleements(request: AggregateData) {
+    return await this.settlements.aggregateData(request)
+  }
+
 }
 
 export const SettlementServiceLayer = new SettlementService(

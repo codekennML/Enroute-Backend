@@ -28,6 +28,13 @@ const tripSchema = new Schema<ITrip>({
     },
   },
 
+  initialStatus: {
+    type: String,
+    enum: ["none", "scheduled"],
+    required: true,
+    default: "none"
+  },
+
   originTown: {
     type: SchemaTypes.ObjectId,
     ref: "Town",
@@ -42,6 +49,11 @@ const tripSchema = new Schema<ITrip>({
     type: SchemaTypes.ObjectId,
     ref: "Country",
   },
+
+  distance : { 
+    type : Number, 
+    default : 0
+  } ,
 
   destination: {
     name: String,

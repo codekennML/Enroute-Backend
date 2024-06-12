@@ -18,9 +18,8 @@ class PackageScheduleRepository {
     request: IPackageSchedule,
     session?: ClientSession
   ): Promise<IPackageSchedule[]> {
-    let createdPackageSchedules: IPackageSchedule[] = [];
 
-    createdPackageSchedules = await this.packageScheduleDBLayer.createDocs(
+ const createdPackageSchedules = await this.packageScheduleDBLayer.createDocs(
       [request],
       session
     );

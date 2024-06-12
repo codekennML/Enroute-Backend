@@ -1,4 +1,4 @@
-import { PaginationRequestData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData } from "./../repository/shared";
 import { ClientSession } from "mongoose";
 import { ITrip } from "../model/interfaces";
 import TripsRepository, { tripsDataLayer } from "../repository/trips";
@@ -11,22 +11,22 @@ class TripsService {
     this.trips = service;
   }
 
-  async createTrips(request: ITrip) {
+  async createTrip(request: ITrip) {
     const Trips = await this.trips.createTrip(request);
 
     return Trips; //tThis should return an array of one Trips only
   }
 
-  async findTripss(request: PaginationRequestData) {
+  async findTrips(request: PaginationRequestData) {
     return this.trips.returnPaginatedTrips(request);
   }
 
-  async updateTrips(request: UpdateRequestData) {
+  async updateTrip(request: UpdateRequestData) {
     const updatedTrips = await this.trips.updateTrip(request);
     return updatedTrips;
   }
 
-  async getTripsById(
+  async getTripById(
     TripsId: string,
     select?: string,
     session?: ClientSession
@@ -40,10 +40,13 @@ class TripsService {
     return Trips;
   }
 
-  async deleteTripss(request: string[]) {
+  async deleteTrips(request: string[]) {
     const deletedTrips = await this.trips.deleteTrips(request);
 
     return deletedTrips;
+  }
+  async aggregateTrips(request : AggregateData){
+    return await this.trips.aggregateData(request)
   }
 }
 

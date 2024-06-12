@@ -35,10 +35,16 @@ const rideSchema = new Schema<IRide>(
       ref: "PackageRequest",
     },
 
+    distance: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+
     type: {
       type: String,
-      enum: ["package", "selfride", "thirdParty"],
-      default: "package",
+      enum: ["package", "solo", "share"],
+      default: "solo",
       required: true,
     },
 
@@ -49,12 +55,11 @@ const rideSchema = new Schema<IRide>(
 
     pickedUp: Boolean,
 
-    alighted: Boolean,
 
-    category: {
+    packageCategory: {
       type: "String",
-      enum: ["charter", "pool"],
-      default: "pool",
+      enum: [ "STS",  "HTH"],
+  
     },
 
     origin: {
@@ -67,42 +72,6 @@ const rideSchema = new Schema<IRide>(
         },
         coordinates: [Number],
       },
-    },
-
-    pickupTown: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Town",
-    },
-
-    pickupState: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "State",
-    },
-
-    pickupCountry: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Country",
-    },
-
-    dropOffTown: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Town",
-    },
-
-    dropOffState: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "State",
-    },
-
-    dropOffCountry: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Country",
     },
 
     pickupStation: {
@@ -249,12 +218,14 @@ const rideSchema = new Schema<IRide>(
       comments: String,
     },
 
-    thirdPartyData: {
-      firstname: String,
-      lastname: String,
-      countryCode: String,
-      mobile: String,
-    },
+     friendData : [ 
+  {
+         firstname: String,
+         lastname: String,
+         countryCode: String,
+         mobile: String,
+       },
+     ]
   },
   {
     timestamps: true,

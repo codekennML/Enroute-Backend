@@ -3,12 +3,14 @@ import uuid from "uuid";
 import fs from "node:fs";
 import path from "node:path";
 import { NextFunction, Request, Response } from "express";
+import AppError from "./BaseError";
+import { StatusCodes, getReasonPhrase } from "http-status-codes";
 const fsPromises = fs.promises;
-const uuidV4 = uuid.v4;
+const { v4 } = uuid
 
 export const logEvents = async (message: string, logFileName: string) => {
   const dateTime = format(new Date(), "yyyyMMdd\tHH:mm:ss");
-  const logItem = `${dateTime}\t${uuidV4()}\t${message}\n`;
+  const logItem = `${dateTime}\t${v4()}\t${message}\n`;
 
   try {
     if (!fs.existsSync(path.join(__dirname, "..", "logs"))) {
@@ -19,7 +21,9 @@ export const logEvents = async (message: string, logFileName: string) => {
       logItem
     );
   } catch (err) {
-    console.log(err);
+    throw new AppError(
+      getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
+      StatusCodes.INTERNAL_SERVER_ERROR, "Error: Log directory creation failed")
   }
 };
 

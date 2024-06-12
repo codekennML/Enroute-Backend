@@ -1,5 +1,5 @@
-import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { PaginationRequestData } from "../repository/shared";
+import { ClientSession, FilterQuery } from "mongoose";
 import { IPackageSchedule } from "../model/interfaces";
 import PackageScheduleRepository, {
   PackageScheduleDataLayer,
@@ -32,12 +32,12 @@ class PackageScheduleService {
   }
 
   async getPackageScheduleById(
-    PackageScheduleId: string,
+    packageScheduleId: string,
     select?: string,
     session?: ClientSession
   ) {
     const PackageSchedule = await this.PackageSchedule.findPackageScheduleById({
-      query: { id: PackageScheduleId },
+      query: { id: packageScheduleId },
       select,
       session,
     });
@@ -45,7 +45,7 @@ class PackageScheduleService {
     return PackageSchedule;
   }
 
-  async deletePackageSchedules(request: string[]) {
+  async deletePackageSchedules(request: string[] | FilterQuery<IPackageSchedule>) {
     const deletedPackageSchedules =
       await this.PackageSchedule.deletePackageSchedules(request);
 

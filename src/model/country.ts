@@ -1,9 +1,9 @@
-import { Schema, Model, model, Document } from "mongoose";
+import { Schema, Model, model} from "mongoose";
 import { ICountry } from "./interfaces";
 
-export interface CountryModel extends ICountry, Document {}
 
-const CountrySchema = new Schema<CountryModel>(
+
+const CountrySchema = new Schema<ICountry>(
   {
     name: {
       type: String,
@@ -35,7 +35,7 @@ CountrySchema.index({
   name: 1,
 });
 
-const Country: Model<CountryModel> = model<CountryModel>(
+const Country: Model<ICountry> = model<ICountry>(
   "Country",
   CountrySchema
 );

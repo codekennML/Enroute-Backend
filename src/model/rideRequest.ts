@@ -5,34 +5,12 @@ export default interface RideRequestModel extends IRideRequest, Document {}
 
 const rideRequestSchema = new Schema<RideRequestModel>(
   {
-    tripId: {
-      type: Schema.Types.ObjectId,
-      required: false,
-      ref: "Trip",
-      index: true,
-    },
-
+ 
     riderId: {
       type: Schema.Types.ObjectId,
       required: false,
       ref: "User",
       index: true,
-    },
-
-    driverId: {
-      type: Schema.Types.ObjectId,
-      required: false,
-      ref: "User",
-      index: true,
-    },
-
-    driverEmail: String,
-    riderEmail: String,
-
-    driverDecision: {
-      type: String,
-      required: true,
-      enum: ["accepted", "pending", "rejected", "negotiated"],
     },
 
     riderBudget: {
@@ -41,11 +19,6 @@ const rideRequestSchema = new Schema<RideRequestModel>(
       required: true,
     },
 
-    driverBudget: {
-      type: Number,
-      default: 0,
-      required: true,
-    },
 
     destination: {
       type: SchemaTypes.ObjectId,
@@ -63,25 +36,27 @@ const rideRequestSchema = new Schema<RideRequestModel>(
 
     numberOfSeats: Number,
 
-    type: {
+    type : { 
       type: String,
       required: true,
-      enum: ["package", "selfride", "thirdParty"],
-      default: "package",
+      enum: ["share", "solo"],
+      default: "share",
     },
-
-    riderDecision: {
-      type: String,
-
-      required: false,
-      enum: ["accepted", "pending", "rejected"], //the driver renegotiated the price and the rider has to make a decison
-    },
-
+    
     status: {
       type: String,
       required: true,
       enum: ["created", "cancelled", "closed"],
     },
+
+    friendData : [ 
+      { 
+        firstname : String, 
+        lastName : String, 
+        countryCode : String , 
+        mobile : Number
+      }
+    ]
   },
 
   {
@@ -93,11 +68,13 @@ const rideRequestSchema = new Schema<RideRequestModel>(
 rideRequestSchema.index({
   status: 1,
   riderId: 1,
-  driverId: 1,
-  riderDecision: 1,
-  driverDecision: 1,
-  "destination.placeId": 1,
-  type: 1,
+  type : 1,
+  "pickupPoint.town" : 1,
+  "pickupPoint.state": 1,
+  "pickupPoint.country": 1, 
+  "destination.town": 1,
+  "destination.state": 1,
+  "destination.country": 1
 });
 
 export const RideRequest: Model<RideRequestModel> = model<RideRequestModel>(

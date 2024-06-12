@@ -1,0 +1,1 @@
+export const OTP_MAIL_ADDRESS =  process.env.OTP_NO_REPLY_ADDRESS as string

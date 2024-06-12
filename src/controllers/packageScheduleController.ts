@@ -3,13 +3,19 @@ import { IPackageSchedule } from "../model/interfaces";
 import { Request, Response } from "express";
 import PackageScheduleService, {
   PackageScheduleServiceLayer,
-} from "../services/packageScheduleService";
+} from "../services/packageScheduleTripService";
 import { Types } from "mongoose";
 import AppResponse from "../utils/helpers/AppResponse";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { sortRequest } from "../utils/helpers/sortQuery";
 import AppError from "../middlewares/errors/BaseError";
 import { cronEventsLogger } from "../middlewares/logging/logger";
+
+
+
+//This controller is used by a user to create  a schedule for a packag they want to send
+
+
 
 class PackageSchedule {
   private packageSchedule: PackageScheduleService;
@@ -26,7 +32,7 @@ class PackageSchedule {
     const {
       type,
       budget,
-      summary,
+      packageDetails,
       dueAt,
       expiresAt,
       pickupAddress,
@@ -36,6 +42,7 @@ class PackageSchedule {
       pickupTown,
       pickupState,
       pickupCountry,
+      totalDistance
     } = data;
 
     const createdPackageSchedule =
@@ -43,7 +50,7 @@ class PackageSchedule {
         createdBy: new Types.ObjectId(data.createdBy),
         type,
         budget,
-        summary,
+        packageDetails,
         dueAt,
         expiresAt,
         pickupAddress,
@@ -54,6 +61,7 @@ class PackageSchedule {
         pickupState,
         pickupCountry,
         status: "created",
+        totalDistance
       });
 
     return AppResponse(req, res, StatusCodes.CREATED, {
@@ -186,7 +194,7 @@ class PackageSchedule {
   }
 
   //Admin only
-  async deletePackageSchedule(req: Request, res: Response) {
+  async deletePackageSchedules(req: Request, res: Response) {
     const data: { scheduleIds: string[] } = req.body;
 
     const { scheduleIds } = data;

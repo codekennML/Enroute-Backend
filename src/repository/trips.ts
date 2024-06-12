@@ -2,6 +2,7 @@ import { Model, ClientSession } from "mongoose";
 import { ITrip } from "../model/interfaces";
 import Trips from "../model/trip";
 import DBLayer, {
+  AggregateData,
   PaginationRequestData,
   QueryData,
   updateManyQuery,
@@ -75,6 +76,11 @@ class TripRepository {
   async getPopulatedTrip(request: QueryData) {
     return this.tripsDBLayer.findDocs(request);
   }
+
+  async aggregateData(request: AggregateData) {
+    return await this.tripsDBLayer.aggregateData(request)
+  }
+
 }
 
 export const tripsDataLayer = new TripRepository(Trips);

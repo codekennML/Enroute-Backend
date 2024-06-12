@@ -2,7 +2,7 @@ import UserRepository, { UserDataLayer } from "../repository/user";
 
 import { ClientSession, PopulateOptions } from "mongoose";
 import { UpdateRequestData } from "../../types/types";
-import { PaginationRequestData } from "../repository/shared";
+import { AggregateData, PaginationRequestData, QueryData } from "../repository/shared";
 import { IUser } from "../model/interfaces";
 import Documents from "../model/documents";
 
@@ -25,10 +25,10 @@ class User {
     return this.user.returnPaginatedUsers(request);
   }
 
-  // async getUsers(request: QueryData) {
-  //   const users = await this.user.getUsers(request);
-  //   return users;
-  // }
+  async getUsers(request: QueryData) {
+    const users = await this.user.getUsers(request);
+    return users;
+  }
 
   async getUserById(userId: string, select: string, session?: ClientSession) {
     const verificationDataArray = [
@@ -89,6 +89,10 @@ class User {
       success: true,
       data: updatedAccountData,
     };
+  }
+
+  async aggregateUsers(request: AggregateData) {
+    return await this.user.aggregateUsers(request)
   }
 }
 

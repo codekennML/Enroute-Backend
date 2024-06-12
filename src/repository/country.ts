@@ -1,6 +1,7 @@
 import Country, { CountryModel } from "../model/country";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, {
+  AggregateData,
   PaginationRequestData,
   QueryData,
   updateManyQuery,
@@ -18,17 +19,17 @@ class CountryRepository {
     request: ICountry,
     session?: ClientSession
   ): Promise<CountryModel[]> {
-    let createdCountrys: CountryModel[] = [];
+    let createdCountries: CountryModel[] = [];
 
-    createdCountrys = await this.CountryDBLayer.createDocs([request], session);
+    createdCountries = await this.CountryDBLayer.createDocs([request], session);
 
-    return createdCountrys;
+    return createdCountries;
   }
 
   async returnPaginatedCountries(request: PaginationRequestData) {
-    const paginatedCountrys = await this.CountryDBLayer.paginateData(request);
+    const paginatedCountries = await this.CountryDBLayer.paginateData(request);
 
-    return paginatedCountrys;
+    return paginatedCountries;
   }
 
   async findCountryById(request: QueryData) {
@@ -76,6 +77,11 @@ class CountryRepository {
   async deleteCountries(request: string[]) {
     return this.CountryDBLayer.deleteDocs(request);
   }
+
+  async aggregateData(request: AggregateData) {
+    return await this.CountryDBLayer.aggregateData(request)
+  }
+
 }
 
 export const CountryDataLayer = new CountryRepository(Country);

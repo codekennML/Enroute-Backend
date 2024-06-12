@@ -10,6 +10,10 @@ import { MatchQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
 import { ClientSession } from "mongoose";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
+import { ROLES } from "../config/enums";
+import { UserServiceLayer } from "../services/userService";
+import { CommunicationServiceLayer } from "../services/communicationService";
+import { pushQueue } from "../services/bullmq/queue";
 
 class RideRequestController {
   private rideRequest: RideRequestService;
@@ -20,11 +24,18 @@ class RideRequestController {
 
   //We are not creating a ride request for realtime rides, those will be done in realtime
 
+  /**
+   * Checkmate triple or an excessive number of bookings within the same timeframe  we can allow a maximum  of two rides to the same destination within an hour of each other , this goes for packages, selfride and thirdParty ride
+   *
+   * @param {Request} req - The request object
+   * @param {Response} res - The response object
+   * @return {AppResponse} Object containing message and created ride request data
+   */
   async createRideScheduleRequest(req: Request, res: Response) {
     const data: IRideRequest = req.body;
     const user = req.user;
 
-    //Checkmate triple or an excessive number of bookings within the same timeframe and to same destination, we can allow a maximum  of two rides to the same destination within an hour of each other , this goes for packages, selfride and thirdParty ride
+
 
     //Check if the rider has up to two scheduled rides within the same timeframe , max of one hr apart and heading to the same destination with the same trip type
 
@@ -33,7 +44,6 @@ class RideRequestController {
         $match: {
           riderId: user,
           type: data.type,
-          "destination.placeId": data.destination.placeId,
           status: "scheduled",
         },
       },
@@ -82,14 +92,18 @@ class RideRequestController {
     ]);
 
     const canCreateNewRideScheduleToDestination =
-      rideRequests.length > 0 && rideRequests[0].total <= 1;
+      rideRequests?.length > 0 && rideRequests[0].total < 2;
+
     if (!canCreateNewRideScheduleToDestination)
       throw new AppError(
         `A maximum of 2 rides of the same type can be scheduled to the same destination within an interval of 1 hour.`,
         StatusCodes.FORBIDDEN
       );
 
-    const createdRideRequest = await this.rideRequest.createRideRequest(data);
+    const createdRideRequest = await this.rideRequest.createRideRequest({
+      ...data,
+      initialStatus: "scheduled"
+    });
 
     return AppResponse(req, res, StatusCodes.CREATED, {
       message: "Ride request created successfully",
@@ -97,11 +111,42 @@ class RideRequestController {
     });
   }
 
-  async getRideScheduleRequestByTrip(req: Request, res: Response) {
-    const { tripId, cursor, driverId } = req.params;
+  async createLiveRideRequest(req: Request, res: Response) {
+
+    const data: Omit<IRideRequest, "tripScheduleId"> = req.body
+
+    const user = req.user;
+    const role = req.role
+
+    if ((data?.driverId !== user || data?.riderId !== user) && role !== ROLES.ADMIN) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+
+
+    const liveRideRequest = await this.rideRequest.createRideRequest({
+      ...data,
+      initialStatus: "live"
+    })
+
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ne live ride request created",
+      data: liveRideRequest
+    })
+
+  }
+
+  /**
+   * Retrieves ride schedule requests based on trip schedule.
+   *
+   * @param {Request} req - The request object
+   * @param {Response} res - The response object
+   * @return {AppResponse} Object containing message and retrieved ride schedules
+   */
+  async getRideScheduleRequestByTripSchedule(req: Request, res: Response) {
+
+    const { tripScheduleId, cursor, driverId } = req.params;
 
     const result = await this.#getRideScheduleRequests({
-      tripId,
+      tripScheduleId,
       cursor,
       driverId,
     });
@@ -118,18 +163,34 @@ class RideRequestController {
     });
   }
 
+  /**
+   * Accepts a ride schedule request by creating a ride and closing the request.
+   *
+   * @param {Request} req - The request object
+   * @param {Response} res - The response object
+   * @return {AppResponse} Object containing message and ride id
+   */
   async acceptRideScheduleRequestDriver(req: Request, res: Response) {
-    //Create a ride and close the request
+    // Create a ride and close the request
 
     const data: { rideRequestId: string; driverId: string } = req.body;
 
+    /**
+     * Accepts a ride schedule request by creating a ride and closing the request.
+     *
+     * @param {typeof data} args - The arguments for the function
+     * @param {ClientSession} session - The session for the database transaction
+     * @return {Promise<string>} The id of the created ride
+     */
     const acceptRideSession = async (
       args: typeof data,
       session: ClientSession
-    ) => {
+    ): Promise<string> => {
+
       const response = await session.withTransaction(async () => {
         const { rideRequestId, driverId } = args;
 
+        // Find the ride request and update its status and decision
         const rideRequest = await this.rideRequest.updateRideRequest({
           docToUpdate: { driverId, _id: { rideRequestId, status: "created" } },
           updateData: {
@@ -147,42 +208,16 @@ class RideRequestController {
             StatusCodes.NOT_FOUND
           );
 
-        //Create New ride - SEND EMAIL TOO
-
-        const newRide = await RideServiceLayer.createRide(
-          {
-            riderId: rideRequest.riderId,
-            driverId: rideRequest.driverId,
-            tripId: rideRequest.tripId,
-            numberOfSeats: rideRequest.numberofSeats,
-            fare: rideRequest?.driverBudget ?? rideRequest.riderBudget,
-            hasLoad: rideRequest.hasLoad,
-            type: rideRequest.type,
-            packageInfo: rideRequest.packageInfo,
-            destination: rideRequest.destination,
-            pickupPoint: rideRequest.pickupPoint,
-          },
-          session
-        );
-
-        if (!newRide)
-          throw new AppError(
-            `Something went wrong. Please try again`,
-            StatusCodes.UNPROCESSABLE_ENTITY
-          );
-
-        //TODO : Send Ride accepted email
-
-        return newRide._id;
+        return rideRequest
       });
 
-      return response;
+      return response._id
     };
 
     const response = await retryTransaction(acceptRideSession, 1, data);
 
     return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride accepted successfully",
+      message: "Ride request to accepted successfully",
       response,
     });
   }
@@ -282,34 +317,13 @@ class RideRequestController {
             StatusCodes.NOT_FOUND
           );
 
-        //Create New ride - SEND EMAIL TOO
+        //SEND EMAIL TOO
 
-        const newRide = await RideServiceLayer.createRide(
-          {
-            riderId: rideRequest.riderId,
-            driverId: rideRequest.driverId,
-            tripId: rideRequest.tripId,
-            numberOfSeats: rideRequest.numberOfSeats,
-            fare: rideRequest?.driverBudget ?? rideRequest.riderBudget,
-            hasLoad: rideRequest.hasLoad,
-            type: rideRequest.type,
-            packageInfo: rideRequest.packageInfo,
-            destination: rideRequest.destination,
-            pickupPoint: rideRequest.pickupPoint,
-          },
-          session
-        );
 
-        if (!newRide)
-          throw new AppError(
-            `Something went wrong. Please try again`,
-            StatusCodes.UNPROCESSABLE_ENTITY
-          );
 
         //TODO : Send negotiated price accepted email
-        const email = rideRequest.driverEmail;
+        // const email = rideRequest.driverEmail;
 
-        return newRide._id;
       });
 
       return result;
@@ -343,16 +357,35 @@ class RideRequestController {
           status: "closed",
         },
       },
-      options: { new: true, select: "driverEmail _id" },
+      options: { new: true, select: "driverId riderId _id driverBudget destination" },
     });
-
-    if (!rejectedRide)
+  
+   
+    if (!rejectedRide )
       throw new AppError(
         getReasonPhrase(StatusCodes.NOT_FOUND),
         StatusCodes.NOT_FOUND
       );
 
-    //TODO : Send EMAIL TO DRIVER - REJECTED NEGOTIATION
+    const users = await UserServiceLayer.getUsers({ 
+      query : { 
+        _id : { $in : [ rejectedRide.driverId,  rejectedRide.riderId]}, 
+      }, 
+      select : "deviceToken firstname"
+    })
+
+
+    if(!driverData || !driverData.length < 2) throw new AppError(`An Error occured.  Please try again later`, StatusCodes.BAD_REQUEST)
+    
+    const riderData =  driverData.map()
+
+    //TODO : Send PUSH TO DRIVER - REJECTED NEGOTIATION
+    
+  
+    pushQueue.add(`DRIVER_BUDGET_REJECTED`, { 
+       deviceTokens : [driverData.deviceToken], 
+        message  : `Your `
+    }, { priority : 10})
 
     return AppResponse(req, res, StatusCodes.OK, {
       message: "Ride cancelled successfully",
@@ -362,6 +395,15 @@ class RideRequestController {
 
   async cancelRideRequest(req: Request, res: Response) {
     const data: { riderId: string; rideRequestId: string } = req.body;
+
+
+    const rideData = await this.rideRequest.getRideRequestById(data.rideRequestId)
+
+
+    const canCancelRide = rideData?.driverId.toString() === data.riderId || rideData?.riderId?.toString() === data.riderId || data.userRole !== ROLES.ADMIN
+
+    if (!canCancelRide) throw new AppError("You are not authorized to cancel this ride", StatusCodes.FORBIDDEN)
+
 
     const cancelledRideRequest = await this.rideRequest.updateRideRequest({
       docToUpdate: {
@@ -376,6 +418,8 @@ class RideRequestController {
       },
       options: { new: true, select: "_id" },
     });
+
+
 
     if (!cancelledRideRequest)
       throw new AppError(
@@ -395,7 +439,7 @@ class RideRequestController {
     const data: {
       cursor?: string;
       status?: string;
-      tripId?: string;
+      tripScheduleId?: string;
       driverId?: string;
       sort?: string;
       type?: "package" | "selfride" | "thirdParty";
@@ -418,7 +462,7 @@ class RideRequestController {
   async #getRideScheduleRequests(data: {
     cursor?: string;
     status?: string;
-    tripId?: string;
+    tripScheduleId?: string;
     driverId?: string;
     sort?: string;
     type?: "package" | "selfride" | "thirdParty";
@@ -429,8 +473,8 @@ class RideRequestController {
       matchQuery.status = { status: { $eq: data.status } };
     }
 
-    if (data?.tripId) {
-      matchQuery.tripId = { status: { $eq: data.tripId } };
+    if (data?.tripScheduleId) {
+      matchQuery.tripId = { status: { $eq: data.tripScheduleId } };
     }
 
     if (data?.type) {
@@ -522,44 +566,6 @@ class RideRequestController {
     };
   }
 
-  // async updateRideRequestByDriver(req: Request, res: Response) {
-
-  //   const { driverBudget, driverDecision ,  driver  } =  req.body
-
-  // let updateData :Partial<Pick<IRideRequest,  "driverDecision"| "status" | "driverBudget">> = {}
-
-  //  if(driverBudget) {
-  //   updateData.driverBudget = driverBudget
-
-  //  }
-  //  if(driverDecision) {
-  //   updateData.driverDecision = driverDecision
-  //    if(driverDecision === "accepted") {
-  //        updateData.status = "closed"
-  //    }
-
-  //  }
-  //  if(driverBudget) {
-  //   updateData.driverBudget = driverBudget
-  //  }
-
-  //  if(driverStatus === "")
-
-  //   const uodatedRideRequest  =  await this.rideRequest.updateRideRequest({
-  //     docToUpdate : { driverId : driver },
-  //     updateData : {
-  //       $set : {
-  //         driverDecision :
-  //       }
-  //     }
-  //   })
-
-  // }
-
-  // async updateRideRequestByRider() {
-
-  // }
-
   async deleteRideRequests(req: Request, res: Response) {
     const data: { rideRequestIds: string[] } = req.body;
 
@@ -578,6 +584,244 @@ class RideRequestController {
     return AppResponse(req, res, StatusCodes.OK, {
       message: `${deletedRideRequests.deletedCount} ride requests deleted.`,
     });
+  }
+
+  async getRideRequestStats(req: Request, res: Response) {
+
+    const data: {
+      dateFrom: Date,
+      dateTo: Date,
+      status: Pick<IRideRequest, "status">,
+      type?: "package" | "selfride" | "thirdParty",
+      country?: string,
+      state?: string,
+      town?: string,
+      riderId?: string
+      driverId?: string
+    } = req.body
+
+    const matchQuery: MatchQuery = {
+      createdAt: { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) }
+    };
+
+    if (data?.country) {
+      matchQuery.country = { $eq: data.country };
+    }
+
+    if (data?.state) {
+      matchQuery.state = { $eq: data.state };
+    }
+
+    if (data?.town) {
+      matchQuery.town = { $eq: data.town };
+    }
+
+    if (data?.driverId) {
+      matchQuery.driverId = { $eq: data.driverId };
+    }
+
+
+    if (data?.riderId) {
+      matchQuery.riderId = { $eq: data.riderId };
+    }
+
+
+    const query =
+      [
+        {
+          $match: matchQuery
+        },
+        {
+          $facet: {
+            count: { $count: "total" },
+
+            averageRideRequestDistance: [
+              {
+                $avg: "$totalRideDistance"
+              }
+            ],
+
+            topPickupPoint: [
+              {
+                $group: {
+                  _id: "$pickupPoint",
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $sort: { count: -1 }
+              },
+              {
+                $limit: 10
+              },
+              {
+                $lookup: {
+                  from: "BusStation",
+                  localField: "_id", // localField should be _id because _id contains pickupPoint after grouping
+                  foreignField: "_id",
+                  as: "busStation"
+                }
+              },
+              {
+                $unwind: "$busStation"
+              },
+              {
+                $project: {
+                  "busStation.name": 1,
+                  count: 1
+                }
+              }
+            ],
+            topDestination: [
+              {
+                $group: {
+                  _id: "$destination",
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $sort: { count: -1 }
+              },
+              {
+                $limit: 20
+              },
+              {
+                $lookup: {
+                  from: "BusStation",
+                  localField: "_id", // localField should be _id because _id contains pickupPoint after grouping
+                  foreignField: "_id",
+                  as: "busStation"
+                }
+              },
+              {
+                $unwind: "$busStation"
+              },
+              {
+                $project: {
+                  "busStation.name": 1,
+                  count: 1
+                }
+              }
+            ],
+
+
+            groupTypeByMonthOfYear: [
+              {
+                $group: {
+                  _id: {
+                    month: { $month: "$createdAt" },
+                    status: "$type"
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $group: {
+                  _id: "$_id.month",
+                  statusCounts: {
+                    $push: {
+                      k: "$_id.status",
+                      v: "$count"
+                    }
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  month: "$_id",
+                  statusCounts: {
+                    $arrayToObject: "$statusCounts"
+                  }
+                }
+              }
+            ],
+
+            groupStatusByMonthOfYear: [
+              {
+                $group: {
+                  _id: {
+                    month: { $month: "$createdAt" },
+                    status: "$status"
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $group: {
+                  _id: "$_id.month",
+                  statusCounts: {
+                    $push: {
+                      k: "$_id.status",
+                      v: "$count"
+                    }
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  month: "$_id",
+                  statusCounts: {
+                    $arrayToObject: "$statusCounts"
+                  }
+                }
+              }
+            ],
+
+            groupInitialStatusByMonthOfYear: [
+              {
+                $group: {
+                  _id: {
+                    month: { $month: "$createdAt" },
+                    status: "$type"
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $group: {
+                  _id: "$_id.month",
+                  statusCounts: {
+                    $push: {
+                      k: "$_id.status",
+                      v: "$count"
+                    }
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  month: "$_id",
+                  statusCounts: {
+                    $arrayToObject: "$statusCounts"
+                  }
+                }
+              }
+            ],
+            cancellationReasonBreakdown: [
+              {
+                $group: {
+                  _id: "$cancellationData.reason"
+                },
+                count: { $sum: 1 }
+              }
+            ],
+
+
+
+          }
+
+        }
+      ]
+
+
+    //@ts-expect-error //ts doesnt recognize the stage correctly
+    const result = await this.rideRequest.aggregateRideRequests(query)
+
+    return AppResponse(req, res, StatusCodes.OK, result)
+
   }
 }
 

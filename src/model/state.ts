@@ -19,9 +19,18 @@ const StateSchema = new Schema<IState>(
       required: true,
       ref: "Country",
     },
-    requiredDocs: {
-      type: [String],
-    },
+    requiredDriverDocs: [
+      {
+        name: String,
+        options: [String]
+      }
+    ],
+    requiredRiderDocs: [
+      {
+        name: String,
+        options: [String]
+      }
+    ],
   },
   {
     timestamps: true,

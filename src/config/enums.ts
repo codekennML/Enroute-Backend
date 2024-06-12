@@ -9,32 +9,38 @@ export enum PAYSTACKCHANNELS {
   BANK = "bank",
 }
 
-export enum ROLES {
-  DRIVER = "driver",
-  RIDER = "rider",
-  ADMIN = "admin_xxgofar",
+
+
+export const ROLES =  {
+  DRIVER :  4536,
+  RIDER : 2435,
+  SUPERADMIN : 96370,
+  ADMIN : 86774,
+  ACCOUNT : 76230,
+  MARKETING : 7049,
+  SALES : 6430,
+  DEV : 4325,
+  CX : 34564
 }
 
-export enum USER {
-  driver = 4536,
-  rider = 2435,
+export const SUBROLES =  {
+  MANAGER : 987231,
+  STAFF :  123230,
+  INTERN  :12090,
 }
 
-export enum ADMINROLES {
-  SUPERADMIN = 96370,
-  ADMIN = 86774,
-  ACCOUNT = 76230,
-  MARKETING = 7049,
-  SALES = 6430,
-  DEV = 4325,
-  CX = 34564,
+export function excludeEnum<T extends { [key : string] : number}>(
+  enumObj: T,
+  excludeValues: (keyof T)[]
+): T[keyof T][] {
+  return Object.keys(enumObj)
+    .filter(key => !excludeValues.includes(enumObj[key as keyof T]))
+    .map(key => enumObj[key as keyof T]);
 }
 
-export enum SUBROLES {
-  MANAGER = 9231,
-  STAFF = 1230,
-  INTERN = 1200,
-}
+
+
+
 
 export enum NOTIFICATION {
   SCHEDULE_ACCEPTED = "ride_schedule_accepted",

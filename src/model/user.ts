@@ -1,13 +1,6 @@
 import { Schema, Model, model, SchemaTypes } from "mongoose";
 import { IUser } from "./interfaces";
 
-// export interface IUserModel extends IUser, Document {
-//   hashPassword(password: string): void;
-//   comparePassword(
-//     existingPassword: string,
-//     newPassword: string
-//   ): Promise<boolean>;
-// }
 
 const userSchema = new Schema<IUser>(
   {
@@ -20,7 +13,7 @@ const userSchema = new Schema<IUser>(
     email: {
       type: String,
       max: 255,
-      required: function () {
+      required:  () =>  {
         return !this.mobile;
       },
       index: true,
@@ -56,7 +49,7 @@ const userSchema = new Schema<IUser>(
     },
 
     mobile: {
-      type: String,
+      type: Number,
       unique: true,
       max: 13, // +2348105481234
       required: [true, "User Phone number is required"],
@@ -165,6 +158,7 @@ const userSchema = new Schema<IUser>(
     paymentMethod: {
       authorization: Object,
       customer: Object,
+      isValid : true
     },
 
     refreshToken: {

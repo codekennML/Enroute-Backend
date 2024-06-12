@@ -75,7 +75,7 @@ export const authLogger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-export const criticalLogger = winston.createLogger({
+export const errorLogger = winston.createLogger({
   level: "http",
   format,
   transports: [new winston.transports.Console()],
@@ -92,3 +92,18 @@ export const cronEventsLogger = winston.createLogger({
   format,
   transports: [new winston.transports.Console()],
 });
+
+export const notificationsLogger = winston.createLogger({
+  level: "info",
+  format,
+  transports: [new winston.transports.Console()],
+});
+
+export const QueueLogger = winston.createLogger({
+  level: "error",
+  format,
+  transports: [new winston.transports.Console()],
+});
+
+
+

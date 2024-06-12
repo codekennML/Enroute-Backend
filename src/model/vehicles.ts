@@ -1,7 +1,7 @@
 import { Schema, Model, model, SchemaTypes, Document } from "mongoose";
 import { IVehicle } from "./interfaces";
 
-export interface IVehicleModel extends IVehicle, Document {}
+export interface IVehicleModel extends IVehicle, Document { }
 
 const vehicleSchema = new Schema<IVehicleModel>(
   {
@@ -27,15 +27,29 @@ const vehicleSchema = new Schema<IVehicleModel>(
       default: 2000,
       required: true,
     },
-    isVerified: { type: Boolean, required: true, default: false },
-    insurance: {
-      type: SchemaTypes.ObjectId,
-      ref: "Documents",
+
+    licensePlate: {
+      type: String,
+      required: true
     },
 
     inspection: {
-      type: SchemaTypes.ObjectId,
-      ref: "Documents",
+      provider: String,
+      issueDate: Date,
+     expiryDate: Date,
+      image: {
+        front: String,
+        back?: String
+      }
+    },
+    insurance: {
+      provider: String,
+      issueDate: Date,
+      expiryDate: Date,
+      image: {
+        front: String,
+        back?: String
+      }
     },
 
     hasAC: {
@@ -56,19 +70,7 @@ const vehicleSchema = new Schema<IVehicleModel>(
       required: true,
       default: "pending",
     },
-    town: {
-      type: String,
-      required: true,
-    },
-    state: {
-      type: String,
-      required: true,
-    },
-
-    country: {
-      type: String,
-      required: true,
-    },
+   
 
     approvedBy: {
       type: SchemaTypes.ObjectId,
@@ -87,7 +89,10 @@ const vehicleSchema = new Schema<IVehicleModel>(
 vehicleSchema.index({
   isArchived: 1,
   licensePlate: 1,
+  isVerified : 1, 
   driverId: 1,
+  "insurance.expiryDate" : 1, 
+  "inspection.expiryDate" : 1,
 });
 
 export const Vehicle: Model<IVehicleModel> = model<IVehicleModel>(

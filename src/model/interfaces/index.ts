@@ -5,11 +5,9 @@ import {
   latLngCoordinates,
 } from "../../../types/types";
 import {
-  ADMINROLES,
+
   NOTIFICATION,
   PAYSTACKCHANNELS,
-  SUBROLES,
-  USER,
 } from "../../config/enums";
 
 export interface Coordinates {
@@ -18,7 +16,7 @@ export interface Coordinates {
   placeId?: string;
 }
 
-export type IDocuments = {
+export interface IDocuments {
   userId: Types.ObjectId;
   vehicleId?: Types.ObjectId;
   name: string; //Xdaafsghs
@@ -33,7 +31,26 @@ export type IDocuments = {
   rejectionFeedback?: string;
   status?: "pending" | "assessed" | "none";
   approvedBy?: Types.ObjectId;
-};
+}
+
+export interface ITripSchedule {
+  driverId: Types.ObjectId;
+  origin: Place;
+  originTown: Types.ObjectId;
+  originState: Types.ObjectId;
+  originCountry: Types.ObjectId;
+  destinationTown: Types.ObjectId;
+  destinationState: Types.ObjectId;
+  destination: Place;
+  vehicleId: Types.ObjectId;
+  departureTime: Date;
+  seatAllocationsForTrip: number;
+  route: Types.ObjectId;
+  status: "created" | "cancelled";
+
+
+
+}
 
 export interface INotification {
   type: NOTIFICATION;
@@ -43,14 +60,17 @@ export interface INotification {
   read?: boolean;
 }
 
-export interface ISettlements {
+export interface ISettlements extends Locale {
   amount: number;
   processor: "paystack" | "flutterwave" | "stripe";
   driverId: Types.ObjectId;
+  driverEmail: string
   processed: boolean;
   status: "success" | "created" | "failed";
   data?: Record<string, unknown>;
-  rides: Types.ObjectId[];
+  rides?: Types.ObjectId[];
+  isPaymentInit: boolean
+  failedCount: number
 
   //Payment data from processor
 }
@@ -73,21 +93,26 @@ export interface ITown {
   name: string;
   state: Types.ObjectId;
   country: Types.ObjectId;
-  requiredDocs: string[]; //These are required verification docs for the specific town, country or state
+  requiredDriverDocs: { name: string, options: string[] }[];
+  requiredRiderDocs: { name: string, options: string[] }[]; //These are required verification docs for the specific town, country or state
 }
 
 export interface IState {
   name: string;
   country: Types.ObjectId;
   boundary: number[];
-  requiredDocs: string[];
+  requiredDriverDocs: { name: string, options: string[] }[];
+  requiredRiderDocs: { name: string, options: string[] }[]; //These are required verification docs for the specific town, country or state
+
 }
 
 export interface ICountry {
   name: string;
   code: string;
   boundary: number[];
-  requiredDocs: string[];
+  requiredDriverDocs: { name: string, options: string[] }[];
+  requiredRiderDocs: { name: string, options: string[] }[]; //These are required verification docs for the specific town, country or state
+
 }
 
 export interface Locale {
@@ -96,57 +121,59 @@ export interface Locale {
   country: Types.ObjectId;
 }
 
+
+export interface CancellationData {
+
+  status: boolean;
+  initiator: Types.ObjectId;
+  initiatedBy: "driver" | "rider" | "admin";
+  time: Date;
+  cancellationReason: string;
+  driverDistanceFromPickup: number; //in meters
+  driverEstimatedETA: number; // estimated ETA before the ride was cancelled in mins
+
+}
+
 export interface IRide {
   driverId: Types.ObjectId;
   tripId: Types.ObjectId;
   riderId: Types.ObjectId;
-  packageRequestId: Types.ObjectId;
-  pickupTown: Types.ObjectId;
-  pickupState: Types.ObjectId;
-  pickupCountry: Types.ObjectId;
+  packageRequestId?: Types.ObjectId;
+
   pickedUp: boolean;
   pickupTime: Date;
   alighted?: boolean;
   dropOffTime?: Date;
-  dropOffTown: Types.ObjectId;
-  dropOffState: Types.ObjectId;
-  dropOffCountry: Types.ObjectId;
-  type: "package" | "self" | "thirdParty";
-  category: "charter" | "pool";
-  cancellationData?: {
-    status: boolean;
-    initiator: Types.ObjectId;
-    initiatedBy: "driver" | "rider";
-    time: Date;
-    cancellationReason: string;
-    driverDistanceFromPickup: number; //in meters
-    driverEstimatedETA: number; // estimated ETA before the ride was cancelled in mins
-  };
+  type: "solo" | "share" | "package";
+  packageCategory?:  "STS" | "HTH";
+  cancellationData?: CancellationData
   seatsOccupied?: number;
-  pickupStation: IBusStation;
-  origin: Place;
-  destination: IBusStation;
+  pickupStation?: IBusStation;
+  origin: Place | IBusStation
+  distance?: number
+  destination: IBusStation | Place
   dropOffLocation?: Place; //The person may stop at a place other than the bus stop
   route?: Types.ObjectId; //The GEOJSON and time stamp for each
   rideTotalDistance: number;
   acceptedFare: number;
-  driverCommission: number;
-  riderCommission: number;
-  totalCommission: number;
-  commissionPaid: boolean;
-  settlement: {
+  paidFare?: number
+  driverCommission?: number;
+  riderCommission?: number;
+  totalCommission?: number;
+  commissionPaid?: boolean;
+  settlement?: {
     //The settlement id that settled the commission and how much was paid
     identifier: Types.ObjectId;
     amount: number;
   };
   initialStatus: "none" | "scheduled";
   status:
-    | "scheduled"
-    | "cancelled"
-    | "ongoing"
-    | "completed"
-    | "crashed"
-    | "abandoned";
+  | "scheduled"
+  | "cancelled"
+  | "ongoing"
+  | "completed"
+  | "crashed"
+  | "abandoned";
   packageDetails?: {
     recipient: {
       firstname: string;
@@ -154,22 +181,63 @@ export interface IRide {
       countryCode: string;
       mobile: string;
     };
-    description: string;
+
     comments: string;
+
   };
-  thirdPartyData: {
+  friendData?: {
     firstname: string;
     lastname: string;
     countryCode: string;
     mobile: string;
-  };
+  }[]
+}
+
+
+export interface IRideRequest extends Locale {
+  tripScheduleId?: Types.ObjectId,
+  driverId: Types.ObjectId;
+  riderId: Types.ObjectId;
+  destination: IBusStation;
+  pickupPoint: IBusStation
+  hasLoad: boolean;
+  numberOfSeats?: number;
+  type: "share" | "solo"
+  cancellationData?: CancellationData
+  totalRideDistance: number
+  initialStatus: "scheduled" | "live"
+  riderBudget : number
+  driverBudget : number, 
+  driverDecision : "accepted" | "rejected" | "riderBudget"
+  riderDecision: "accepted" | "rejected"; //the driver renegotiated the price and the rider has to make a decison
+  status: "created" | "cancelled" | "closed";
+  friendData? : { firstname: string; lastname: string; countryCode: string; mobile: string; }[] 
+
+
 }
 
 export interface IVehicle {
   vehicleModel: string;
   vehicleMake: string;
-  insurance: Types.ObjectId;
-  inspection: Types.ObjectId;
+  inspection:  { 
+   provider : string, 
+   issueDate : Date
+   expiryDate : Date
+   image : { 
+    front : string, 
+    back?: string
+   } 
+  },
+    insurance: {
+      provider: Date,
+      issueDate: Date
+      expiryDate: Date
+      image: {
+        front: string,
+        back?: string
+      } 
+  },
+  licensePlate: string
   year: number;
   hasAC: boolean;
   driverId: Types.ObjectId;
@@ -177,9 +245,7 @@ export interface IVehicle {
   isArchived: boolean;
   status: "pending" | "assessed";
   approvedBy: Types.ObjectId;
-  town: string;
-  state: string;
-  country: string;
+ 
 }
 
 export interface ITickets {
@@ -201,17 +267,24 @@ export interface IPackageSchedule {
   type: "HTH" | "STS"; //Home to home or stop to stop
   budget: number;
   acceptedBudget?: number;
-  summary: string;
+  packageDetails: {
+
+    recipient: {
+      firstname: string,
+      lastname: string,
+      countryCode: string,
+      mobile: string
+    },
+    comments: string
+  };
   dueAt: Date;
   expiresAt: Date;
   status: string;
+  totalDistance: number
   destinationAddress: Place;
   pickupAddress: Place;
-  destinationTown: Types.ObjectId;
-  destinationState: Types.ObjectId;
-  pickupTown: Types.ObjectId;
-  pickupState: Types.ObjectId;
-  pickupCountry: Types.ObjectId;
+ 
+
 }
 
 export interface IPackageScheduleRequest {
@@ -221,45 +294,20 @@ export interface IPackageScheduleRequest {
   createdBy: Types.ObjectId;
   status: string;
 }
-export interface IRideRequest extends Locale {
-  tripId: Types.ObjectId;
-  driverId: Types.ObjectId;
-  driverEmail: string;
-  riderEmail: string;
-  riderId: Types.ObjectId;
-  driverDecision: "accepted" | "rejected" | "negotiated";
-  riderBudget: number;
-  driverBudget: number;
-  destination: IBusStation;
-  pickupPoint: Place;
-  hasLoad: boolean;
-  numberOfSeats?: number;
-  type: "package" | "selfride" | "thirdParty";
-  packageInfo?: {
-    packageContents: string;
-    packageWeight?: number;
-    recipient?: {
-      name: string;
-      countryCode: string;
-      mobile: string;
-    };
-  };
-  riderDecision: "accepted" | "rejected"; //the driver renegotiated the price and the rider has to make a decison
-  status: "created" | "cancelled" | "closed";
-}
+
 
 export interface IUser extends Locale {
-  firstName: string;
+  firstName?: string;
   email?: string;
   avatar?: string;
   socialName?: string;
-  lastName: string;
+  lastName?: string;
   birthDate?: Date;
-  mobile: string;
+  mobile: number;
   gender?: "male" | "female";
   deviceToken?: string;
-  roles: ADMINROLES | USER;
-  subRole?: SUBROLES;
+  roles: number ;
+  subRole?: number;
   hasUsedSocialAuth: boolean;
   googleId?: string;
   googleEmail?: string;
@@ -275,7 +323,7 @@ export interface IUser extends Locale {
   active?: boolean;
   suspended?: boolean;
   banned?: boolean;
-  password?: string;
+  // password?: string;
   lastLoginAt: Date;
   emailVerifiedAt: Date;
   mobileVerifiedAt: Date;
@@ -285,27 +333,23 @@ export interface IUser extends Locale {
   mobileVerified?: boolean;
   resetTokenHash?: string;
   refreshToken?: string;
-  countryCode?: number;
+  countryCode: number;
   resetTokenData?: { [key: string]: Date | boolean };
   deviceIds: string[];
-  // balance: number;
-  userTransferRef?: string[];
+  
   paymentMethod?: {
     authorization: Paystack.Authorization;
     customer: Paystack.Customer;
+    isValid: false
   };
   about?: string;
   street?: string;
   isOnline?: boolean;
-  // vehicle: Types.ObjectId;
-  // identification?: Types.ObjectId; //Passport or NIN
-  // selfie: Types.ObjectId; //Face detection data
-  // license: Types.ObjectId; //Driver license
-  // lasraa: Types.ObjectId;
+
   dispatchType?: string[];
   rating: number;
   emergencyContacts?: EmergencyContact[];
-  stateOfOrigin?: string;
+  stateOfOrigin?: Types.ObjectId;
   serviceType: string[];
   createdAt?: Date;
   updatedAt?: Date;
@@ -343,11 +387,7 @@ export interface IBusStation extends Locale {
     type: "Point";
     coordinates: latLngCoordinates;
   };
-}
 
-export interface IAddress extends Locale {
-  name: string;
-  documents: Types.ObjectId;
 }
 
 export interface ITrans {
@@ -403,6 +443,8 @@ export interface IPay {
 
 export type IOtp = {
   user?: Types.ObjectId;
+  mobile? : number ,
+  countryCode ? : number
   email?: string;
   hash?: string;
   expiry?: Date;
@@ -445,7 +487,7 @@ export interface IRoute {
   lineString: string;
 }
 
-type Place = {
+export type Place = {
   name: string;
   location: {
     type: "Point";
@@ -458,17 +500,33 @@ type Place = {
 };
 
 export interface ITrip {
+  createdAt: { $gte: Date; $lte: Date; };
+  // state: { $eq: string; };
+  // town: { $eq: string; };
   driverId: Types.ObjectId;
   origin: Place;
-  originTown: Types.ObjectId;
-  originState: Types.ObjectId;
-  originCountry: Types.ObjectId;
-  destinationTown: Types.ObjectId;
-  destinationState: Types.ObjectId;
   destination: Place;
   vehicleId: Types.ObjectId;
+  distance: number
   departureTime: Date;
+  endTime?: Date
+  totalfare?: number,
   seatAllocationsForTrip: number;
   route: Types.ObjectId;
-  status: "scheduled" | "cancelled" | "ongoing" | "completed" | "crashed";
+  initialStatus: "none" | "scheduled"
+  status: "cancelled" | "ongoing" | "completed" | "crashed";
+}
+
+export interface IRideSchedule {
+  rideRequest : Types.ObjectId,
+  tripId : Types.ObjectId,
+  driverId : Types.ObjectId
+  riderId : Types.ObjectId
+  driverPushId : string, 
+  riderPushId : string,
+  driverEmail : string,  
+  riderEmail : string
+  status : "created" | "closed" | "cancelled", 
+  driverBudget : number 
+  riderAccepted : boolean
 }

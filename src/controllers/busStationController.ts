@@ -9,6 +9,7 @@ import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
 
+
 class BusStationController {
   private busStation: BusStationService;
 
@@ -82,7 +83,7 @@ class BusStationController {
       hasData ? StatusCodes.OK : StatusCodes.NOT_FOUND,
       {
         message: hasData
-          ? `Stations retrieved retrieved succesfully`
+          ? `Stations retrieved succesfully`
           : `No stations were found for this request `,
         data: result,
       }
@@ -93,6 +94,8 @@ class BusStationController {
     const stationId: string = req.params.id;
 
     const result = await this.busStation.getBusStationById(stationId);
+
+
 
     if (!result)
       throw new AppError(
@@ -109,7 +112,10 @@ class BusStationController {
   async updateBusStation(req: Request, res: Response) {
     const data: IBusStation & { stationId: string } = req.body;
 
+
     const { stationId, ...rest } = data;
+
+
 
     const updatedStation = await this.busStation.updateBusStation({
       docToUpdate: stationId,
@@ -129,6 +135,8 @@ class BusStationController {
         "Error : Update to bus station failed",
         StatusCodes.NOT_FOUND
       );
+
+
 
     return AppResponse(req, res, StatusCodes.OK, {
       message: "Bus station updated successfully",
@@ -156,6 +164,8 @@ class BusStationController {
       message: `${deletedBusStations.deletedCount} bus stations deleted.`,
     });
   }
+
+
 }
 
 export const BusStation = new BusStationController(BusStationServiceLayer);

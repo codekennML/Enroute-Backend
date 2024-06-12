@@ -36,18 +36,13 @@ class VehicleRepository {
 
     return paginatedVehicles;
   }
+  async getVehicles(request : QueryData){ 
+    const vehicles = await this.VehicleDBLayer.findDocs(request);
 
-  async updateVehicle(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+    return vehicles;
+  }
+
+  async updateVehicle(request: UpdateRequestData) {
     const updatedVehicle = await this.VehicleDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

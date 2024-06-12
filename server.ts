@@ -4,7 +4,7 @@ import { startDB } from "../route/src/config/connectDB";
 const app: Application = express();
 
 import path from "node:path";
-import cookieParser from "cookie-parser";
+// import cookieParser from "cookie-parser";
 import { logger, logEvents } from "./src/middlewares/errors/logger";
 
 import errorHandler from "./src/middlewares/errors/errorHandler";
@@ -12,12 +12,14 @@ import cors from "cors";
 import corsOptions from "./src/config/cors/corsOptions";
 import mongoose from "mongoose";
 import closeWithGrace from "close-with-grace";
-
+import rideRouter from "./src/routes/ride"
 // require("./config/passportGoogle");
 // const passport = require("passport");
 
 dotenv.config();
 import bodyParser from "body-parser";
+import { serverAdapter } from "./src/services/bullmq/ui";
+import AuthGuard from "./src/middlewares/auth/verifyTokens";
 
 const PORT = process.env.PORT ?? 3500;
 
@@ -27,11 +29,13 @@ startDB();
 app.use(logger);
 
 app.use(cors(corsOptions));
-app.use(cookieParser());
+// app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// app.use("/tasks", require("./routes/taskRoutes"));
+app.use(AuthGuard)
+app.use("/ride"  rideRouter)
+app.use("/admin/queueviewer/ui", serverAdapter.getRouter());
 
 app.all("*", (req, res) => {
   res.status(404);

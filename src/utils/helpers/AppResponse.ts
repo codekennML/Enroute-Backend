@@ -17,12 +17,37 @@ const AppResponse = <T>(
     refreshToken: req.headers[process.env.REFRESH_TOKEN_ID as string],
   };
 
+
+
+  if (Array.isArray(data)) {
+
+
+    let transformedData = []
+
+    if (data[0] && data[0]["password"]) {
+
+      transformedData = data.map(data => data.delete["password"])
+    }
+
+    const response = {
+      transformedData,
+      ...(tokens && { tokens: { ...tokens } }),
+    };
+
+    res.status(status).json(response);
+  }
+
+  if (typeof data === "object" && "password" in data!) {
+    delete (data.password)
+  }
+
   const response = {
     data,
     ...(tokens && { tokens: { ...tokens } }),
   };
 
   res.status(status).json(response);
+
 };
 
 export default AppResponse;

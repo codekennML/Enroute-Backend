@@ -1,3 +1,5 @@
+import { ROLES } from './../config/enums';
+
 import { MatchQuery, SortQuery } from "./../../types/types.d";
 import { Request, Response } from "express";
 
@@ -5,10 +7,11 @@ import UserService, { UserServiceLayer } from "../services/userService";
 import AppResponse from "../utils/helpers/AppResponse";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { IUser } from "../model/interfaces";
-
 import AppError from "../middlewares/errors/BaseError";
 
-import { ADMINROLES, USER } from "../config/enums";
+
+
+
 
 class User {
   private user: UserService;
@@ -19,30 +22,16 @@ class User {
 
   async createUser(req: Request, res: Response) {
     const data: Required<
-      Pick<IUser, "firstName" | "lastName" | "mobile" | "roles" | "countryCode">
-    > & { deviceId: string } & Pick<
-        IUser,
-        | "fbId"
-        | "appleId"
-        | "googleId"
-        | "googleEmail"
-        | "appleEmail"
-        | "fbEmail"
-        | "deviceIds"
-      > = req.body;
-
-    const { deviceId, ...rest } = data;
+      Pick<IUser, "firstName" | "lastName" | "mobile" | "roles" | "countryCode" | "subRole">
+    > = req.body;
 
     const newUser = {
-      ...rest,
+      ...data,
       verified: false,
+      mobileVerified : false,
       active: true,
     };
 
-    //if this user is not created by an admin , add the new user device id
-    if (data.roles === USER.driver || data.roles === USER.rider) {
-      newUser.deviceIds = [deviceId];
-    }
 
     const createdUser = await this.user.createUser(newUser);
 
@@ -50,6 +39,8 @@ class User {
       message: `User ${createdUser[0]._id} successfully created`,
     });
   }
+
+ 
 
   async getUsers(req: Request, res: Response) {
     const {
@@ -184,7 +175,7 @@ class User {
       about,
       mobile,
       countryCode,
-      address,
+
     } = userData;
 
     return AppResponse(req, res, StatusCodes.OK, {
@@ -198,7 +189,7 @@ class User {
         rating,
         countryCode,
         mobile,
-        address,
+
       },
     });
   }
@@ -208,41 +199,36 @@ class User {
     const data: {
       limitType: string;
       user: string;
-      adminId: string;
-      adminRole: ADMINROLES;
+  
     } = req.body;
 
-    const update: Pick<IUserModel, "banned" | "suspended" | "_id"> = {
+    const update: Partial<Pick<IUser, "banned" | "suspended">> & { _id: string } = {
       _id: data.user,
     };
 
     //Check the role about to be limited is not greater than the limiters role value
-    const user = await this.user.getUserById(data.user, "roles");
+    const user = await this.user.getUserById(data.user, "roles subRole");
 
     if (!user) throw new AppError("User not found", StatusCodes.NOT_FOUND);
 
-    if (!data?.adminRole) {
+    if (!req.role) {
       throw new AppError(
         "Invalid adminRole specified",
         StatusCodes.BAD_REQUEST
       );
     }
 
-    const adminRoleValue = ADMINROLES[data.adminRole];
-
-    if (!adminRoleValue) {
-      throw new AppError(
-        "Invalid adminRole specified",
-        StatusCodes.BAD_REQUEST
-      );
-    }
-
-    if (user.roles > parseInt(adminRoleValue)) {
+    if (user.roles === parseInt(req.role) && (user?.subRole && user.subRole > req?.subRole )) {
       throw new AppError(
         "Insufficient permissions to limit user",
         StatusCodes.FORBIDDEN
       );
     }
+ 
+    if (req.role !== ROLES.SUPERADMIN && req.role !== ROLES.ADMIN && req.role !== ROLES.CX && req.role !== ROLES.DEV && (user.roles === ROLES.DRIVER || user.roles === ROLES.RIDER)) throw new AppError(
+      "Insufficient permissions to perform this action",
+      StatusCodes.FORBIDDEN
+    );
 
     if (data.limitType === "ban") {
       update.banned = true;
@@ -265,7 +251,7 @@ class User {
   }
 
   async markUserAsVerified(req: Request, res: Response) {
-    const data: Pick<IUserModel, "verified" | "_id"> = req.body;
+    const data: Pick<IUser, "verified"> & { _id: string } = req.body;
 
     const update = { $set: { verified: true } };
 
@@ -291,12 +277,12 @@ class User {
   }
 
   async changeUserRole(req: Request, res: Response) {
-    const data: Pick<IUserModel, "roles"> & {
+    const data: Pick<IUser, "roles" | "subRole"> & {
       adminRole: number;
       userId: string;
     } = req.body;
 
-    //TODO Implemet route guard that checks the allowed roles
+    //TODO Implement route guard that checks the allowed roles
     if (data.roles < data.adminRole)
       throw new AppError(
         getReasonPhrase(StatusCodes.FORBIDDEN),
@@ -326,8 +312,8 @@ class User {
 
     type RequestDataType = Pick<
       IUser,
-      "avatar" | "about" | "emergencyContacts"
-    >;
+      "avatar" | "about" | "emergencyContacts" | "firstName" | "lastName" | "birthDate" | "deviceToken"
+    >
 
     const data: RequestDataType & {
       user: string;
@@ -340,6 +326,21 @@ class User {
     if (data.about) {
       updateData.about = data.about;
     }
+
+    if(data.deviceToken) { updateData.deviceToken =  data.deviceToken}
+
+    if(data?.firstName){ 
+      updateData.firstName =  data.firstName
+    }
+
+    if (data?.lastName) {
+      updateData.lastName = data.lastName
+    }
+    if (data?.birthDate) {
+      updateData.birthDate = data.birthDate
+    }
+
+
     if (data.emergencyContacts) {
       //Decided not to override the emergency contacts, instead add to the array , incase of an coordinated attempt at chaos and a deliberate attempt to erase traces of huaman connections
       updateData.emergencyContacts?.push(...data.emergencyContacts);
@@ -374,118 +375,333 @@ class User {
     });
   }
 
-  // async updateIdentityData(res: HttpResponse, req: HttpRequest) {
-  //   //this updates driver license, residence
-
-  //   type VerificationData = IUser["verificationData"];
-
-  //   // Get all keys of VerificationData
-  //   type AllVerificationDataKeys = keyof VerificationData;
-
-  //   // Exclude the id key from AllVerificationDataKeys, since a user should never be able to update their id info after verifying it
-  //   type RemainingVerificationDataKeys = Exclude<AllVerificationDataKeys, "id">;
-
-  //   // Now use RemainingVerificationDataKeys to define IdentifierInfo
-  //   type IdentifierInfo = {
-  //     [K in RemainingVerificationDataKeys]: VerificationData[K];
-  //   };
-  //   // Read the JSON payload with the expected type including 'user' field
-  //   const verificationDataRequest = await readJSON<
-  //     IdentifierInfo & { user: string }
-  //   >(res);
-
-  //   // Fetch user data based on the provided user ID
-  //   const users = await this.#getUsers(
-  //     { _id: verificationDataRequest.user },
-  //     "verificationData"
-  //   );
-
-  //   // Retrieve the verificationData of the first user (assuming it exists)
-  //   const userIdentityData = users[0]?.verificationData;
-
-  //   if (!userIdentityData) {
-  //     //This should not happen but throw an error
-
-  //     throw new AppError(
-  //       getReasonPhrase(StatusCodes.BAD_REQUEST),
-  //       StatusCodes.BAD_REQUEST
-  //     );
+  // async setUserVerificationData  (req : Request, res : Response ) { 
+  //   //This sets the 
+  //   const data : { 
+  //      firstName : string,
+  //      lastName : string, 
+  //      dateOfBirth : Date
   //   }
 
-  //   // Prepare dataToUpdate object with initial values from userIdentityData
-  //   const dataToUpdate: Partial<IdentifierInfo> = { ...userIdentityData };
-
-  //   // Update dataToUpdate with values from verificationDataRequest
-  //   Object.keys(verificationDataRequest).forEach((key) => {
-  //     if (key in userIdentityData) {
-  //       const typedKey = key as RemainingVerificationDataKeys; // Type assertion to the expected keys
-
-  //       dataToUpdate[typedKey] = verificationDataRequest[typedKey];
-  //     }
-  //   });
-
-  //   const updatedUserInfo = await this.#updateUser({
-  //     _id: verificationDataRequest.user,
-  //     update: {
-  //       ...dataToUpdate,
-  //       status: "pendingIdentityUpdateApproval",
-  //     },
-  //   });
-
-  //   //if there is an error, the global handler will catch it
-
-  //   return AppResponse(res, req, StatusCodes.OK, {
-  //     message: "Identity update request sent successfully",
-  //     data: { user: updatedUserInfo?._id },
-  //   });
   // }
 
-  //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-  // async #getUsers<T extends Partial<IUserModel>>(data: T, select: string) {
-  //   const query = { ...data };
+  async getUserStats(req: Request, res: Response) {
 
-  //   if (data?._id) {
-  //     query["_id"] = data._id;
-  //   }
+    const data: {
+      dateFrom: Date,
+      dateTo?: Date,
+      status: Pick<IUser, "status">,
+      country?: string,
+      state?: string,
+      town?: string,
+      userId?: string
+    } = req.body
 
-  //   const users = await this.user.getUsers({
-  //     query,
-  //     select,
-  //   });
+    const matchQuery: MatchQuery = {
 
-  //   return users;
-  // }
+    };
 
-  // async #updateUser(data: UserUpdate) {
-  //   const { _id, update } = data;
+    if (data?.dateFrom) {
+      matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
+    }
 
-  //   const updatedUser = await this.user.updateUser({
-  //     docToUpdate: { _id: { $eq: _id } },
-  //     updateData: update,
-  //     options: { new: true, select: "_id firstname " },
-  //   });
+    if (data?.userId) {
+      matchQuery._idd = { $eq: data.userId };
+    }
 
-  //   return updatedUser;
-  // }
+    if (data?.country) {
+      matchQuery.country = { $eq: data?.country };
+    }
 
-  // async #deleteUsers() {}
+    if (data?.state) {
+      matchQuery.state = { $eq: data?.state };
+    }
 
-  // async #bulkUpdateUsers(res: HttpResponse, req: HttpRequest) {
-  //   const data = await readJSON<AnyBulkWriteOperation<IUser>[]>(res);
+    if (data?.town) {
+      matchQuery.town = { $eq: data?.town };
+    }
 
-  //   const operations = data;
 
-  //   const result = await retryTransaction(this.user.bulkUpdateUser, 1, {
-  //     operations,
-  //   });
+    const query = {
 
-  //   return AppResponse(res, req, StatusCodes.OK, {
-  //     insertedIds: result.data.insertedIds,
-  //     upsertedIds: result.data.upsertedIds,
-  //   });
-  // }
+      pipeline: [
+        {
+          $match: matchQuery
+        },
+        {
+          $facet: {
+            count: [{ $count: "total" }],
+
+
+            ageBracketUsersByGender: [
+              {
+                $project: {
+                  gender: 1,
+                  age: {
+                    $divide: [
+                      {
+                        $subtract: [new Date(), "$birthDate"]
+                      },
+                      1000 * 60 * 60 * 24 * 365 // Convert milliseconds to years
+                    ]
+                  }
+                }
+              },
+              {
+                $project: {
+                  gender: 1,
+                  age: { $floor: "$age" }, // Round down to the nearest integer
+                  ageBracket: {
+                    $switch: {
+                      branches: [
+                        {
+                          case: {
+                            $and: [
+                              { $eq: ["$gender", "male"] },
+                              { $lte: ["$age", 19] }
+                            ]
+                          },
+                          then: "0-19"
+                        },
+                        {
+                          case: {
+                            $and: [
+                              { $eq: ["$gender", "male"] },
+                              { $and: [{ $gt: ["$age", 19] }, { $lte: ["$age", 40] }] }
+                            ]
+                          },
+                          then: "20-40"
+                        },
+                        {
+                          case: {
+                            $and: [
+                              { $eq: ["$gender", "male"] },
+                              { $gt: ["$age", 40] }
+                            ]
+                          },
+                          then: ">40"
+                        },
+                        {
+                          case: {
+                            $and: [
+                              { $eq: ["$gender", "female"] },
+                              { $lte: ["$age", 19] }
+                            ]
+                          },
+                          then: "0-19"
+                        },
+                        {
+                          case: {
+                            $and: [
+                              { $eq: ["$gender", "female"] },
+                              { $and: [{ $gt: ["$age", 19] }, { $lte: ["$age", 40] }] }
+                            ]
+                          },
+                          then: "20-40"
+                        },
+                        {
+                          case: {
+                            $and: [
+                              { $eq: ["$gender", "female"] },
+                              { $gt: ["$age", 40] }
+                            ]
+                          },
+                          then: ">40"
+                        }
+                      ],
+                      default: "Unknown"
+                    }
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: { ageBracket: "$ageBracket", gender: "$gender" },
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  ageBracket: "$_id.ageBracket",
+                  gender: "$_id.gender",
+                  count: 1
+                }
+              }
+            ],
+
+
+
+            groupByMonthOfYear: [
+              {
+                $group: {
+                  _id: {
+                    month: { $month: "$createdAt" },
+                    // status: "$status"
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+
+
+            ],
+
+
+            groupByGender: [
+
+              {
+                $group: {
+                  _id: "gender",
+                  count: { $sum: 1 }
+                }
+              }
+            ],
+
+            groupByRoles: [
+              {
+                $group: {
+                  _id: "roles",
+                  count: { $sum: 1 }
+                }
+              }
+            ],
+
+
+            groupUserStatusByRoles: [
+              {
+                $project: {
+                  role: 1,
+                  active: { $cond: [{ $eq: ["$active", true] }, "active", null] },
+                  suspended: { $cond: [{ $eq: ["$suspended", true] }, "suspended", null] },
+                  banned: { $cond: [{ $eq: ["$banned", true] }, "banned", null] }
+                }
+              },
+              {
+                $project: {
+                  role: 1,
+                  status: {
+                    $cond: [
+                      { $eq: ["$active", "active"] },
+                      "active",
+                      { $cond: [{ $eq: ["$suspended", "suspended"] }, "suspended", "banned"] }
+                    ]
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: {
+                    role: "$role",
+                    status: "$status"
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  role: "$_id.role",
+                  status: "$_id.status",
+                  count: 1
+                }
+              },
+              {
+                $sort: {
+                  role: 1,
+                  status: 1
+                }
+              }
+            ],
+
+
+            status: [
+              {
+                $group: {
+                  _id: "$status",
+                  count: { $sum: 1 }
+                }
+              }
+            ],
+
+            usersByStatus: [
+              {
+                $group: {
+                  _id: null,
+                  activeUsers: { $sum: { $cond: [{ $eq: ["$active", true] }, 1, 0] } },
+                  suspendedUsers: { $sum: { $cond: [{ $eq: ["$suspended", true] }, 1, 0] } },
+                  bannedUsers: { $sum: { $cond: [{ $eq: ["$banned", true] }, 1, 0] } },
+                  verifiedUsers: { $sum: { $cond: [{ $eq: ["$verified", true] }, 1, 0] } }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  activeUsers: 1,
+                  suspendedUsers: 1,
+                  bannedUsers: 1,
+                  verifiedUsers: 1
+                }
+              }
+            ],
+
+            // usersCountByStateOfOrigin: [
+            //   {
+            //     $group: {
+            //       _id: "$stateOfOrigin",
+            //       count: { $sum: 1 }
+            //     }
+            //   },
+            //   {
+            //     $sort: { count: -1 }
+            //   },
+            //   {
+            //     $limit: 10
+            //   }
+            // ],
+
+            onlineUsers: [
+              {
+                $group: {
+                  _id: null,
+                  count: { $sum: { $cond: [{ $eq: ["$online", true] }, 1, 0] } }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  count: 1
+                }
+              }
+            ],
+
+            initialStatusRatio: [
+              {
+                $group: {
+                  _id: "$initialStatus",
+                  count: { $sum: 1 }
+                }
+              }
+            ]
+
+          }
+
+        }
+      ],
+
+    };
+
+    //@ts-expect-error ts errors out on the $sort within the group user status BY ROLES
+
+    const result = await this.user.aggregateUsers(query)
+
+    return AppResponse(req, res, StatusCodes.OK, result)
+    //Trip count, trip count by status,trip ratio 
+  }
+
 }
+
+
 
 export const UserController = new User(UserServiceLayer);
 

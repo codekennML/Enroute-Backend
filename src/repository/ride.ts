@@ -1,7 +1,7 @@
 import { Model, ClientSession } from "mongoose";
 import { IRide } from "../model/interfaces";
 import { Ride } from "../model/rides";
-import DBLayer, { PaginationRequestData, updateManyQuery } from "./shared";
+import DBLayer, { AggregateData, PaginationRequestData, QueryData, updateManyQuery } from "./shared";
 import { UpdateRequestData } from "../../types/types";
 
 class RideRepository {
@@ -23,6 +23,10 @@ class RideRepository {
     return newRide;
   }
 
+  async getRideById(request: QueryData) {
+    return await this.ridesDBLayer.findDocById(request)
+  }
+
   async returnPaginatedRides(request: PaginationRequestData) {
     const paginatedUsers = await this.ridesDBLayer.paginateData(request);
 
@@ -40,6 +44,18 @@ class RideRepository {
 
     return result;
   }
+
+  async deleteRides(request: string[]) {
+
+
+    return this.ridesDBLayer.deleteDocs(request);
+
+  }
+
+  async aggregateData(request: AggregateData) {
+    return await this.ridesDBLayer.aggregateData(request)
+  }
+
 }
 
 export const ridesDataLayer = new RideRepository(Ride);

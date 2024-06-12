@@ -1,18 +1,15 @@
-import { PaginationRequestData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData, updateManyQuery } from "./../repository/shared";
 import { ClientSession } from "mongoose";
 import { IRide } from "../model/interfaces";
-import RideRepository, { RideDataLayer } from "../repository/ride";
+import RideRepository, { ridesDataLayer } from "../repository/ride";
 import { UpdateRequestData } from "../../types/types";
 
-import { retryTransaction } from "../utils/helpers/retryTransaction";
-import { StatusCodes, getReasonPhrase } from "http-status-codes";
-import AppError from "../middlewares/errors/BaseError";
 
 class RideService {
   private Ride: RideRepository;
 
-  constructor(service: RideRepository) {
-    this.Ride = service;
+  constructor(repository: RideRepository) {
+    this.Ride = repository;
   }
 
   async createRide(request: IRide) {
@@ -26,12 +23,12 @@ class RideService {
   }
 
   async updateRide(request: UpdateRequestData) {
-    const updatedRide = await this.Ride.updateRide(request);
+    const updatedRide = await this.Ride.updateRides(request);
     return updatedRide;
   }
 
   async getRideById(RideId: string, select?: string, session?: ClientSession) {
-    const Ride = await this.Ride.findRideById({
+    const Ride = await this.Ride.getRideById({
       query: { id: RideId },
       select,
       session,
@@ -40,51 +37,21 @@ class RideService {
     return Ride;
   }
 
+  async updateManyRides(request: updateManyQuery<IRide>) {
+    return await this.Ride.updateManyRides(request)
+  }
+
   async deleteRides(request: string[]) {
     const deletedRides = await this.Ride.deleteRides(request);
 
     return deletedRides;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async bulkWriteRides(request: any, session: ClientSession) {
-    const { operations } = request;
-    const result = await this.Ride.bulkUpdateRide({
-      operations,
-      options: { session },
-    });
-
-    return result;
-  }
-
-  async bulkAddRide(request: IRide[]) {
-    //@ts-expect-error //This is a bulkwrite
-    //TODO Set the correct type here
-    const operations = [];
-
-    request.map((Ride) => {
-      operations.push({
-        insertOne: {
-          document: {
-            ...Ride,
-          },
-        },
-      });
-    });
-
-    const response = await retryTransaction(this.bulkWriteRides, 1, {
-      //@ts-expect-error this operation is a bulkwrite
-      operations,
-    });
-
-    if (!response)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
-        StatusCodes.INTERNAL_SERVER_ERROR
-      );
+  async aggregateRides(request: AggregateData) {
+    return await this.Ride.aggregateData(request)
   }
 }
 
-export const RideServiceLayer = new RideService(RideDataLayer);
+export const RideServiceLayer = new RideService(ridesDataLayer);
 
 export default RideService;

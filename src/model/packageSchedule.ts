@@ -41,6 +41,7 @@ const packageScheduleSchema = new Schema<IPackageSchedule>(
       },
       placeId: String,
     },
+
     pickupAddress: {
       name: String,
       location: {
@@ -55,7 +56,7 @@ const packageScheduleSchema = new Schema<IPackageSchedule>(
       placeId: String,
     },
 
-    summary: String,
+    packageDetails: Object,
 
     expiresAt: Date,
 

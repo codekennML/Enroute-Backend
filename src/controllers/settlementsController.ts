@@ -1,4 +1,6 @@
-import { Flutterwave, MatchQuery, SortQuery } from "./../../types/types.d";
+import { UserServiceLayer } from './../services/userService';
+import paystack from 'paystack';
+import { MatchQuery, SortQuery } from "./../../types/types.d";
 
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { ISettlements } from "../model/interfaces";
@@ -7,14 +9,24 @@ import SettlementService, {
 } from "../services/settlementService";
 import AppResponse from "../utils/helpers/AppResponse";
 import { Request, Response } from "express";
-import { FLW_SECRET_HASH } from "../config/constants/payments";
+import { PAYSTACK_SECRET } from "../config/constants/payments";
 import { webhooksLogger } from "../middlewares/logging/logger";
-import FlutterwavePay from "../services/3rdParty/payments/flutterwave";
+
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 import { ClientSession, Types } from "mongoose";
 import AppError from "../middlewares/errors/BaseError";
 import { sortRequest } from "../utils/helpers/sortQuery";
 import User from "../model/user";
+import { RideServiceLayer } from "../services/rideService";
+import { Ride } from "../model/rides";
+import { logEvents } from "../middlewares/errors/logger";
+import { emailQueue } from "../services/bullmq/queue";
+import { COMPANY_NAME } from "../config/constants/base";
+import { CommissionDebitFailedMail } from "../views/mails/commissionFailedDebit";
+import { CommissionDebitSuccesssMail } from "../views/mails/commissionSuccessDebit";
+import PaystackPay from "../services/3rdParty/payments/paystack";
+import crypto from "node:crypto"
+
 
 type SearchKeys = Partial<{ [K in keyof ISettlements]: ISettlements[K] }> & {
   maxAmount?: number;
@@ -31,24 +43,35 @@ class SettlementController {
   }
 
   async initializeSettlementPayment(req: Request, res: Response) {
-    const data: Omit<ISettlements, "status" | "processed"> = req.body;
+
+    const data: Omit<ISettlements, "status" | "processed" | "isPaymentInit"> & { isPaymentMethodInit: boolean } = req.body;
 
     // const { amount, processor, driverId, rides } = data;
 
-    const newSettlement = await this.#initializeSettlement(data);
+    const newSettlement = await this._initializeSettlement(
+      data
+    );
 
     return AppResponse(req, res, StatusCodes.CREATED, {
       message: "Settlement data created successfully",
       data: {
-        settlementId: newSettlement[0]._id,
+        message: "Settlement initialized successfully",
+        data: {
+          settlement: newSettlement[0]._id,
+          driverIdentifierMail: `${newSettlement[0]._id}@${COMPANY_NAME.toLowerCase()}.co`
+        }
+
       },
     });
   }
 
-  async #initializeSettlement(
-    data: Omit<ISettlements, "status" | "processed">
+  async _initializeSettlement(
+    info: Omit<ISettlements, "status" | "processed" | "isPaymentInit"> & { isPaymentMethodInit: boolean }
   ) {
-    const { amount, processor, driverId, rides } = data;
+
+
+    const { amount, processor, driverId, rides, town, state, country, isPaymentMethodInit, driverEmail } = info;
+
 
     const newSettlement = await this.settlement.createSettlements({
       amount,
@@ -57,56 +80,35 @@ class SettlementController {
       status: "created",
       processed: false,
       rides,
+      town,
+      state,
+      country,
+      isPaymentInit: isPaymentMethodInit,
+      failedCount: 0,
+      driverEmail
     });
 
     return newSettlement;
+
   }
 
-  async addCardForSettlements(req: Request, res: Response) {}
-
-  async calculateSettlementData(req: Request, res: Response) {
-    const { driverId } = req.body;
-
-    const unsettledRidesAndCommission = await RideServiceLayer.findRides([
-      {
-        $match: {
-          driverId: driverId,
-          status: "completed",
-          commissionPaid: false,
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalBill: { $sum: "$totalCommission" },
-          documents: { $push: "$_id" },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          totalBill: 1,
-          documents: 1,
-        },
-      },
-    ]);
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Settlement data retrieved successfully",
-      data: {
-        ...unsettledRidesAndCommission,
-      },
-    });
-  }
 
   async SettlementsWebhookHandler(req: Request, res: Response) {
-    // If you specified a secret hash, check for the signature
-    const secretHash = FLW_SECRET_HASH;
-    const signature = req.headers["verif-hash"];
-    if (!signature || signature !== secretHash) {
-      // This request isn't from Flutterwave; discard
-      res.status(401).end();
-    }
+    const data = req.body
+    //validate event
+    const hash = crypto
+      .createHmac("sha512", PAYSTACK_SECRET)
+      .update(JSON.stringify(data))
+      .digest("hex");
+
+    const signature = req?.headers["x-paystack-signature"]
+
+    if (!hash || !signature || hash !== signature)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.UNAUTHORIZED),
+        StatusCodes.UNAUTHORIZED,
+        `Paystack Webhook event error - Foreign request detected / received`
+      );
 
     const payload = req.body;
 
@@ -114,12 +116,12 @@ class SettlementController {
     webhooksLogger.info(payload);
 
     //Reverify the webhook data
-    const response = await FlutterwavePay.verifyTransactionById(payload.id);
+    const response = await PaystackPay.verifyTransactionById(payload.id);
 
-    if (response?.status !== "success") return res.status(200).end();
+    // if (response?.status !== "success") return res.status(200).end();
 
     //check if the settlement has been procesed earlier
-    const tx_ref = response.data.tx_ref as string;
+    const tx_ref = response.data.reference as string;
     const isProcessed = await this.settlement.getSettlementsById(
       tx_ref,
       "processed"
@@ -136,6 +138,8 @@ class SettlementController {
       response.data.event === "charge" &&
       response.data.status === "successful"
     )
+
+
       await retryTransaction(
         this.#handleSuccessfulSettlementWebhooks,
         1,
@@ -146,19 +150,19 @@ class SettlementController {
   }
 
   async #handleSuccessfulSettlementWebhooks(
-    args: Flutterwave.Verification,
+    args: paystack.Response,
     session: ClientSession
   ) {
     const result = await session.withTransaction(async () => {
       //Update the settlement to successful
 
       const settlement = await this.settlement.updateSettlements({
-        docToUpdate: { _id: args.data.tx_ref },
+        docToUpdate: { _id: args.data.reference },
         updateData: {
           processed: true,
           status: "success",
         },
-        options: { new: true, select: "rides _id", session },
+        options: { new: true, select: "rides _id driverId isPaymentInit driverEmail", session },
       });
 
       if (!settlement)
@@ -167,13 +171,17 @@ class SettlementController {
           StatusCodes.NOT_FOUND
         );
 
-      const updatedSettledRides = await RideServiceLayer.updateManyRides(
-        rides,
-        {
-          settlementId: settlement._id,
-          commissionPaid: true,
+      const updatedSettledRides = await RideServiceLayer.updateManyRides({
+        //@ts-expect-error ts not reading type correctly
+        filter: { _id: { $in: settlement.rides } },
+        updateData: {
+          $set: {
+            settlementId: settlement._id,
+            commissionPaid: true,
+          }
         },
-        session
+        options: { session, new: true, select: "isPaymnentInit" }
+      }
       );
 
       if (!updatedSettledRides)
@@ -182,34 +190,120 @@ class SettlementController {
           StatusCodes.INTERNAL_SERVER_ERROR
         );
 
-      return settlement._id;
+
+      const shouldUpdatePaymentMethod = settlement?.data?.init
+      const userId = settlement?.driverId
+
+      if (shouldUpdatePaymentMethod) {
+        await UserServiceLayer.updateUser({
+          docToUpdate: {
+            _id: new Types.ObjectId(userId)
+          },
+          updateData: {
+            $set: {
+              paymentMethod: {
+                authorization: args.data.authorization,
+                customer: args.data.customer,
+                isValid: true
+              }
+            }
+          },
+          options: { session }
+        })
+      }
+
+
+      return settlement
     });
 
-    return result;
+    const mail = CommissionDebitSuccesssMail(result.amount)
+
+    emailQueue.add(`settlement_success_user_${result.driverId}_id${args.data.reference}`, {
+      to: result.driverEmail,
+      template: mail,
+      subject: `Commission Charge Success  - ${new Date()} `,
+      reply_to: `noreply@${COMPANY_NAME}.com`
+    })
+
+
+
+    return result._id
   }
+
   async #handleFailedSettlementWebhooks(
-    args: Flutterwave.Verification,
+    args: paystack.Response,
     session: ClientSession
   ) {
     const result = await session.withTransaction(async () => {
       //Update the settlement to successful
 
-      const settlement = await this.settlement.updateSettlements({
-        docToUpdate: { _id: args.data.tx_ref },
-        updateData: {
-          processed: true,
-          status: "failed",
-        },
-        options: { new: true, select: "_id", session },
-      });
 
-      if (!settlement)
+      //Check the count for number of failures , if the failures count is less than three send an email for failed charge , then charge again ,  once the tries are up to three and it fails, set the status to failed , until the user adds a new payment method. once a new calc is added, charge immediately after checking ig there is a failed settlement to be made 
+
+      const settlementInfo =
+        await this.settlement.getSettlementsById(args.data.reference, "failedCount driverId")
+
+      if (!settlementInfo || !settlementInfo?.failedCount) {
+
+        logEvents("Error retrieving settlement for status update to failed", "errLog.log")
+        throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+      }
+
+
+      let settlementData
+
+
+      if (settlementInfo.failedCount < 3) {
+
+        settlementData = await this.settlement.updateSettlements({
+          docToUpdate: { _id: args.data.reference },
+          updateData: {
+            $inc: { failedCount: 1 }
+          },
+          options: { new: true, select: "_id driverId driverEmail", session },
+        });
+
+        if (!settlementData || settlementData?.amount)
+          throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+
+        const mail = CommissionDebitFailedMail(settlementData.amount)
+
+        emailQueue.add(`settlement_failed_user_${settlementInfo.driverId}_id${args.data.reference}`, {
+          to: settlementData?.driverEmail,
+          template: mail,
+          subject: "Commission Charge Failed ",
+          reply_to: `noreply@${COMPANY_NAME}.com`
+        })
+
+      } else {
+        settlementData = await this.settlement.updateSettlements({
+          docToUpdate: { _id: args.data.reference },
+          updateData: {
+            processed: true,
+            status: "failed",
+          },
+          options: { new: true, select: "_id", session },
+
+
+        });
+
+        await UserServiceLayer.updateUser({
+          docToUpdate: { _id: settlementInfo.driverId },
+          updateData: {
+            "paymentMethod.isValid": false
+          },
+          options: { session }
+        })
+      }
+
+
+      if (!settlementData)
         throw new AppError(
           getReasonPhrase(StatusCodes.NOT_FOUND),
           StatusCodes.NOT_FOUND
         );
 
-      return settlement._id;
+      return settlementData._id;
     });
 
     return result;
@@ -267,6 +361,7 @@ class SettlementController {
       cursor,
       sort,
     } = data;
+
 
     const matchQuery: MatchQuery = {};
 
@@ -337,7 +432,7 @@ class SettlementController {
         {
           path: "rides",
           select: "fare riderId driverId ",
-          model: Rides,
+          model: Ride
         },
         {
           path: "rides.riderId",
@@ -408,7 +503,132 @@ class SettlementController {
       message: `${deletedSettlements.deletedCount} settlements deleted.`,
     });
   }
+
+  async getSettlementsStats(req: Request, res: Response) {
+
+    const data: {
+      amountFrom: number
+      amountTo?: number
+      dateFrom: Date
+      dateTo: Date
+      driverId: string
+    } = req.body
+
+
+    const matchQuery: MatchQuery = {
+      createdAt: { $gte: data.dateFrom, $lte: data.dateTo },
+
+      amount: {
+        $gte: data.amountFrom,
+        ...(data?.amountTo && { $lte: data.amountTo })
+      }
+    }
+    if (data?.driverId) {
+      matchQuery.driverId = { $eq: data.driverId }
+    }
+
+    const query = {
+
+      pipeline: [
+        {
+          $match: matchQuery
+        },
+        {
+          $facet: {
+            totalSettlementByFilter: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: "$amount" },
+                  average: { $avg: "$amount" }
+                }
+              }
+            ],
+
+            monthlySplitByProcessor: [
+              {
+                $group: {
+                  _id: {
+                    month: { $month: "$createdAt" },
+                    status: "$processor"
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $group: {
+                  _id: "$_id.month",
+                  statusCounts: {
+                    $push: {
+                      k: "$_id.processor",
+                      v: "$count"
+                    }
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  month: "$_id",
+                  statusCounts: {
+                    $arrayToObject: "$statusCounts"
+                  }
+                }
+              }
+            ],
+
+            monthlySplitByStatus: [
+              {
+                $group: {
+                  _id: {
+                    month: { $month: "$createdAt" },
+                    status: "$status"
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+              {
+                $group: {
+                  _id: "$_id.month",
+                  statusCounts: {
+                    $push: {
+                      k: "$_id.status",
+                      v: "$count"
+                    }
+                  }
+                }
+              },
+              {
+                $project: {
+                  _id: 0,
+                  month: "$_id",
+                  statusCounts: {
+                    $arrayToObject: "$statusCounts"
+                  }
+                }
+              }
+            ],
+          }
+
+        }
+      ]
+    }
+
+
+    const result = await this.settlement.aggregateSettleements(query)
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Settlement data retrieved successfully",
+      data: result
+    })
+
+
+  }
+
 }
+
+
+
 
 export const Settlement = new SettlementController(SettlementServiceLayer);
 

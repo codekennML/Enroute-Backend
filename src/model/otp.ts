@@ -1,9 +1,8 @@
-import { Schema, Model, model, Document } from "mongoose";
+import { Schema, Model, model,  } from "mongoose";
 import { IOtp } from "./interfaces";
 
-export default interface IOtpModel extends IOtp, Document {}
 
-const otpSchema = new Schema<IOtpModel>(
+const otpSchema = new Schema<IOtp>(
   {
     user: {
       type: Schema.Types.ObjectId,
@@ -46,4 +45,4 @@ const otpSchema = new Schema<IOtpModel>(
   }
 );
 
-export const Otp: Model<IOtpModel> = model<IOtpModel>("Otp", otpSchema);
+export const Otp: Model<IOtp> = model<IOtp>("Otp", otpSchema);
