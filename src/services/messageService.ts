@@ -30,6 +30,14 @@ class messageService {
   async updateMessage(request: UpdateRequestData) {
     return await this.message.updateMessage(request);
   }
+
+  async deleteMessages(request : string[]) {
+     
+    const deletedMessages  = await this.message.deleteMessages(request)
+
+    return deletedMessges
+
+  }
 }
 
 export const MessageServiceLayer = new messageService(MessageDataLayer);

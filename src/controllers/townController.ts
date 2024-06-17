@@ -97,14 +97,18 @@ class TownController {
   async updateTown(req: Request, res: Response) {
     const data: ITown & { townId: string } = req.body;
 
-    const { townId, ...rest } = data;
 
-    const updatedtown = await this.town.updateTown({
+    const { townId, requiredDriverDocs, requiredRiderDocs, ...rest } = data;
+
+    //This will overwrite the data 
+
+    const updatedtown = await this.town.updateCountry({
       docToUpdate: townId,
       updateData: {
         $set: {
           ...rest,
         },
+        $addToSet: { requiredDriverDocs, requiredRiderDocs }
       },
       options: {
         new: true,
@@ -126,17 +130,17 @@ class TownController {
 
   //Admins only
   async deleteTowns(req: Request, res: Response) {
-    const data: { TownIds: string[] } = req.body;
+    const data: { townIds: string[] } = req.body;
 
-    const { TownIds } = data;
+    const { townIds } = data;
 
-    if (TownIds.length === 0)
+    if (townIds.length === 0)
       throw new AppError(
         getReasonPhrase(StatusCodes.BAD_REQUEST),
         StatusCodes.BAD_REQUEST
       );
 
-    const deletedTowns = await this.town.deleteTowns(TownIds);
+    const deletedTowns = await this.town.deleteTowns(townIds);
 
     return AppResponse(req, res, StatusCodes.OK, {
       message: `${deletedTowns.deletedCount} Towns deleted.`,

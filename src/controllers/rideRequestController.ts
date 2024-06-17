@@ -1,3 +1,4 @@
+import { isNotAuthorizedToPerformAction } from './../utils/helpers/isAuthorizedForAction';
 import { Request, Response } from "express";
 import { IRideRequest } from "../model/interfaces";
 import RideRequestService, {
@@ -10,10 +11,10 @@ import { MatchQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
 import { ClientSession } from "mongoose";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
-import { ROLES } from "../config/enums";
+
 import { UserServiceLayer } from "../services/userService";
-import { CommunicationServiceLayer } from "../services/communicationService";
-import { pushQueue } from "../services/bullmq/queue";
+
+import { emailQueue, pushQueue } from "../services/bullmq/queue";
 
 class RideRequestController {
   private rideRequest: RideRequestService;
@@ -45,6 +46,7 @@ class RideRequestController {
           riderId: user,
           type: data.type,
           status: "scheduled",
+          destination : data.destination
         },
       },
 
@@ -116,9 +118,9 @@ class RideRequestController {
     const data: Omit<IRideRequest, "tripScheduleId"> = req.body
 
     const user = req.user;
-    const role = req.role
+   
 
-    if ((data?.driverId !== user || data?.riderId !== user) && role !== ROLES.ADMIN) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+    if ((data?.driverId?.toString() !== user || data?.riderId?.toString() !== user) && isNotAuthorizedToPerformAction(req)) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
 
 
     const liveRideRequest = await this.rideRequest.createRideRequest({
@@ -145,357 +147,26 @@ class RideRequestController {
 
     const { tripScheduleId, cursor, driverId } = req.params;
 
-    const result = await this.#getRideScheduleRequests({
-      tripScheduleId,
-      cursor,
-      driverId,
-    });
-
-    if (!result?.hasData)
-      throw new AppError(
-        "No more requests for for this trip",
-        StatusCodes.NOT_FOUND
-      );
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride requests retrieved successfuly",
-      data: result.rideSchedules,
-    });
-  }
-
-  /**
-   * Accepts a ride schedule request by creating a ride and closing the request.
-   *
-   * @param {Request} req - The request object
-   * @param {Response} res - The response object
-   * @return {AppResponse} Object containing message and ride id
-   */
-  async acceptRideScheduleRequestDriver(req: Request, res: Response) {
-    // Create a ride and close the request
-
-    const data: { rideRequestId: string; driverId: string } = req.body;
-
-    /**
-     * Accepts a ride schedule request by creating a ride and closing the request.
-     *
-     * @param {typeof data} args - The arguments for the function
-     * @param {ClientSession} session - The session for the database transaction
-     * @return {Promise<string>} The id of the created ride
-     */
-    const acceptRideSession = async (
-      args: typeof data,
-      session: ClientSession
-    ): Promise<string> => {
-
-      const response = await session.withTransaction(async () => {
-        const { rideRequestId, driverId } = args;
-
-        // Find the ride request and update its status and decision
-        const rideRequest = await this.rideRequest.updateRideRequest({
-          docToUpdate: { driverId, _id: { rideRequestId, status: "created" } },
-          updateData: {
-            $set: {
-              status: "closed",
-              driverDecision: "accepted",
-            },
-          },
-          options: { session, new: true },
-        });
-
-        if (!rideRequest)
-          throw new AppError(
-            getReasonPhrase(StatusCodes.NOT_FOUND),
-            StatusCodes.NOT_FOUND
-          );
-
-        return rideRequest
-      });
-
-      return response._id
-    };
-
-    const response = await retryTransaction(acceptRideSession, 1, data);
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride request to accepted successfully",
-      response,
-    });
-  }
-
-  async rejectRideScheduleRequestDriver(req: Request, res: Response) {
-    const { rideRequestId, driverId } = req.body;
-
-    const rejectedRide = await this.rideRequest.updateRideRequest({
-      docToUpdate: { _id: rideRequestId, driverId, status: "created" },
-      updateData: {
-        $set: {
-          driverDecision: "rejected",
-          status: "closed",
-        },
-      },
-      options: { select: "_id" },
-    });
-
-    if (!rejectedRide)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
-      );
-
-    //TODO : Send Ride rejected email
-    //Both rider and
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride schedule rejected successfully",
-      data: { rideId: rejectedRide._id },
-    });
-  }
-
-  async negotiateRideSchedulePriceDriver(req: Request, res: Response) {
-    const data: {
-      rideRequestId: string;
-      driverId: number;
-      driverBudget: string;
-    } = req.body;
-
-    const negotiatedRide = await this.rideRequest.updateRideRequest({
-      docToUpdate: {
-        _id: data.rideRequestId,
-        status: "created",
-        driverId: data.driverId,
-      },
-      updateData: {
-        $set: {
-          driverDecision: "negotiated",
-          driverBudget: data.driverBudget,
-        },
-      },
-      options: { new: true, select: "_id" },
-    });
-
-    if (!negotiatedRide)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
-      );
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride price negotiated successfully",
-      data: { requestId: negotiatedRide._id },
-    });
-  }
-
-  async acceptNegotiatedSchedulePriceRider(req: Request, res: Response) {
-    const data: { riderId: string; rideRequestId: string } = req.body;
-
-    const acceptNegotiatedPriceSession = async (
-      args: typeof data,
-      session: ClientSession
-    ) => {
-      const { riderId, rideRequestId } = args;
-
-      const result = await session.withTransaction(async () => {
-        const rideRequest = await this.rideRequest.updateRideRequest({
-          docToUpdate: {
-            _id: rideRequestId,
-            riderId,
-            status: "created",
-            driverDecision: "negotiated",
-          },
-          updateData: {
-            $set: {
-              riderDecision: "accepted",
-              status: "closed",
-            },
-          },
-          options: { session, new: true },
-        });
-
-        if (!rideRequest)
-          throw new AppError(
-            getReasonPhrase(StatusCodes.NOT_FOUND),
-            StatusCodes.NOT_FOUND
-          );
-
-        //SEND EMAIL TOO
-
-
-
-        //TODO : Send negotiated price accepted email
-        // const email = rideRequest.driverEmail;
-
-      });
-
-      return result;
-    };
-
-    const response = await retryTransaction(
-      acceptNegotiatedPriceSession,
-      1,
-      data
-    );
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride accepted successfully",
-      response,
-    });
-  }
-
-  async rejectNegotiatedSchedulePriceRider(req: Request, res: Response) {
-    const { rideRequestId, riderId } = req.body;
-
-    const rejectedRide = await this.rideRequest.updateRideRequest({
-      docToUpdate: {
-        _id: rideRequestId,
-        riderId,
-        driverDecision: "negotiated",
-        status: "created",
-      },
-      updateData: {
-        $set: {
-          riderDecision: "rejected",
-          status: "closed",
-        },
-      },
-      options: { new: true, select: "driverId riderId _id driverBudget destination" },
-    });
   
+
+   const matchQuery : MatchQuery  =  { } 
+    
+    matchQuery.tripScheduleId =  {  $eq : tripScheduleId}
+    matchQuery.driverId = { $eq: driverId }
    
-    if (!rejectedRide )
-      throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
-      );
 
-    const users = await UserServiceLayer.getUsers({ 
-      query : { 
-        _id : { $in : [ rejectedRide.driverId,  rejectedRide.riderId]}, 
-      }, 
-      select : "deviceToken firstname"
-    })
+    const sortQuery = sortRequest();
 
-
-    if(!driverData || !driverData.length < 2) throw new AppError(`An Error occured.  Please try again later`, StatusCodes.BAD_REQUEST)
-    
-    const riderData =  driverData.map()
-
-    //TODO : Send PUSH TO DRIVER - REJECTED NEGOTIATION
-    
-  
-    pushQueue.add(`DRIVER_BUDGET_REJECTED`, { 
-       deviceTokens : [driverData.deviceToken], 
-        message  : `Your `
-    }, { priority : 10})
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride cancelled successfully",
-      data: { _id: rejectedRide._id },
-    });
-  }
-
-  async cancelRideRequest(req: Request, res: Response) {
-    const data: { riderId: string; rideRequestId: string } = req.body;
-
-
-    const rideData = await this.rideRequest.getRideRequestById(data.rideRequestId)
-
-
-    const canCancelRide = rideData?.driverId.toString() === data.riderId || rideData?.riderId?.toString() === data.riderId || data.userRole !== ROLES.ADMIN
-
-    if (!canCancelRide) throw new AppError("You are not authorized to cancel this ride", StatusCodes.FORBIDDEN)
-
-
-    const cancelledRideRequest = await this.rideRequest.updateRideRequest({
-      docToUpdate: {
-        _id: data.rideRequestId,
-        riderId: data.riderId,
-        status: "created",
-      },
-      updateData: {
-        $set: {
-          status: "cancelled",
-        },
-      },
-      options: { new: true, select: "_id" },
-    });
-
-
-
-    if (!cancelledRideRequest)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
-      );
-
-    //TODO : Send EMAIL TO DRIVER - CANCELLED NEGOTIATION
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride cancelled successfully",
-      data: { _id: cancelledRideRequest._id },
-    });
-  }
-  //@admin only
-  async getRideRequests(req: Request, res: Response) {
-    const data: {
-      cursor?: string;
-      status?: string;
-      tripScheduleId?: string;
-      driverId?: string;
-      sort?: string;
-      type?: "package" | "selfride" | "thirdParty";
-    } = req.body;
-
-    const results = await this.#getRideScheduleRequests(data);
-
-    if (!results?.hasData)
-      throw new AppError(
-        "No more requests for for this trip",
-        StatusCodes.NOT_FOUND
-      );
-
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "Ride requests retrieved successfuly",
-      data: results.rideSchedules,
-    });
-  }
-
-  async #getRideScheduleRequests(data: {
-    cursor?: string;
-    status?: string;
-    tripScheduleId?: string;
-    driverId?: string;
-    sort?: string;
-    type?: "package" | "selfride" | "thirdParty";
-  }) {
-    const matchQuery: MatchQuery = {};
-
-    if (data?.status) {
-      matchQuery.status = { status: { $eq: data.status } };
-    }
-
-    if (data?.tripScheduleId) {
-      matchQuery.tripId = { status: { $eq: data.tripScheduleId } };
-    }
-
-    if (data?.type) {
-      matchQuery.type = { status: { $eq: data.type } };
-    }
-    if (data?.driverId) {
-      matchQuery.driverId = { status: { $eq: data.driverId } };
-    }
-
-    const sortQuery = sortRequest(data.sort);
-
-    if (data?.cursor) {
+    if (cursor) {
       const orderValue = Object.values(sortQuery)[0] as unknown as number;
 
       const order =
-        orderValue === 1 ? { $gt: data.cursor } : { $lt: data?.cursor };
+        orderValue === 1 ? { $gt: cursor } : { $lt:cursor };
 
       matchQuery._id = order;
     }
 
-    const rideSchedules = await this.rideRequest.findRideRequests({
+    const rideScheduleRequests = await this.rideRequest.findRideRequests({
       query: matchQuery,
       aggregatePipeline: [
         sortQuery,
@@ -558,13 +229,548 @@ class RideRequestController {
       },
     });
 
-    const hasData = rideSchedules?.data?.length === 0;
+    const hasData = rideScheduleRequests?.data?.length === 0;
 
-    return {
-      hasData,
-      rideSchedules,
-    };
+    
+
+    if (!hasData)
+      throw new AppError(
+        "No requests were found for this trip",
+        StatusCodes.NOT_FOUND
+      );
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride requests retrieved successfuly",
+      data: rideSchedulRequests,
+    });
   }
+
+  /**
+   * Accepts a ride schedule request by creating a ride and closing the request.
+   *
+   * @param {Request} req - The request object
+   * @param {Response} res - The response object
+   * @return {AppResponse} Object containing message and ride id
+   */
+  async acceptRideScheduleRequestDriver(req: Request, res: Response) {
+    // Create a ride and close the request
+
+    const data: { rideRequestId: string; driverId: string } = req.body;
+
+    /**
+     * Accepts a ride schedule request by creating a ride and closing the request.
+     *
+     * @param {typeof data} args - The arguments for the function
+     * @param {ClientSession} session - The session for the database transaction
+     * @return {Promise<string>} The id of the created ride
+     */
+    const acceptRideSession = async (
+      args: typeof data,
+      session: ClientSession
+    ): Promise<string> => {
+
+      const response = await session.withTransaction(async () => {
+        const { rideRequestId, driverId } = args;
+
+        // Find the ride request and update its status and decision
+        const acceptedRide = await this.rideRequest.updateRideRequest({
+          docToUpdate: { driverId, _id: { rideRequestId, status: "created" } },
+          updateData: {
+            $set: {
+              status: "closed",
+              driverDecision: "accepted",
+            },
+          },
+          options: { session, new: true , select : "driverId riderId driverBudget riderBudget"  },
+        });
+
+        if (!acceptedRide)
+          throw new AppError(
+            getReasonPhrase(StatusCodes.NOT_FOUND),
+            StatusCodes.NOT_FOUND
+          );
+
+        
+
+        const users = await UserServiceLayer.getUsers({
+          query: {
+            _id: { $in: [acceptedRide.driverId, acceptedRide.riderId] },
+          },
+          select: "deviceToken firstname _id email"
+        })
+
+        if (!users || users.length < 2) throw new AppError(`An Error occured.  Please try again later`, StatusCodes.BAD_REQUEST)
+
+        const riderIndex = users.findIndex(user => user._id.toString() === req.user)
+
+        const riderData = users[riderIndex]
+        const driverData = users[1 - riderIndex]
+
+
+        pushQueue.add(`RIDE_REQUEST_ACCEPTED_${acceptedRide._id}`, {
+          deviceTokens: [riderData.deviceToken],
+          message:
+          {
+            body: `Your budget of ${acceptedRide.driverBudget} to ${acceptedRide.destination.name} with ${driverData.firstName} has been accepted`,
+            title: "Price Negotiated",
+            screen: "rideRequest",
+            id: `${acceptedRide._id}`
+          }
+
+
+        }, { priority: 7 })
+
+
+        return acceptedRide
+      });
+
+      return response._id
+    };
+
+    const response = await retryTransaction(acceptRideSession, 1, data);
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride request to accepted successfully",
+      response,
+    });
+  }
+
+  async rejectRideScheduleRequestDriver(req: Request, res: Response) {
+    const { rideRequestId, driverId } = req.body;
+
+    const rejectedRide = await this.rideRequest.updateRideRequest({
+      docToUpdate: { _id: rideRequestId, driverId, status: "created" },
+      updateData: {
+        $set: {
+          driverDecision: "rejected",
+          status: "closed",
+        },
+      },
+      options: { select: "_id riderId driverId destination driverBudget riderBudget" },
+    });
+
+    if (!rejectedRide)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.NOT_FOUND),
+        StatusCodes.NOT_FOUND
+      );
+
+
+    const users = await UserServiceLayer.getUsers({
+      query: {
+        _id: { $in: [rejectedRide.driverId, rejectedRide.riderId] },
+      },
+      select: "deviceToken firstname _id email"
+    })
+
+    if (!users || users.length < 2) throw new AppError(`An Error occured.  Please try again later`, StatusCodes.BAD_REQUEST)
+
+    const riderIndex = users.findIndex(user => user._id.toString() === req.user)
+
+    const riderData = users[riderIndex]
+    const driverData = users[1 - riderIndex]
+
+
+    pushQueue.add(`RIDE_REQUEST_REJECTED`, {
+      deviceTokens: [riderData.deviceToken],
+      message:
+      {
+        body: `Your requst to ride with  with ${driverData.firstName}  to ${rejectedRide.destination.name} has been rejected  `,
+        title: "Price Negotiated",
+        screen: "rideRequest",
+        id: `${rejectedRide._id}`
+      }
+
+
+    }, { priority: 10 })
+
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride schedule rejected successfully",
+      data: { rideId: rejectedRide._id },
+    });
+  }
+
+  async negotiateRideScheduleRequestPriceDriver(req: Request, res: Response) {
+    const data: {
+      rideRequestId: string;
+      driverId: number;
+      driverBudget: string;
+    } = req.body;
+
+    const negotiatedRide = await this.rideRequest.updateRideRequest({
+      docToUpdate: {
+        _id: data.rideRequestId,
+        status: "created",
+        driverId: data.driverId,
+      },
+      updateData: {
+        $set: {
+          driverDecision: "negotiated",
+          driverBudget: data.driverBudget,
+        },
+      },
+      options: { new: true, select: "_id destination riderBudget driverId riderId driverBudget" },
+    });
+
+    if (!negotiatedRide)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.NOT_FOUND),
+        StatusCodes.NOT_FOUND
+      );
+
+
+
+    const users = await UserServiceLayer.getUsers({
+      query: {
+        _id: { $in: [negotiatedRide.driverId, negotiatedRide.riderId] },
+      },
+      select: "deviceToken firstname _id"
+    })
+
+    if (!users || users.length < 2) throw new AppError(`An Error occured.  Please try again later`, StatusCodes.BAD_REQUEST)
+
+    const riderIndex = users.findIndex(user => user._id.toString() === req.user)
+
+    const riderData = users[riderIndex]
+    // const driverData = users[1 - riderIndex]
+
+
+    pushQueue.add(`RIDE_REQUEST_BUDGET_NEGOTIATED`, {
+      deviceTokens: [riderData.deviceToken],
+      message:
+      {
+        body: `Your budget of ${negotiatedRide.riderBudget} to ${negotiatedRide.destination.name} with ${riderData.firstName} has been negotiated to ${negotiatedRide.driverBudget}`,
+        title: "Price Negotiated",
+        screen: "rideRequest",
+        id: `${negotiatedRide._id}`
+      }
+
+
+    }, { priority: 10 })
+
+  
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride price negotiated successfully",
+      data: { requestId: negotiatedRide._id },
+    });
+  }
+
+  async acceptNegotiatedSchedulePriceRider(req: Request, res: Response) {
+    const data: { riderId: string; rideRequestId: string } = req.body;
+
+    const acceptNegotiatedPriceSession = async (
+      args: typeof data,
+      session: ClientSession
+    ) => {
+      const { riderId, rideRequestId } = args;
+
+      const result = await session.withTransaction(async () => {
+        const rideRequest = await this.rideRequest.updateRideRequest({
+          docToUpdate: {
+            _id: rideRequestId,
+            riderId,
+            status: "created",
+            driverDecision: "negotiated",
+          },
+          updateData: {
+            $set: {
+              riderDecision: "accepted",
+              status: "closed",
+            },
+          },
+          options: { session, new: true,  select : "driverId riderId _id" },
+        });
+
+        if (!rideRequest)
+          throw new AppError(
+            getReasonPhrase(StatusCodes.NOT_FOUND),
+            StatusCodes.NOT_FOUND
+          );
+
+        
+        const users = await UserServiceLayer.getUsers({
+          query: {
+            _id: { $in: [rideRequest.driverId, rideRequest.riderId] },
+          },
+          select: "deviceToken firstname _id"
+        })
+
+        if (!users || users.length < 2) throw new AppError(`An Error occured.  Please try again later`, StatusCodes.BAD_REQUEST)
+
+        const riderIndex = users.findIndex(user => user._id.toString() === req.user)
+
+        const riderData = users[riderIndex]
+        const driverData = users[1 - riderIndex]
+
+
+        pushQueue.add(`DRIVER_BUDGET_REJECTED`, {
+          deviceTokens: [driverData.deviceToken],
+          message: 
+          {
+            body: `Your budget of ${rideRequest.driverBudget} to ${rideRequest.destination.name} for ${riderData.firstName} has been accepted`,
+            title : "Price Accepted", 
+            screen : "rideRequest",
+            id : `${rideRequest._id}`
+          }
+        
+      
+        }, { priority: 10 })
+
+      });
+
+      return result;
+    };
+
+    const response = await retryTransaction(
+      acceptNegotiatedPriceSession,
+      1,
+      data
+    );
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride accepted successfully",
+      response,
+    });
+  }
+
+  async rejectNegotiatedScheduleRequestPriceRider(req: Request, res: Response) {
+    const { rideRequestId, riderId } = req.body;
+
+    const rejectedRide = await this.rideRequest.updateRideRequest({
+      docToUpdate: {
+        _id: rideRequestId,
+        riderId,
+        driverDecision: "negotiated",
+        status: "created",
+      },
+      updateData: {
+        $set: {
+          riderDecision: "rejected",
+          status: "closed",
+        },
+      },
+      options: { new: true, select: "driverId riderId _id driverBudget destination" },
+    });
+  
+   
+    if (!rejectedRide )
+      throw new AppError(
+        getReasonPhrase(StatusCodes.NOT_FOUND),
+        StatusCodes.NOT_FOUND
+      );
+
+    const users = await UserServiceLayer.getUsers({ 
+      query : { 
+        _id : { $in : [ rejectedRide.driverId,  rejectedRide.riderId]}, 
+      }, 
+      select : "deviceToken firstname _id"
+    })
+
+
+    if(!users || users.length < 2) throw new AppError(`An Error occured.  Please try again later`, StatusCodes.BAD_REQUEST)
+    
+    const riderIndex =  users.findIndex(user => user._id.toString() === req.user)  
+
+    const riderData  =  users[riderIndex]
+    const driverData =  users[1-riderIndex]
+
+    
+    pushQueue.add(`DRIVER_BUDGET_REJECTED`, { 
+        deviceTokens : [driverData.deviceToken], 
+        message : {
+        body: `Your budget of ${rejectedRide.driverBudget} to ${rejectedRide.destination.name} for ${riderData.firstName} has been rejected`,
+        title: "Price Accepted",
+        screen: "rideRequest",
+        id: `${rejectedRide._id}`
+      }
+      }
+
+    , { priority : 10})
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride cancelled successfully",
+      data: { _id: rejectedRide._id },
+    });
+  }
+
+  async cancelRideRequest(req: Request, res: Response) {
+
+    //Only a rider and admin can cancel a ride request 
+    const data: { riderId : string,  rideRequestId: string } = req.body;
+
+
+    const rideData = await this.rideRequest.getRideRequestById(data.rideRequestId)
+
+    if(!rideData) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+
+    const imposter  = isNotAuthorizedToPerformAction(req)
+
+    const canCancelRide =  rideData?.riderId?.toString() === req.user || !imposter 
+
+    if (!canCancelRide) throw new AppError("You are not authorized to cancel this ride", StatusCodes.FORBIDDEN)
+
+
+    const cancelledRideRequest = await this.rideRequest.updateRideRequest({
+      docToUpdate: {
+        _id: data.rideRequestId,
+       
+      },
+      updateData: {
+        $set: {
+          status: "cancelled",
+        },
+      },
+      options: { new: true, select: "_id driverId driverEmail " },
+    });
+
+
+    if (!cancelledRideRequest)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.NOT_FOUND),
+        StatusCodes.NOT_FOUND
+      );
+
+    //TODO : Send email TO DRIVER - CANCELLED RIDE REQUEST
+
+    if (cancelledRideRequest?.driverId) {
+      emailQueue.add(`RIDE_CANCELLED_${cancelledRideRequest._id}`, {
+        to: cancelledRideRequest.driverEmail!,
+        template: ``,
+        subject: "Ride request cancellation "
+      }, { priority: 7 })
+    }
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride cancelled successfully",
+      data: { _id: cancelledRideRequest._id },
+    });
+  }
+  //@admin only
+  async getRideRequests(req: Request, res: Response) {
+    const data: {
+      cursor?: string;
+      status?: string;
+      tripScheduleId?: string;
+      driverId?: string;
+      sort?: string;
+      type?: "solo" | "share"
+      forThirdParty : boolean
+      dateFrom? : Date, 
+      dateTo ? : Date 
+    } = req.body;
+
+    const matchQuery: MatchQuery = {};
+
+    if (data?.status) {
+      matchQuery.status = { status: { $eq: data.status } };
+    }
+
+    if (data?.tripScheduleId) {
+      matchQuery.tripId = { status: { $eq: data.tripScheduleId } };
+    }
+
+    if (data?.forThirdParty) {
+      matchQuery.friendData = { $exists: true }
+    }
+
+    if (data?.type) {
+      matchQuery.type = { status: { $eq: data.type } };
+    }
+    if (data?.driverId) {
+      matchQuery.driverId = { status: { $eq: data.driverId } };
+    }
+
+    const sortQuery = sortRequest(data.sort);
+
+    if (data?.cursor) {
+      const orderValue = Object.values(sortQuery)[0] as unknown as number;
+
+      const order =
+        orderValue === 1 ? { $gt: data.cursor } : { $lt: data?.cursor };
+
+      matchQuery._id = order;
+    }
+
+    const rideScheduleRequests = await this.rideRequest.findRideRequests({
+      query: matchQuery,
+      aggregatePipeline: [
+        sortQuery,
+        {
+          $limit: 101,
+        },
+
+        {
+          $lookup: {
+            from: "busStations",
+            localField: "destination",
+            foreignField: "_id",
+            pipeline: [
+              {
+                $project: {
+                  name: 1,
+                },
+              },
+            ],
+            as: "$pickupPoint",
+          },
+        },
+
+        {
+          $lookup: {
+            from: "busStations",
+            localField: "destination",
+            foreignField: "_id",
+            pipeline: [
+              {
+                $project: {
+                  name: 1,
+                },
+              },
+            ],
+            as: "$destinationPoint",
+          },
+        },
+
+        { $unwind: "$$pickupPoint" },
+
+        { $unwind: "$$destinationPoint" },
+
+        {
+          $project: {
+            tripId: 1,
+            riderId: 1,
+            driverDecision: 1,
+            type: 1,
+            status: 1,
+            packageInfo: 1,
+            riderDecision: 1,
+            pickupPoint: 1,
+            destinationPoint: 1,
+          },
+        },
+      ],
+      pagination: {
+        pageSize: 100,
+      },
+    });
+
+    const hasData = rideScheduleRequests?.data?.length === 0;
+
+    
+
+    if (!hasData)
+      throw new AppError(
+        "No  matching ride request were found",
+        StatusCodes.NOT_FOUND
+      );
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Ride requests retrieved successfuly",
+      data: rideScheduleRequests,
+    });
+  }
+
 
   async deleteRideRequests(req: Request, res: Response) {
     const data: { rideRequestIds: string[] } = req.body;

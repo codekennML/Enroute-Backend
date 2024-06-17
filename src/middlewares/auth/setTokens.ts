@@ -67,7 +67,7 @@ export const setTokens = async (
   req.headers["X_A_T"] =  accessToken
   req.headers["X_R_T"] = refreshToken
 
-  req.user =  userInfo._id 
+  req.user =  userInfo._id.toString()
   req.role =  userInfo.roles.toString()
   req.subRole = userInfo.subRole
 
@@ -127,4 +127,9 @@ export const setAccessToken = async (req : Request,  res : Response, user : stri
   req.headers["X_A_T"] = accessToken
 
   return 
+}
+
+export const removeAccessTokens = async (req : Request) => {
+  req.headers["X_A_T"]  =  "" 
+  req.headers["X_R_T"] =  ""
 }

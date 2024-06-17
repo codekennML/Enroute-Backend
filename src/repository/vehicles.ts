@@ -1,4 +1,4 @@
-import Vehicle, { IVehicleModel } from "../model/vehicles";
+import Vehicle from "../model/vehicles";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, {
   PaginationRequestData,
@@ -6,21 +6,22 @@ import DBLayer, {
   updateManyQuery,
 } from "./shared";
 import { IVehicle } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class VehicleRepository {
-  private VehicleDBLayer: DBLayer<IVehicleModel>;
+  private VehicleDBLayer: DBLayer<IVehicle>;
 
   constructor(model: Model<IVehicleModel>) {
-    this.VehicleDBLayer = new DBLayer<IVehicleModel>(model);
+    this.VehicleDBLayer = new DBLayer<IVehicle>(model);
   }
 
   async createVehicle(
     request: IVehicle,
     session?: ClientSession
-  ): Promise<IVehicleModel[]> {
-    let createdVehicles: IVehicleModel[] = [];
+  ) {
+  
 
-    createdVehicles = await this.VehicleDBLayer.createDocs([request], session);
+  const  createdVehicles = await this.VehicleDBLayer.createDocs([request], session);
 
     return createdVehicles;
   }
@@ -52,7 +53,7 @@ class VehicleRepository {
     return updatedVehicle;
   }
 
-  async updateManyVehicles(request: updateManyQuery<IVehicleModel>) {
+  async updateManyVehicles(request: updateManyQuery<IVehicle>) {
     const result = await this.VehicleDBLayer.updateManyDocs(request);
 
     return result;

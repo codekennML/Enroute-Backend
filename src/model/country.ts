@@ -20,9 +20,20 @@ const CountrySchema = new Schema<ICountry>(
       required: true,
       default: [0.0, 0.0, 0.0, 0.0],
     },
-    requiredDocs: {
-      type: [String],
-    },
+    requiredDriverDocs:  [
+        {
+          name : String, 
+          options : [ String ]
+        }
+      ],
+    requiredRiderDocs: [
+      {
+        name: String,
+        options: [String]
+      }
+    ],
+
+
   },
   {
     timestamps: true,

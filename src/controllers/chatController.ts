@@ -6,8 +6,11 @@ import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import User from "../model/user";
 import AppError from "../middlewares/errors/BaseError";
 import { Types } from "mongoose";
-import { ADMINROLES } from "../config/enums";
+
 import Message from "../model/message";
+import { isNotAuthorizedToPerformAction } from "../utils/helpers/isAuthorizedForAction";
+import { MatchQuery, SortQuery } from "../../types/types";
+import { sortRequest } from "../utils/helpers/sortQuery";
 
 class ChatController {
   private chat: ChatService;
@@ -34,7 +37,7 @@ class ChatController {
   async getChatByRideId(req: Request, res: Response) {
     const rideId = req.params.rideId;
     const user = req.user;
-    const role = req.role;
+ 
 
     const chat = await this.chat.getSingleChat({
       query: { rideId },
@@ -60,10 +63,12 @@ class ChatController {
       );
 
     const chatUsers = chat.users.map((user) => user._id);
+ 
+    const isImpostor =  isNotAuthorizedToPerformAction(req)
 
     if (
       !chatUsers.includes(new Types.ObjectId(user!.toString())) &&
-      !(role! in ADMINROLES)
+       isImpostor
     )
       throw new AppError(
         getReasonPhrase(StatusCodes.FORBIDDEN),
@@ -76,10 +81,67 @@ class ChatController {
     });
   }
 
+  async getChats(req: Request, res: Response) {
+
+    const data: {
+      tripId?: string;
+      cursor?: string;
+      sort?: string;
+      userId : string
+      dateFrom?: Date;
+      dateTo?: Date;
+    } = req.body;
+
+    const matchQuery: MatchQuery = {};
+
+
+    if(data?.userId) {
+       matchQuery.users  =  {  $in : data.userId}
+    }
+
+    if (data?.dateFrom) {
+      matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
+    }
+
+ 
+    const sortQuery: SortQuery = sortRequest(data?.sort);
+
+    if (data?.cursor) {
+      const orderValue = Object.values(sortQuery)[0] as unknown as number;
+
+      const order =
+        orderValue === 1 ? { $gt: data.cursor } : { $lt: data?.cursor };
+
+      matchQuery._id = order;
+    }
+
+    const query = {
+      query: matchQuery,
+      aggregatePipeline: [{ $limit: 101 }, sortQuery],
+      pagination: { pageSize: 100 },
+    };
+
+    const result = await this.chat.getPaginatedChats(query)
+
+    const hasData = result?.data?.length === 0;
+
+    return AppResponse(
+      req,
+      res,
+      hasData ? StatusCodes.OK : StatusCodes.NOT_FOUND,
+      {
+        message: hasData
+          ? `Chats retrieved succesfully`
+          : `No chats were found for this request `,
+        data: result,
+      }
+    );
+  }
+
   async getChatById(req: Request, res: Response) {
     const { id } = req.params;
     const user = req.user;
-    const role = req.role;
+ 
 
     const chat = await this.chat.getSingleChat({
       query: { _id: id },
@@ -106,9 +168,11 @@ class ChatController {
 
     const chatUsers = chat.users.map((user) => user._id);
 
+    const isImpostor =  isNotAuthorizedToPerformAction(req)
+
     if (
       !chatUsers.includes(new Types.ObjectId(user!.toString())) &&
-      !(role! in ADMINROLES)
+      isImpostor
     )
       throw new AppError(
         getReasonPhrase(StatusCodes.FORBIDDEN),
@@ -124,16 +188,17 @@ class ChatController {
   async endChat(req: Request, res: Response) {
     const { chatId } = req.body;
     const user = req.user;
-    const role = req.role;
 
     const chat = await this.chat.getSingleChat({
       query: { _id: chatId },
       select: "users",
     });
 
+    const isImpostor =  isNotAuthorizedToPerformAction(req)
+
     if (
       !chat?.users.includes(new Types.ObjectId(user!.toString())) &&
-      !(role! in ADMINROLES)
+     isImpostor
     )
       throw new AppError(
         getReasonPhrase(StatusCodes.FORBIDDEN),

@@ -19,6 +19,8 @@ const knowledgeBaseCategorySchema = new Schema<IKnowledgeBaseCategory>(
       required: true,
       ref: "knowledgeBaseCategory",
     },
+
+    country : String
   },
   {
     timestamps: true,
@@ -29,7 +31,16 @@ const knowledgeBaseCategorySchema = new Schema<IKnowledgeBaseCategory>(
 knowledgeBaseCategorySchema.index({
   name: 1,
   parentId: 1,
+
+  country : 1
+
 });
+
+knowledgeBaseCategorySchema.virtual("parentData",{ 
+  ref : "knowledgeBaseCategory",
+  foreignField : "_id", 
+  localField : "parentId",  
+} )
 
 const KnowledgeBaseCategory: Model<IKnowledgeBaseCategory> =
   model<IKnowledgeBaseCategory>(

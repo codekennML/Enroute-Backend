@@ -28,9 +28,9 @@ const sosSchema = new Schema<ISOS>(
       type: {
         type: String,
         enum: ["Point"],
-        default: "Point",
+        required : true
       },
-      coordinates: [Number, Number],
+      coordinates: [Number],
     },
   },
 

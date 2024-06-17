@@ -43,7 +43,7 @@ class RideRequestRepository {
 
   async updateRideRequest(request: {
     docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
+    updateData: Record<string, string | object | number | boolean>,
     options: {
       new?: boolean;
       session?: ClientSession;

@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 const DATABASE_URI = process.env.DATABASE_URI as string;
 let retries = 0;
 
+console.log("sOMEEMME", DATABASE_URI)
+
 const connectDBWithRetry = async () => {
   const delay = Math.pow(2, retries) * 1000; // Exponential backoff
 
@@ -27,6 +29,7 @@ const connectDBWithRetry = async () => {
 
 export async function startDB() {
   try {
+    console.log("Connecting")
     await connectDBWithRetry();
   } catch (error) {
     console.log((error as Error).message);

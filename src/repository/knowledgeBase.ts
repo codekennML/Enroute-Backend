@@ -2,6 +2,7 @@ import { IKnowledgeBase } from "./../model/interfaces/index";
 import KnowledgeBase from "../model/knowledgeBase";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, { AggregateData, PaginationRequestData, QueryData } from "./shared";
+import { UpdateRequestData } from "../../types/types";
 
 class KnowledgeBaseRepository {
   private KnowledgeBaseDBLayer: DBLayer<IKnowledgeBase>;
@@ -36,17 +37,7 @@ class KnowledgeBaseRepository {
     return KnowledgeBase;
   }
 
-  async updateKnowledgeBase(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateKnowledgeBase(request: UpdateRequestData) {
     const updatedKnowledgeBase = await this.KnowledgeBaseDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

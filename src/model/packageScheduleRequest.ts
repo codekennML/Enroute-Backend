@@ -20,29 +20,14 @@ const packageScheduleRequestSchema = new Schema<IPackageScheduleRequest>(
       type: String,
       required: false,
     },
+
     status: {
       type: String,
-      enum: ["accepted", "rejected", "pending"],
-      default: "pending",
+      enum: ["accepted", "rejected", "created",  "cancelled"],
+      default: "created",
     },
 
-    town: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Town",
-    },
 
-    state: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "State",
-    },
-
-    country: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Country",
-    },
   },
   {
     timestamps: true,
@@ -51,8 +36,7 @@ const packageScheduleRequestSchema = new Schema<IPackageScheduleRequest>(
 );
 
 packageScheduleRequestSchema.index({
-  town: 1,
-  state: 1,
+
   createdBy: 1,
   country: 1,
   status: 1,

@@ -4,7 +4,7 @@ import { ITrip } from "./interfaces";
 const tripSchema = new Schema<ITrip>({
   driverId: {
     type: Schema.Types.ObjectId,
-    required: [true, "Trip Driver Id required"],
+    required: true,
     ref: "User",
     index: true,
   },
@@ -21,10 +21,10 @@ const tripSchema = new Schema<ITrip>({
       type: {
         type: String,
         enum: ["Point"],
-        default: "Point",
+        required: true
       },
 
-      coordinates: [Number, Number],
+      coordinates: [Number],
     },
   },
 
@@ -35,20 +35,20 @@ const tripSchema = new Schema<ITrip>({
     default: "none"
   },
 
-  originTown: {
-    type: SchemaTypes.ObjectId,
-    ref: "Town",
-  },
+  // originTown: {
+  //   type: SchemaTypes.ObjectId,
+  //   ref: "Town",
+  // },
 
-  originState: {
-    type: SchemaTypes.ObjectId,
-    ref: "State",
-  },
+  // originState: {
+  //   type: SchemaTypes.ObjectId,
+  //   ref: "State",
+  // },
 
-  originCountry: {
-    type: SchemaTypes.ObjectId,
-    ref: "Country",
-  },
+  // originCountry: {
+  //   type: SchemaTypes.ObjectId,
+  //   ref: "Country",
+  // },
 
   distance : { 
     type : Number, 
@@ -61,22 +61,22 @@ const tripSchema = new Schema<ITrip>({
       type: {
         type: String,
         enum: ["Point"],
-        default: "Point",
+        required: true
       },
 
-      coordinates: [Number, Number],
+      coordinates: [Number],
     },
   },
 
-  destinationTown: {
-    type: SchemaTypes.ObjectId,
-    ref: "Town",
-  },
+  // destinationTown: {
+  //   type: SchemaTypes.ObjectId,
+  //   ref: "Town",
+  // },
 
-  destinationState: {
-    type: SchemaTypes.ObjectId,
-    ref: "State",
-  },
+  // destinationState: {
+  //   type: SchemaTypes.ObjectId,
+  //   ref: "State",
+  // },
 
   status: {
     type: String,

@@ -31,15 +31,16 @@ class CountryController {
     const data: {
       countryId: string;
       cursor: string;
-      town: string;
-      state: string;
-      country: string;
+     
       sort: string;
     } = req.body;
 
     const matchQuery: MatchQuery = {};
 
     const sortQuery: SortQuery = sortRequest(data?.sort);
+    if(data?.countryId) {
+      matchQuery._id  =  { _$eq : data.countryId }
+    }
 
     if (data?.cursor) {
       const orderValue = Object.values(sortQuery)[0] as unknown as number;
@@ -93,14 +94,19 @@ class CountryController {
   async updateCountry(req: Request, res: Response) {
     const data: ICountry & { countryId: string } = req.body;
 
-    const { countryId, ...rest } = data;
+    const { countryId, requiredDriverDocs, requiredRiderDocs,  ...rest } = data; 
+
+    //This will overwrite the data 
+
+    
 
     const updatedcountry = await this.country.updateCountry({
       docToUpdate: countryId,
       updateData: {
         $set: {
-          ...rest,
+       ...rest,
         },
+        $addToSet : { requiredDriverDocs,  requiredRiderDocs}
       },
       options: {
         new: true,
@@ -121,17 +127,17 @@ class CountryController {
   }
 
   async deleteCountries(req: Request, res: Response) {
-    const data: { CountryIds: string[] } = req.body;
+    const data: { countryIds: string[] } = req.body;
 
-    const { CountryIds } = data;
+    const { countryIds } = data;
 
-    if (CountryIds.length === 0)
+    if (countryIds.length === 0)
       throw new AppError(
         getReasonPhrase(StatusCodes.BAD_REQUEST),
         StatusCodes.BAD_REQUEST
       );
 
-    const deletedCountries = await this.country.deleteCountries(CountryIds);
+    const deletedCountries = await this.country.deleteCountries(countryIds);
 
     return AppResponse(req, res, StatusCodes.OK, {
       message: `${deletedCountries.deletedCount} countries deleted.`,

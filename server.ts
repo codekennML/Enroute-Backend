@@ -1,4 +1,4 @@
-import dotenv from "dotenv";
+import "dotenv/config" 
 import express, { Application } from "express";
 import { startDB } from "../route/src/config/connectDB";
 const app: Application = express();
@@ -13,10 +13,6 @@ import corsOptions from "./src/config/cors/corsOptions";
 import mongoose from "mongoose";
 import closeWithGrace from "close-with-grace";
 import rideRouter from "./src/routes/ride"
-// require("./config/passportGoogle");
-// const passport = require("passport");
-
-dotenv.config();
 import bodyParser from "body-parser";
 import { serverAdapter } from "./src/services/bullmq/ui";
 import AuthGuard from "./src/middlewares/auth/verifyTokens";
@@ -34,7 +30,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.use(AuthGuard)
-app.use("/ride"  rideRouter)
+app.use("/ride", rideRouter)
 app.use("/admin/queueviewer/ui", serverAdapter.getRouter());
 
 app.all("*", (req, res) => {

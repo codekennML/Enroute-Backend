@@ -1,4 +1,4 @@
-import { UserServiceLayer } from "./../services/userService";
+
 import { ClientSession, Types } from "mongoose";
 import DocumentsService, {
   DocumentsServiceLayer,
@@ -9,7 +9,7 @@ import { Request, Response } from "express";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 // import { UserServiceLayer } from "../services/userService";
 import AppError from "../middlewares/errors/BaseError";
-import { VehicleServiceLayer } from "../services/vehicleService";
+// import { VehicleServiceLayer } from "../services/vehicleService";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
 import Vehicle from "../model/vehicles";
@@ -45,6 +45,8 @@ class DocumentsController {
       issued,
       fieldData,
       status: "pending",
+      archived : false ,
+      isRejected : false
     });
 
     return AppResponse(req, res, StatusCodes.OK, { createdDocument });
@@ -153,9 +155,10 @@ class DocumentsController {
 
   //Get a users pending documents
   async getPendingDocumentsByUser(req: Request, res: Response) {
-    const data: { cursor?: string } = req.params;
+   
+    const data: { cursor?: string, user : string } = req.params;
 
-    const matchQuery: MatchQuery = { status: { $eq: "pending" } };
+    const matchQuery: MatchQuery = { userId : { $eq : data.user}, status: { $eq: "pending" } };
 
     if (data?.cursor) matchQuery._id = { $lt: data.cursor };
 
@@ -266,7 +269,7 @@ class DocumentsController {
   async markDocumentApproved(req: Request, res: Response) {
     const data: { documentId: string; adminId: string } = req.body;
 
-    const vehicleInfo = ["insurance", "inspection"];
+    // const vehicleInfo = ["insurance", "inspection"];
 
     const approveDocumentSessionFn = async (
       args: typeof data,
@@ -290,25 +293,37 @@ class DocumentsController {
             getReasonPhrase(StatusCodes.NOT_FOUND),
             StatusCodes.NOT_FOUND
           );
+
+        //Lastly check if there is any document with the same name and and a status of assessed and not rejected and not archived and archive that document so this becomes the only active document for that result
+         await this.documents.updateDocument({
+          docToUpdate: { userId : approvedDocument.userId,  status : "assessed", archived : false, isRejected : false, isVerified : true  , _id : { $ne : approvedDocument._id}, name : { $eq : approvedDocument.name}},
+          updateData: {
+            $set: {
+             
+             archived : true
+            },
+          },
+          options: { session, new: true, select: "fieldData _id name userId" },
+        });
+//This can  be null and its okay 
+        
         //Update the user data with the approved document id
        
         //Update the vehicleInfo if the changed or approved document belongs to the vehicle model , not the user model
-        if (vehicleInfo.includes(approvedDocument.name.toUpperCase())) {
-          await VehicleServiceLayer.updateVehicle({
-            docToUpdate: { _id: approvedDocument.userId },
-            updateData: {
-              $set: {
-                [approvedDocument.name]: approvedDocument?._id,
+        // if (vehicleInfo.includes(approvedDocument.name.toUpperCase())) {
+        //   await VehicleServiceLayer.updateVehicle({
+        //     docToUpdate: { _id: approvedDocument.userId },
+        //     updateData: {
+        //       $set: {
+        //         [approvedDocument.name]: approvedDocument?._id,
               
-              },
-            },
-            options: { session, select: "_id" },
-          });
-        }
+        //       },
+        //     },
+        //     options: { session, select: "_id" },
+        //   });
+        // }
 
-      
-    
-
+     
         return args.documentId;
       });
     };
@@ -372,7 +387,7 @@ class DocumentsController {
           },
           options: { session, new: true, select: "_id" },
         });
-
+    //TODO : May make sense to send a rejection feedback email here 
         if (!rejectedDocument)
           throw new AppError(
             getReasonPhrase(StatusCodes.NOT_FOUND),

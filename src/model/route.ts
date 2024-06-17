@@ -31,9 +31,9 @@ const routeSchema = new Schema<RouteModel>(
         type: {
           type: String,
           enum: ["Point"],
-          default: "Point",
+         required : true
         },
-        coordinates: [Number, Number],
+        coordinates: [Number],
       },
     ],
 

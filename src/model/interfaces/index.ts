@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import {  Types } from "mongoose";
 import {
   Paystack,
   EmergencyContact,
@@ -47,9 +47,6 @@ export interface ITripSchedule {
   seatAllocationsForTrip: number;
   route: Types.ObjectId;
   status: "created" | "cancelled";
-
-
-
 }
 
 export interface INotification {
@@ -75,7 +72,7 @@ export interface ISettlements extends Locale {
   //Payment data from processor
 }
 
-export interface IKnowledgeBaseCategory {
+export interface IKnowledgeBaseCategory extends Locale {
   name: string;
   isParent: boolean;
   parentId: Types.ObjectId;
@@ -116,9 +113,9 @@ export interface ICountry {
 }
 
 export interface Locale {
-  town: Types.ObjectId;
-  state: Types.ObjectId;
-  country: Types.ObjectId;
+  town: string
+  state: string
+  country: string
 }
 
 
@@ -139,7 +136,6 @@ export interface IRide {
   tripId: Types.ObjectId;
   riderId: Types.ObjectId;
   packageRequestId?: Types.ObjectId;
-
   pickedUp: boolean;
   pickupTime: Date;
   alighted?: boolean;
@@ -305,7 +301,7 @@ export interface IUser extends Locale {
   birthDate?: Date;
   mobile: number;
   gender?: "male" | "female";
-  deviceToken?: string;
+  deviceToken: string;
   roles: number ;
   subRole?: number;
   hasUsedSocialAuth: boolean;
@@ -335,8 +331,6 @@ export interface IUser extends Locale {
   refreshToken?: string;
   countryCode: number;
   resetTokenData?: { [key: string]: Date | boolean };
-  deviceIds: string[];
-  
   paymentMethod?: {
     authorization: Paystack.Authorization;
     customer: Paystack.Customer;
@@ -353,6 +347,9 @@ export interface IUser extends Locale {
   serviceType: string[];
   createdAt?: Date;
   updatedAt?: Date;
+  ipAddresses: string[]
+  devicesTypes: string
+  deviceIds: string[]
 }
 
 export interface IChat {
@@ -382,6 +379,7 @@ export interface ISOS extends Locale {
 
 export interface IBusStation extends Locale {
   name: string;
+  active : boolean;
   placeId: string;
   location: {
     type: "Point";
@@ -390,56 +388,55 @@ export interface IBusStation extends Locale {
 
 }
 
-export interface ITrans {
-  user: Types.ObjectId;
-  type: "credit" | "debit";
-  amount: number;
-  status: "failed" | "success" | "pending" | "processing";
-  category: "deposit" | "withdrawal" | "tip";
-  awaitingApproval: boolean;
-  isApproved: boolean;
-  data: Record<string, string | number | object>;
-}
+// export interface ITrans {
+//   user: Types.ObjectId;
+//   type: "credit" | "debit";
+//   amount: number;
+//   status: "failed" | "success" | "pending" | "processing";
+//   category: "deposit" | "withdrawal" | "tip";
+//   awaitingApproval: boolean;
+//   isApproved: boolean;
+//   data: Record<string, string | number | object>;
+// }
 
-export interface ITransaction {
-  receiver: Types.ObjectId;
-  creator: Types.ObjectId;
-  type: "deposit" | "booking" | "payout" | "commission" | "tip" | "tripRefund";
-  amount: number;
-  approved?: boolean;
-  approvedBy?: Types.ObjectId;
-  systemApproved?: boolean;
-  status: "success" | "failed" | "processing";
-  fraudulent?: boolean;
-  paymentRef?: string;
-  userTransferRef?: string;
-  class: "credit" | "debit";
-}
+// export interface ITransaction {
+//   receiver: Types.ObjectId;
+//   creator: Types.ObjectId;
+//   type: "deposit" | "booking" | "payout" | "commission" | "tip" | "tripRefund";
+//   amount: number;
+//   approved?: boolean;
+//   approvedBy?: Types.ObjectId;
+//   systemApproved?: boolean;
+//   status: "success" | "failed" | "processing";
+//   fraudulent?: boolean;
+//   paymentRef?: string;
+//   userTransferRef?: string;
+//   class: "credit" | "debit";
+// }
 
-export interface IPay {
-  transactionId: Types.ObjectId;
-  userPaymentRef?: string;
-  creator: Types.ObjectId;
-  receiver: Types.ObjectId;
-  email?: string;
-  processed?: false;
-  type: "refund" | "withdrawal" | "deposit";
-  amount: number;
-  channel?: PAYSTACKCHANNELS;
-  status: "success" | "failed" | "created" | "queued" | "requires_action";
-
-  currency?: string;
-  amountSettled?: number;
-  tax?: number;
-  data?: {
-    reference: string;
-    authorization: string;
-  };
-  approved?: boolean;
-  approvedBy?: Types.ObjectId;
-  autoRetries: number;
-  manualRetries: number;
-}
+// export interface IPay {
+//   transactionId: Types.ObjectId;
+//   userPaymentRef?: string;
+//   creator: Types.ObjectId;
+//   receiver: Types.ObjectId;
+//   email?: string;
+//   processed?: false;
+//   type: "refund" | "withdrawal" | "deposit";
+//   amount: number;
+//   channel?: PAYSTACKCHANNELS;
+//   status: "success" | "failed" | "created" | "queued" | "requires_action";
+//   currency?: string;
+//   amountSettled?: number;
+//   tax?: number;
+//   data?: {
+//     reference: string;
+//     authorization: string;
+//   };
+//   approved?: boolean;
+//   approvedBy?: Types.ObjectId;
+//   autoRetries: number;
+//   manualRetries: number;
+// }
 
 export type IOtp = {
   user?: Types.ObjectId;
@@ -453,37 +450,16 @@ export type IOtp = {
   next?: string;
 };
 
-export interface IUserAccess {
-  user: Types.ObjectId;
-  ipAddresses: Record<
-    string,
-    {
-      lastLoginAt: Date;
-      susAttempts: number;
-      blacklisted: boolean;
-    }
-  >;
-  devices: Record<
-    string,
-    {
-      lastLoginAt: Date;
-      susAttempts: number;
-      blacklisted: boolean;
-    }
-  >;
-}
-
-export interface IUserPlaces {
-  user: Types.ObjectId;
-  busStation: Types.ObjectId;
-}
 
 export interface IRoute {
   tripId?: Types.ObjectId;
   rideId?: Types.ObjectId;
   vehicleId?: Types.ObjectId;
-  geojson: latLngCoordinates[];
-  timestamps: Date[];
+  timedGeojson: {
+    coordinates: latLngCoordinates[];
+    timestamp : Date
+  }
+  
   lineString: string;
 }
 
@@ -491,7 +467,7 @@ export type Place = {
   name: string;
   location: {
     type: "Point";
-    coordinates: Coordinates;
+    coordinates: latLngCoordinates;
   };
   state?: string;
   town?: string;
@@ -501,12 +477,10 @@ export type Place = {
 
 export interface ITrip {
   createdAt: { $gte: Date; $lte: Date; };
-  // state: { $eq: string; };
-  // town: { $eq: string; };
   driverId: Types.ObjectId;
   origin: Place;
   destination: Place;
-  vehicleId: Types.ObjectId;
+  // vehicleId: Types.ObjectId; //THe vehicle Id should go extract the active vehicle of the driver
   distance: number
   departureTime: Date;
   endTime?: Date

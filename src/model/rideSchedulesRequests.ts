@@ -3,61 +3,61 @@ import { IRideSchedule } from "./interfaces/index.js";
 
 const rideRequestSchema = new Schema<IRideSchedule>(
     {
-        rideRequest: {
-            type: Schema.Types.ObjectId,
-            required: false,
-            ref: "RideRequest",
-            index: true,
-        },
+        // rideRequest: {
+        //     type: Schema.Types.ObjectId,
+        //     required: false,
+        //     ref: "RideRequest",
+        //     index: true,
+        // },
 
-        tripId : { 
-            type: Schema.Types.ObjectId,
-            required: false,
-            ref: "Trip",
-            index: true,
-        },
+        // tripId : { 
+        //     type: Schema.Types.ObjectId,
+        //     required: false,
+        //     ref: "Trip",
+        //     index: true,
+        // },
 
-        driverId: {
-            type: Schema.Types.ObjectId,
-            required: false,
-            ref: "User",
-            index: true,
-        },
+        // driverId: {
+        //     type: Schema.Types.ObjectId,
+        //     required: false,
+        //     ref: "User",
+        //     index: true,
+        // },
 
-        riderId: {
-            type: Schema.Types.ObjectId,
-            required: false,
-            ref: "User",
-            index: true,
-        },
+        // riderId: {
+        //     type: Schema.Types.ObjectId,
+        //     required: false,
+        //     ref: "User",
+        //     index: true,
+        // },
 
-        driverEmail: String,
+        // driverEmail: String,
 
-        riderEmail: String,
+        // riderEmail: String,
 
        
-        driverBudget: {
-            type: Number,
-            default: 0,
-            required: true,
-        }, 
+        // driverBudget: {
+        //     type: Number,
+        //     default: 0,
+        //     required: true,
+        // }, 
 
-        driverPushId : String, 
+        // driverPushId : String, 
 
-        riderPushId : String,
+        // riderPushId : String,
 
     
-        riderAccepted: {
-            type : Boolean, 
-            default : false, 
-            required : true
-        },
+        // riderAccepted: {
+        //     type : Boolean, 
+        //     default : false, 
+        //     required : true
+        // },
 
-        status: {
-            type: String,
-            required: true,
-            enum: ["created", "cancelled", "closed"],
-        },
+        // status: {
+        //     type: String,
+        //     required: true,
+        //     enum: ["created", "cancelled", "closed"],
+        // },
     },
 
     {
@@ -76,7 +76,7 @@ rideRequestSchema.index({
     type: 1,
 });
 
-export const RideRequest: Model<RideRequestModel> = model<RideRequestModel>(
+export const RideRequest: Model<IRideSchedule> = model<IRideSchedule>(
     "RideRequest",
     rideRequestSchema
 );

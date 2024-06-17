@@ -1,9 +1,9 @@
-import { Schema, Model, model, SchemaTypes, Document } from "mongoose";
+import { Schema, Model, model, SchemaTypes} from "mongoose";
 import { IVehicle } from "./interfaces";
 
-export interface IVehicleModel extends IVehicle, Document { }
 
-const vehicleSchema = new Schema<IVehicleModel>(
+
+const vehicleSchema = new Schema<IVehicle>(
   {
     driverId: {
       type: SchemaTypes.ObjectId,
@@ -39,7 +39,7 @@ const vehicleSchema = new Schema<IVehicleModel>(
      expiryDate: Date,
       image: {
         front: String,
-        back?: String
+        back: String
       }
     },
     insurance: {
@@ -48,7 +48,7 @@ const vehicleSchema = new Schema<IVehicleModel>(
       expiryDate: Date,
       image: {
         front: String,
-        back?: String
+        back: String
       }
     },
 
@@ -95,7 +95,7 @@ vehicleSchema.index({
   "inspection.expiryDate" : 1,
 });
 
-export const Vehicle: Model<IVehicleModel> = model<IVehicleModel>(
+export const Vehicle: Model<IVehicle> = model<IVehicle>(
   "Vehicle",
   vehicleSchema
 );

@@ -19,7 +19,6 @@ const rideRequestSchema = new Schema<RideRequestModel>(
       required: true,
     },
 
-
     destination: {
       type: SchemaTypes.ObjectId,
       required: true,
@@ -48,6 +47,9 @@ const rideRequestSchema = new Schema<RideRequestModel>(
       required: true,
       enum: ["created", "cancelled", "closed"],
     },
+    driverBudget : Number, 
+
+ 
 
     friendData : [ 
       { 
@@ -69,12 +71,9 @@ rideRequestSchema.index({
   status: 1,
   riderId: 1,
   type : 1,
-  "pickupPoint.town" : 1,
-  "pickupPoint.state": 1,
-  "pickupPoint.country": 1, 
-  "destination.town": 1,
-  "destination.state": 1,
-  "destination.country": 1
+  destination : 1 , 
+  pickupPoint : 1
+  
 });
 
 export const RideRequest: Model<RideRequestModel> = model<RideRequestModel>(

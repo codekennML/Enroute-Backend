@@ -23,9 +23,9 @@ const packageScheduleSchema = new Schema<IPackageSchedule>(
 
     status: {
       type: String,
+      required: true,
       enum: ["filled", "expired", "created"],
       default: "created",
-      required: true,
     },
 
     destinationAddress: {
@@ -34,10 +34,10 @@ const packageScheduleSchema = new Schema<IPackageSchedule>(
         type: {
           type: String,
           enum: ["Point"],
-          required: true,
-          default: "Point",
+          required: true
+       
         },
-        coordinates: [Number, Number],
+        coordinates: [Number],
       },
       placeId: String,
     },
@@ -49,7 +49,7 @@ const packageScheduleSchema = new Schema<IPackageSchedule>(
           type: String,
           enum: ["Point"],
           required: true,
-          default: "Point",
+          
         },
         coordinates: [Number, Number],
       },
@@ -62,23 +62,23 @@ const packageScheduleSchema = new Schema<IPackageSchedule>(
 
     dueAt: Date,
 
-    destinationTown: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Town",
-    },
+    // destinationTown: {
+    //   type: SchemaTypes.ObjectId,
+    //   required: true,
+    //   ref: "Town",
+    // },
 
-    destinationState: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "State",
-    },
+    // destinationState: {
+    //   type: SchemaTypes.ObjectId,
+    //   required: true,
+    //   ref: "State",
+    // },
 
-    pickupCountry: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-      ref: "Country",
-    },
+    // pickupCountry: {
+    //   type: SchemaTypes.ObjectId,
+    //   required: true,
+    //   ref: "Country",
+    // },
   },
   {
     timestamps: true,
@@ -87,7 +87,7 @@ const packageScheduleSchema = new Schema<IPackageSchedule>(
 );
 
 packageScheduleSchema.index({
-  "pickupPoint.coordinates": "2dsphere",
+  "pickupPoint.location": "2dsphere",
 });
 
 packageScheduleSchema.index({

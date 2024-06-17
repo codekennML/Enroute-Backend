@@ -6,6 +6,7 @@ import DBLayer, {
   updateManyQuery,
 } from "./shared";
 import { IState } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class StateRepository {
   private stateDBLayer: DBLayer<IState>;
@@ -36,17 +37,8 @@ class StateRepository {
     return State;
   }
 
-  async updateState(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateState(request: UpdateRequestData)
+   {
     const updatedState = await this.stateDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

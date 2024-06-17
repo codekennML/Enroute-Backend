@@ -1,7 +1,14 @@
 import { createBullBoard } from '@bull-board/api'
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter'
 import { ExpressAdapter } from '@bull-board/express'
-import { emailQueue, pushQueue, batchEmailQueue, batchPushQueue, smsQueue } from "./queue"
+import { 
+    emailQueue, 
+    pushQueue, 
+    batchEmailQueue,
+    batchPushQueue,
+    smsQueue 
+
+} from "./queue"
 
 export const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queueviewer/ui');

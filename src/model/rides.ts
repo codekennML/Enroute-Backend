@@ -4,34 +4,28 @@ import { IRide } from "./interfaces";
 const rideSchema = new Schema<IRide>(
   {
     driverId: {
-      type: Schema.Types.ObjectId,
+      type: SchemaTypes.ObjectId,
       ref: "User",
     },
 
     tripId: {
-      type: Schema.Types.ObjectId,
+      type: SchemaTypes.ObjectId,
       required: false,
     },
 
     riderId: {
-      type: Schema.Types.ObjectId,
-      required: [
-        function () {
-          return !this.packageRequestId;
-        },
-        "riderId is required to create new ride",
-      ],
+      type: SchemaTypes.ObjectId,
+      required : function(){ 
+        return !this?.packageRequestId
+      },
       ref: "User",
     },
 
     packageRequestId: {
-      type: Schema.Types.ObjectId,
-      required: [
-        function () {
-          return !this.riderId;
-        },
-        "packagerequestId is required to create new ride",
-      ],
+      type: SchemaTypes.ObjectId,
+      required:  function(){
+        return !this.riderId
+      },
       ref: "PackageRequest",
     },
 
@@ -66,12 +60,12 @@ const rideSchema = new Schema<IRide>(
       name: String,
       location: {
         type: {
-          String,
+         type :  String,
           enum: ["Point"],
-          default: "Point",
+          required: true
         },
         coordinates: [Number],
-      },
+      }
     },
 
     pickupStation: {
@@ -83,9 +77,9 @@ const rideSchema = new Schema<IRide>(
       name: String,
       location: {
         type: {
-          String,
+          type : String,
           enum: ["Point"],
-          default: "Point",
+          required: true
         },
         coordinates: [Number],
       },
@@ -117,15 +111,13 @@ const rideSchema = new Schema<IRide>(
         default: false,
       },
       initiatedBy: {
-        type: Schema.Types.ObjectId,
-        required: [
-          true,
-          "Cancellation  initiator is required to create new ride",
-        ],
-        ref: "User",
+        type: SchemaTypes.ObjectId,
+        required: true,
+        ref: "User"
       },
       time: Date,
-      initiator: Schema.Types.ObjectId,
+      initiator: SchemaTypes.ObjectId,
+      
       cancellationReason: String,
       driverDistanceFromPickup: {
         type: Number,

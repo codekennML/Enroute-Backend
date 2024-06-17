@@ -31,11 +31,14 @@ class BusStationController {
   async getBusStations(req: Request, res: Response) {
     const data: {
       stationId: string;
+      dateFrom?: Date;
+      dateTo?: Date;
       cursor: string;
       town: string;
       state: string;
       country: string;
       sort: string;
+      active : boolean;
     } = req.body;
 
     const matchQuery: MatchQuery = {};
@@ -54,6 +57,14 @@ class BusStationController {
 
     if (data?.town) {
       matchQuery.town = { $eq: data?.town };
+    }
+    if (data?.active) {
+      matchQuery.active = { $eq: data?.active };
+    }
+
+
+    if (data?.dateFrom) {
+      matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
     }
 
     const sortQuery: SortQuery = sortRequest(data?.sort);

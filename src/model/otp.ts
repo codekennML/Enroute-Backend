@@ -14,6 +14,10 @@ const otpSchema = new Schema<IOtp>(
       type: String,
       index: true,
     },
+    
+    mobile : Number , 
+
+    countryCode : Number,
 
     channel: {
       type: String,
@@ -44,5 +48,20 @@ const otpSchema = new Schema<IOtp>(
     versionKey: false,
   }
 );
+
+otpSchema.index({ 
+  expiry : 1 , 
+  active : 1 , 
+  user : 1,
+
+})
+
+otpSchema.virtual("userData",  {
+   ref : "User", 
+  localField : "user", 
+  foreignField : "_id", 
+
+})
+otpSchema.set("toJSON", { getters : true, virtuals : true})
 
 export const Otp: Model<IOtp> = model<IOtp>("Otp", otpSchema);

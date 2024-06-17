@@ -5,7 +5,7 @@ const tripSchema = new Schema<ITripSchedule>({
 
     driverId: {
         type: Schema.Types.ObjectId,
-        required: [true, "Trip Driver Id required"],
+        required: true,
         ref: "User",
         index: true,
     },
@@ -22,7 +22,7 @@ const tripSchema = new Schema<ITripSchedule>({
             type: {
                 type: String,
                 enum: ["Point"],
-                default: "Point",
+                required: true
             },
 
             coordinates: [Number, Number],
@@ -50,7 +50,7 @@ const tripSchema = new Schema<ITripSchedule>({
             type: {
                 type: String,
                 enum: ["Point"],
-                default: "Point",
+                required: true
             },
 
             coordinates: [Number, Number],

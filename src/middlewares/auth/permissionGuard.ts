@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express"
 import { StatusCodes, getReasonPhrase } from "http-status-codes"
-import AppError from "./errors/BaseError"
-import { ROLES, SUBROLES} from "../config/enums"
+import AppError from "../errors/BaseError"
+import { ROLES, SUBROLES} from "../../config/enums"
 
 export const verifyPermissions = (allowedRoles : number[], allowedSubRoles : number[] = []) => { 
   return (req : Request, res : Response, next : NextFunction ) => { 

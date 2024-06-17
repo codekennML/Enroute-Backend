@@ -17,7 +17,7 @@ const busStationSchema = new Schema<IBusStation>(
       type: {
         type: String,
         enum: ["Point"],
-        default: "Point",
+        required: true
       },
       coordinates: [Number],
     },

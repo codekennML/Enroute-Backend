@@ -14,6 +14,7 @@ import { UserServiceLayer } from "../services/userService";
 import { PackageScheduleServiceLayer } from "../services/packageScheduleTripService";
 // import CommunicationService from "../services/communicationService";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
+import { pushQueue } from "../services/bullmq/queue";
 
 class PackageScheduleRequestController {
   private packageScheduleRequest: PackageScheduleRequestService;
@@ -84,7 +85,7 @@ class PackageScheduleRequestController {
             createdBy: new Types.ObjectId(user!.toString()),
             budget,
             body,
-            status: "pending",
+            status: "created",
             packageScheduleId: new Types.ObjectId(packageScheduleId),
           },
           session
@@ -94,7 +95,7 @@ class PackageScheduleRequestController {
 
       const scheduleCreator = await UserServiceLayer.getUserById(
         schedule.createdBy.toString(),
-        "deviceId",
+        "deviceToken",
         session
       );
 
@@ -106,9 +107,17 @@ class PackageScheduleRequestController {
 `
         );
 
-      //TODO : Send the push notification to the package owner
-      // await CommunicationService.sendPushNotification();
+        pushQueue.add(`PACKAGE_SCHEDULE_REQUEST_${args.packageScheduleId}_${createdPackageScheduleRequest[0]._id}`,  {
+          deviceTokens : scheduleCreator.deviceToken, 
+          message : { 
+            title : 'New package schedule request offer',
+            body : `You have received a new offer of ${args.budget}   for one of your scheduled packages  `,
+            screen : "package/:id", 
+            id : `${args.packageScheduleId}`
+          }
+        }, { priority : 7})
 
+    
       return createdPackageScheduleRequest;
     });
 
@@ -139,7 +148,24 @@ class PackageScheduleRequestController {
       );
 
 
-      //TODO Implement check to ensure that this schedule has not been accepted previously
+
+      const hasAnAssignedRequest  = await this.packageScheduleRequest.findPackageScheduleRequests({ 
+        query : {
+          $match : { 
+            packageScheduleId , 
+            status : "accepted"
+          }
+        }, 
+        aggregatePipeline : [
+          { $limit : 2}
+        ],
+        pagination : { 
+          pageSize : 1 
+        }
+      })
+
+      if(!hasAnAssignedRequest?.data?.length || hasAnAssignedRequest?.data?.length > 0 ) throw new AppError(`This schedule  has already been assigned to another driver`, StatusCodes.FORBIDDEN)
+
 
     const approvedRequest =
       await this.packageScheduleRequest.updatePackageScheduleRequest({
@@ -177,6 +203,8 @@ class PackageScheduleRequestController {
         max: number;
         min: number;
       };
+      dateFrom? : Date, 
+      dateTo? : Date
     } = req.body;
 
     const matchQuery: MatchQuery = {};
@@ -185,11 +213,10 @@ class PackageScheduleRequestController {
       matchQuery.country = { $eq: data.status };
     }
 
-    // if (data?.pickuptown) {
-    //   (matchQuery.destination as Record<string, unknown>).placeId = {
-    //     $eq: destination,
-    //   };
-    // }
+ 
+    if (data?.dateFrom) {
+      matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
+    }
 
     if (data?.budget && data.budget.max) {
       matchQuery.budget = { $lte: data.budget.max };
@@ -253,14 +280,19 @@ class PackageScheduleRequestController {
     });
   }
 
-  async deleteScheduleRequest(req: Request, res: Response) {
+  async cancelScheduleRequest(req: Request, res: Response) {
     const { scheduleRequestId } = req.body;
 
     const user = req.user;
 
-    const scheduleData =
-      await this.packageScheduleRequest.getPackageScheduleRequestById(
-        scheduleRequestId
+    const scheduleData = await this.packageScheduleRequest.getPackageScheduleRequestById(
+      scheduleRequestId
+    );
+
+    if (scheduleData?.createdBy.toString() !== user)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.FORBIDDEN),
+        StatusCodes.FORBIDDEN
       );
 
     if (scheduleData?.createdBy.toString() !== user)
@@ -269,35 +301,45 @@ class PackageScheduleRequestController {
         StatusCodes.FORBIDDEN
       );
 
-    const deletedPackageScheduleRequest =
-      await this.packageScheduleRequest.deletePackageScheduleRequests([
-        scheduleRequestId,
-      ]);
+
+    const cancelledPackageScheduleRequest =
+      await this.packageScheduleRequest.updatePackageScheduleRequest({
+        docToUpdate: { _id: scheduleRequestId },
+        updateData: {
+          $set: { status: "cancelled " }
+        },
+        options: { new: true, select: "_id" }
+      }); 
+
+    if (!cancelledPackageScheduleRequest) throw new AppError(`Something went wrong. Please try again`, StatusCodes.INTERNAL_SERVER_ERROR)
+
 
     return AppResponse(req, res, StatusCodes.OK, {
-      message: `${deletedPackageScheduleRequest.deletedCount} package schedule -  ${scheduleRequestId} -  deleted successfully.`,
+      message: `Package schedule -  ${scheduleRequestId} -  cancelled successfully.`,
     });
   }
 
   //Admin only
   async deletePackageScheduleRequests(req: Request, res: Response) {
-    const data: { scheduleIds: string[] } = req.body;
+    const data: { scheduleRequestIds: string[] } = req.body;
 
-    const { scheduleIds } = data;
+    const { scheduleRequestIds } = data;
 
-    if (scheduleIds.length === 0)
+    if (scheduleRequestIds.length === 0)
       throw new AppError(
         getReasonPhrase(StatusCodes.BAD_REQUEST),
         StatusCodes.BAD_REQUEST
       );
 
-    const deletedBusStations =
+    const deletedScheduleRequests =
       await this.packageScheduleRequest.deletePackageScheduleRequests(
-        scheduleIds
+        scheduleRequestIds
       );
 
+      if(!deletedPackageScheduleRequests) throw new AppError(getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR), StatusCodes.INTERNAL_SERVER_ERROR)
+
     return AppResponse(req, res, StatusCodes.OK, {
-      message: `${deletedBusStations.deletedCount} bus stations deleted.`,
+      message: `${deletedScheduleRequests.deletedCount} schedule requests deleted.`,
     });
   }
 

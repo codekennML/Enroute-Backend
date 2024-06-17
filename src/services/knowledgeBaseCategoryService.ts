@@ -20,7 +20,7 @@ class KnowledgeBaseCategoryService {
     return KnowledgeBaseCategory; //tThis should return an array of one KnowledgeBaseCategory only
   }
 
-  async findKnowledgeBaseCategorys(request: PaginationRequestData) {
+  async findKnowledgeBaseCategories(request: PaginationRequestData) {
     return this.KnowledgeBaseCategory.returnPaginatedKnowledgeBaseCategories(
       request
     );
@@ -47,9 +47,9 @@ class KnowledgeBaseCategoryService {
     return KnowledgeBaseCategory;
   }
 
-  async deleteKnowledgeBaseCategorys(request: string[]) {
+  async deleteKnowledgeBaseCategories(request: string[]) {
     const deletedKnowledgeBaseCategorys =
-      await this.KnowledgeBaseCategory.deleteKnowledgeBaseCategorys(request);
+      await this.KnowledgeBaseCategory.deleteKnowledgeBaseCategories (request);
 
     return deletedKnowledgeBaseCategorys;
   }

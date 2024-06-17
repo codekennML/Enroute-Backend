@@ -1,4 +1,4 @@
-export const distanceBetweenCoordinates(coordinates0: [number, number], coordinates1: [number, number]): number => {
+export function distanceBetweenCoordinates(coordinates0: [number, number], coordinates1: [number, number]): number {
     function deg2rad(degrees: number): number {
         // Store the value of pi.
         const pi = Math.PI;

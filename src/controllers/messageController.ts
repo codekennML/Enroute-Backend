@@ -9,9 +9,9 @@ import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { ChatServiceLayer } from "../services/chatService";
 import { ClientSession, Types } from "mongoose";
-import { ADMINROLES } from "../config/enums";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 import { sortRequest } from "../utils/helpers/sortQuery";
+import { isNotAuthorizedToPerformAction } from "../utils/helpers/isAuthorizedForAction";
 
 class MessageController {
   private Message: MessageService;
@@ -22,43 +22,51 @@ class MessageController {
   //TODO Move to websocket server
   async createMessage(req: Request, res: Response) {
     const data: IMessage = req.body;
-    const user = req.user!;
-    const role = req.role!;
+    const user = req.user!
+    const role = req.role
 
+
+  
     //Check that user is part of this chat , otherwise throw error
 
     //TODO : Cache the users within a chat so we can easily validate a request against the user
 
-    const { chatId } = data;
+    
 
     //TODO const data = await chatCache.get(`${chatId}`) , if(!data) //Pull from db
 
-    const chat = await ChatServiceLayer.getSingleChat({
-      query: { _id: chatId },
-      select: "users",
-    });
-
-    if (!chat)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
-      );
-
-    if (
-      !chat?.users?.includes(new Types.ObjectId(user!.toString())) &&
-      !(role! in ADMINROLES)
-    )
-      throw new AppError(
-        getReasonPhrase(StatusCodes.FORBIDDEN),
-        StatusCodes.FORBIDDEN
-      );
+  
+   
 
     //The transaction function
     const createMessageSession = async (
-      args: { data: typeof data; user: Express.User; role: string },
+      args: { data: typeof data; user: string; role: string },
       session: ClientSession
     ) => {
       const response = await session.withTransaction(async () => {
+        const { chatId } = args.data;
+
+        const chat = await ChatServiceLayer.getSingleChat({
+          query: { _id: chatId },
+          select: "users",
+        });
+
+
+        if (!chat)
+          throw new AppError(
+            getReasonPhrase(StatusCodes.NOT_FOUND),
+            StatusCodes.NOT_FOUND
+          );
+
+        if (
+          !chat?.users?.includes(new Types.ObjectId(user?.toString())) &&
+          isNotAuthorizedToPerformAction(req)
+        )
+          throw new AppError(
+            getReasonPhrase(StatusCodes.FORBIDDEN),
+            StatusCodes.FORBIDDEN
+          );
+
         const createdMessage = await this.Message.createMessage(
           {
             chatId: new Types.ObjectId(args.data.chatId),
@@ -96,8 +104,8 @@ class MessageController {
 
     const response = await retryTransaction(createMessageSession, 1, {
       data,
-      user,
       role,
+      user
     });
 
     return AppResponse(req, res, StatusCodes.CREATED, {
@@ -108,8 +116,12 @@ class MessageController {
 
   async getMessages(req: Request, res: Response) {
     const data: {
-      chatId: string;
-      cursor: string;
+      chatId? : string
+      cursor?: string;
+      sort?: string;
+      userId: string
+      dateFrom?: Date;
+      dateTo?: Date;
     } = req.body;
 
     const matchQuery: MatchQuery = {};
@@ -118,7 +130,17 @@ class MessageController {
       matchQuery.chatId = { $eq: data.chatId };
     }
 
-    const sortQuery: SortQuery = sortRequest();
+    if (data?.userId) {
+      matchQuery.sentBy = { $eq: data.userId }
+    }
+
+    if (data?.dateFrom) {
+      matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
+    }
+
+    const sortQuery: SortQuery = sortRequest(data?.sort);
+
+  
 
     if (data?.cursor) {
       const orderValue = Object.values(sortQuery)[0] as unknown as number;
@@ -178,24 +200,47 @@ class MessageController {
   }
 
   //TODO Move to websocket server
-  async updateMessageDeliveryStatus(messageId: string) {
-    const updatedMessage = await this.Message.updateMessage({
-      docToUpdate: { _id: messageId },
-      updateData: {
-        $set: {
-          deliveredAt: new Date(),
-        },
-      },
-      options: { new: true, select: "_id" },
-    });
+  // async updateMessageDeliveryStatus(messageId: string) {
+  
 
-    if (!updatedMessage)
+  //   const updatedMessage = await this.Message.updateMessage({
+  //     docToUpdate: { _id: messageId },
+  //     updateData: {
+  //       $set: {
+  //         deliveredAt: new Date(),
+  //       },
+  //     },
+  //     options: { new: true, select: "_id" },
+  //   });
+
+  //   if (!updatedMessage)
+  //     throw new AppError(
+  //       getReasonPhrase(StatusCodes.BAD_REQUEST),
+  //       StatusCodes.BAD_REQUEST
+  //     );
+
+  //   return updatedMessage;
+  // }
+
+
+
+
+  async deleteMessages(req: Request, res: Response) {
+    const data: { messageIds: string[] } = req.body;
+
+    const { messageIds } = data;
+
+    if (messageIds.length === 0)
       throw new AppError(
         getReasonPhrase(StatusCodes.BAD_REQUEST),
         StatusCodes.BAD_REQUEST
       );
 
-    return updatedMessage;
+    const deletedMessages = await this.Message.deleteMessages (messageIds);
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: `${deletedMessages.deletedCount} chats deleted.`,
+    });
   }
 }
 

@@ -8,6 +8,7 @@ const errorHandler = (err: Error | AppError, req: Request, res: Response) => {
   const response = {
     message: getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
     statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+    ...(err instanceof AppError && err?.reason && { errors : err.reason })
   };
 
   let logMessage = `${err.name}: ${err.message}\t${req.method}\t${req.url}\t${req.headers.origin}`;
@@ -16,7 +17,10 @@ const errorHandler = (err: Error | AppError, req: Request, res: Response) => {
     response.message = err.message;
     response.statusCode = err.statusCode;
     logMessage += `\t${err.loggerMessage}`;
+    
   }
+  
+
 
   console.log(err.stack);
 

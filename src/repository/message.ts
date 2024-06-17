@@ -3,6 +3,7 @@ import { ClientSession, Model } from "mongoose";
 import DBLayer, { PaginationRequestData, QueryData } from "./shared";
 
 import { IMessage } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class MessageRepository {
   private messageDBLayer: DBLayer<MessageModel>;
@@ -33,17 +34,7 @@ class MessageRepository {
     return document;
   }
 
-  async updateMessage(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateMessage(request: UpdateRequestData) {
     const updatedMessage = await this.messageDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,
@@ -51,6 +42,11 @@ class MessageRepository {
     });
 
     return updatedMessage;
+  }
+
+
+  async deleteMessages (request : string[]) {
+    return await this.messageDBLayer.deleteDocs(request)
   }
 
   //   async updateManyMessages(request: updateManyQuery<MessageModel>) {

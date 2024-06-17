@@ -10,12 +10,18 @@ declare module "jsonwebtoken";
 
 declare module 'express-serve-static-core' {
   interface Request {
+    user? : string
     role?: ROLES;
     subRole?: SUBROLES;
     allowedRoles : number[]
     allowedSubRoles : number[]
+    deviceIP : string, 
+    deviceOS: string
   }
 }
+
+declare module 'express-xss-sanitizer'{}
+
 export interface BasicUserData {
   name: string;
   avatar: string;
@@ -41,6 +47,7 @@ export interface UpdateRequestData {
     select?: string;
     upsert?: boolean;
     projection?: { [key: string]: number };
+    includeResultMetadata?: boolean;
   };
 }
 
@@ -122,16 +129,22 @@ type EmergencyContact = {
   address: string;
 };
 
-export interface MailData {
+export interface EmailData { 
+
   to: string,
-  template: string,
-  from: string,
-  subject: string,
-  reply_to?: string,
-  text: string,
-  cc?: string[],
-  bcc?: string[],
-  attachments?: { [key: string]: string | object }[]
+    template: string,
+      from: string,
+        subject: string,
+          reply_to ?: string,
+          // text: string,
+            cc ?: string[],
+            bcc ?: string[],
+            attachments ?: { [key: string]: string | object
+} []
+   
+}
+export interface MailData {
+   data : EmailData[]
 }
 
 export interface PushData {
@@ -143,7 +156,7 @@ export interface PushData {
 
 export interface SMSData {
   message: string,
-  mobile: number[],
+  mobile: number | number[],
   channel: "dnd" | "non_dnd"
 }
 

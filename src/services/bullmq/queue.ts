@@ -1,35 +1,41 @@
-import { Queue } from "bullmq"
-import WorkerManager from "./workers";
+
+import QueueManager from "./manager";
 import { CommunicationServiceLayer } from "../communicationService";
+import { EmailData, PushData} from "../../../types/types";
+import { SENDCHAMPWHATSAPPDATA, SENDCHAMPSMSDATA } from "../sendchamp";
 
 
-export const addJobToQueue = async (queueName: string, jobName: string, data: Record<string, string>) => {
-    const myQueue = new Queue(queueName);
-    const job = await myQueue.add(jobName, data)
-    console.log(`Job ${job.id} has been added to the queue`);
-}
+// export const addJobToQueue = async (queueName: string, jobName: string, data: Record<string, string>) => {
+//     const myQueue = new Queue(queueName);
+//     const job = await myQueue.add(jobName, data)
+//     console.log(`Job ${job.id} has been added to the queue`);
+// }
 
-export const pushQueue = new Queue("singlePushQueue")
-export const batchPushQueue = new Queue("batchPushQueue")
-export const emailQueue = new Queue("singleEmailQueu")
-export const batchEmailQueue = new Queue("batchEmailQueue")
-export const smsQueue = new Queue("smsQueue")
-
+const pushQueueManager  = new QueueManager<PushData>("singlePushQueue")
+const batchPushQueueManager = new QueueManager<PushData>("batchPushQueue")
+const singleEmailQueueManager = new QueueManager<EmailData>("singleEmailQueue")
+const smsQueueManager = new QueueManager<SENDCHAMPSMSDATA | SENDCHAMPWHATSAPPDATA>("smsQueue")
 
 
+export const pushQueue =  pushQueueManager.getQueue()
+export const batchPushQueue = batchPushQueueManager.getQueue()
+export const emailQueue = singleEmailQueueManager.getQueue()
 
-new WorkerManager(pushQueue).startWorker(10, 3, CommunicationServiceLayer.sendPushNotificationToDevice)
-
-new WorkerManager(batchPushQueue).startWorker(10, 1, CommunicationServiceLayer.sendPushNotificationToDevices)
+export const smsQueue = smsQueueManager.getQueue()
 
 
-new WorkerManager(batchEmailQueue).startWorker(10, 3, CommunicationServiceLayer.sendBatchEmails)
 
-new WorkerManager(emailQueue).startWorker(10, 3, CommunicationServiceLayer.sendSingleEmail)
 
-new WorkerManager(smsQueue).startWorker(8, 3, CommunicationServiceLayer.sendSMS)
+pushQueueManager.startWorkers(10, 3, CommunicationServiceLayer.sendPushNotificationToDevice)
 
-new WorkerManager(batchEmailQueue).startWorker(10, 2, CommunicationServiceLayer.sendBatchEmails)
+batchPushQueueManager.startWorkers(10, 1, CommunicationServiceLayer.sendPushNotificationToDevices)
+
+
+singleEmailQueueManager.startWorkers(10, 3, CommunicationServiceLayer.sendSingleEmail)
+
+smsQueueManager.startWorkers(15, 3, CommunicationServiceLayer.sendOTPMobile)
+
+
 
 
 

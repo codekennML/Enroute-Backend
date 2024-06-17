@@ -2,21 +2,20 @@
 import { SocialAuthData } from "./../../types/types.d";
 import { UserServiceLayer } from "./../services/userService";
 import AuthService, { authService } from "../services/authService";
-import { MobileSigninData } from "../../types/types";
 import { getReasonPhrase, StatusCodes } from "http-status-codes";
 import AppResponse from "../utils/helpers/AppResponse";
 import AppError from "../middlewares/errors/BaseError";
-
 import verifyGoogleToken from "../services/3rdParty/Google/auth";
-
-import { retryTransaction } from "../utils/helpers/retryTransaction";
 import { checkUserCanAuthenticate } from "../utils/helpers/canLogin";
 import { Request, Response } from "express";
 import { OtpServiceLayer } from "../services/otpService";
-
-import { ClientSession } from 'mongoose';
 import { removeAccessTokens, setTokens } from '../middlewares/auth/setTokens';
 import { accessLogger } from "../middlewares/logging/logger";
+import { IUser } from "../model/interfaces"
+
+import { Types } from "mongoose";
+import { ROLES } from "../config/enums";
+
 
 class AuthController {
   public authService: AuthService;
@@ -24,283 +23,105 @@ class AuthController {
   constructor(auth: AuthService) {
     this.authService = auth;
   }
+  async signInMobile(req: Request, res: Response) {
 
-  async signInUserMobile(req: Request, res: Response){
+    const data: { mobile: number, countryCode: number } = req.body
 
-    const data: MobileSigninData  = req.body;
-    const { mobile, countryCode, googleId, googleEmail } = data;
-    const role  =  req.role
-    const subRole =  req.subRole
-   
-    const { user, otp } =  await retryTransaction(this.signInMobileSession, 1 ,  { mobile,  countryCode,  role, subRole, googleId, googleEmail})
+    let user: (IUser & { _id: Types.ObjectId })[] = []
 
-    return AppResponse(req, res, StatusCodes.OK,  { ...otp,firstName : user.firstName });
-  }
-
-  // async signInUserEmail(req:Request, res: Response){
-
-  //   const data = await req.body 
-
-  //   const { email, role, mobile, countryCode } = data;
-
-  //   const user = await this.authService.signInEmail({
-  //     email,
-  //     role,
-  //     mobile,
-  //     countryCode,
-  //   });
-
-  //   //This should never happen, but since the updateUser method can return null, we should handle it here, instead of setting the resukt to not null
-  //   if (!user)
-  //     throw new AppError(
-  //       getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
-  //       StatusCodes.INTERNAL_SERVER_ERROR
-  //     );
-
-  //   checkUserCanAuthenticate(user);
-
-  //  const otp =  await OtpServiceLayer.createOtp( { 
-  //     type : "Email",
-  //     subject : `${COMPANY_NAME} Verify` ,
-  //     user : user._id.toString(), 
-  //     next : "OTP_SCREEN",
-  //     expiry : 5
-  //   })
-
-  //   return AppResponse(req, res, StatusCodes.CREATED, otp);
-  // }
- 
-  async signInMobileSession (args : MobileSigninData, session :ClientSession) { 
-
-
-    const result =  await session.withTransaction(async() => { 
-      const user = await this.authService.signInMobile({
-        mobile  : args.mobile, 
-        countryCode  : args.countryCode, 
-        googleId : args?.googleId,
-        role : args.role,
-        subRole : args.subRole,
-        googleEmail : args.googleEmail
-      }, session)
-
-      //This should never happen, but since the updateUser method can return null, we should handle it here, instead of setting the result to not null
-      if (!user)
-        throw new AppError(
-          getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR),
-          StatusCodes.INTERNAL_SERVER_ERROR
-        );
-
-      checkUserCanAuthenticate(user);
-
-      const otp = await OtpServiceLayer.createOtp({
-        type: "SMS",
-        mobile: args.mobile,
-        countryCode :  args.countryCode,
-        user: user._id.toString(),
-        next: "OTP_SCREEN",
-        expiry: 5
-      }, session)
-   
-      return { user, otp}
-
-    })
-   
-  return result
-
-  }
-
-  async verifyUserMobile (req : Request, res : Response ) {
-    //This will verify the otp and the user Mobile
-    const { otpId , otp} =  req.body 
-     
-    await retryTransaction(this.verifyMobileSession, 1, { otpId, otp}) 
-
- 
-     setTokens(req, res, req.role, req.subRole) 
-
-     accessLogger.info(`login Event - ${req.user} - ${req.ip} - ${req.headers["mobile-device-id"]}- ${req.headers["device-info"]} `)
-
-      return res.redirect("/home")
-  
-  } 
-
-  async verifyMobileSession(args : { otpId : string, otp : number}, session  : ClientSession){ 
-
-    const result =  await session.withTransaction(async() => { 
-       
-      const verifyResponse  =  await OtpServiceLayer.verifyOTPs({ 
-        otpId : args.otpId, 
-        otp : args.otp 
-
-      }, session) 
-
-      if(!verifyResponse) throw new AppError(`Invalid or expired token received`, StatusCodes.BAD_REQUEST)
-
-      //There would only be a mobile /  countryCode in the verifyResponse if the user is trying to change their number via social login
-
-      const user =  verifyResponse?.otpData?.user
-      const next =  verifyResponse.otpData?.next
-      const countryCode =  verifyResponse?.otpData?.countryCode
-      const mobile =  verifyResponse?.otpData?.mobile
-
-      if(!user && !next)  throw new AppError(`Something went wrong. Please try again`, StatusCodes.BAD_REQUEST) 
-    
-    const docToUpdate =  { 
-      ...(user && next !== "change_social_mobile" && { _id : user }),
-      ...(next === "change_social_mobile" &&  { googleId : verifyResponse?.otpData?.user, googleEmail : verifyResponse?.otpData?.email  })
-    }
-
-    const updateData =  { 
-      mobileVerified : true, 
-      isOnline : true,
-      ...(countryCode && { countryCode }), 
-      ...(mobile && { mobile })
-    }
-
-     const updatedUser = await UserServiceLayer.updateUser({
-      docToUpdate ,
-      updateData, 
-      options : { session, new : true,  select : "_id mobileVerified"}
-     }) 
-
-     if(!updatedUser) throw new AppError(`An Error occurred. Please try again`, StatusCodes.EXPECTATION_FAILED)
-    
-     return updatedUser
-
+    user = await UserServiceLayer.getUsers({
+      query: { countryCode: data.countryCode, mobile: data.mobile },
+      select: "_id mobileVerified"
     })
 
-    return result
+    if (!user || user?.length === 0) {
+      //Create the user and send them an otp  
+      user = await UserServiceLayer.createUser({
+        mobile: data.mobile,
+        countryCode: data.countryCode,
+        roles: req.role,
+        ...(req?.subRole && { subRole: req.subRole }),
+        mobileVerified: false,
+        emailVerified: false,
+        active: true,
+        verified: false,
+        status: "new"
+      }
+      )
+
+    }
+
+    checkUserCanAuthenticate(user[0])
+
+
+    const otpInfo = await OtpServiceLayer.createOtp({
+      type: "SMS",
+      mobile: data.mobile,
+      countryCode: data.countryCode,
+      next: "otpscreen",
+      user: user[0]._id.toString(),
+      expiry: 10
+    })
+
+    if (!otpInfo || !otpInfo.otpId) throw new AppError(`Something went wrong. Please try again`, StatusCodes.INTERNAL_SERVER_ERROR)
+
+    //Send the otp from here 
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "user retrieved successfully",
+      data: { otpId: otpInfo.otpId, firstName: user[0]?.firstName, mobileVerified: user[0]?.mobileVerified }
+    })
   }
-  
-  async logout(req : Request, res: Response) {
-    const data : { user: string} = await req.body
 
-    if (!data)
-      throw new AppError(
-       "An Error occurred.Please try again",
-        StatusCodes.BAD_REQUEST,
-        `Invalid data received for logout - ${req.user}`
-      );
+  async signInEmail(req: Request, res: Response) {
 
-    const loggedOutUser = await this.authService.logout({user : data.user });
-  
-    accessLogger.info(`logout Event : ${req.user} - ${req.ip} - ${req.headers["mobile-device-id"]}- ${req.headers["device-info"]} `) 
+    const data: { email: string } = req.body
 
-    removeAccessTokens(req)
+    let userWithEmail: (IUser & { _id: Types.ObjectId })[] = []
 
-    return AppResponse(req, res ,  StatusCodes.OK,  loggedOutUser );
+    userWithEmail = await UserServiceLayer.getUsers({
+      query: { email: { $eq: data.email } },
+      select: "mobile countryCode mobileVerified _id firstname"
+    })
+
+
+    if (!userWithEmail || userWithEmail.length === 0) {
+
+      userWithEmail = await UserServiceLayer.createUser({
+        email: data.email,
+        roles: req.role,
+        ...(req?.subRole && { subRole: req.subRole }),
+        mobileVerified: false,
+        emailVerified: false,
+        active: true,
+        verified: false,
+        status: "new"
+      }
+      )
+    }
+
+    checkUserCanAuthenticate(userWithEmail[0])
+    //This will mean the user has a verified mobile already, so we send an otp to the otpEndpoint , with the mobile number associated with the email account
+
+    const otpInfo = await OtpServiceLayer.createOtp({
+      type: "SMS",
+      mobile: userWithEmail[0].mobile,
+      user: userWithEmail[0]._id.toString(),
+      countryCode: userWithEmail[0].countryCode,
+      next: userWithEmail[0]?.firstName ? "nameAuth" : "home",
+      expiry: 10
+    })
+
+    return AppResponse(req, res, StatusCodes.OK, { message: "User data retrieved successfully", data: { otpId: otpInfo.otpId, firstName: userWithEmail[0]?.firstName } })
   }
 
-  // replaceExistingAccountViaMobile = async (
-  //   req: Request,
-  //   res: Response
-  // ) => {
-  //   interface AccountDataToCreate {
-  //     countryCode: string;
-  //     mobile: string;
-  //     googleId?: string;
-  //     googleEmail: string;
-  //     role: ROLES;
-  //     appleId?: string;
-  //     appleEmail?: string;
-  //     fbId?: string;
-  //     fbEmail?: string;
-  //     email?: string;
-  //   }
 
-  //   const data:AccountDataToCreate = await req.body
 
-  //   const operations = [
-  //     {
-  //       deleteOne: {
-  //         filter: {
-  //           mobile: data.mobile,
-  //           countryCode: data.countryCode,
-  //           role: ROLES,
-  //         },
-  //       },
-  //     },
-  //     {
-  //       insertOne: {
-  //         document: {
-  //           ...data,
-  //         },
-  //       },
-  //     },
-  //   ];
+  async signInGoogle(req: Request, res: Response) {
 
-  //   const response = await retryTransaction(
-  //     UserServiceLayer.bulkUpdateUser,
-  //     1,
-  //     {
-  //       operations,
-  //     }
-  //   );
-
-  //   const newUser: string = response.data?.insertedIds[0];
-
-  //   return AppResponse(req, res, StatusCodes.OK, {
-  //     message: "Account updated successfully",
-  //     newUser,
-  //   });
-  // };
-
-  // replaceExistingAccountViaEmail = async (
-  //   req: Request,
-  //   res: Response,
-  // ) => {
-  //   interface AccountDataToCreate {
-  //     countryCode: string;
-  //     mobile: string;
-  //     googleId?: string;
-  //     role: ROLES;
-  //     appleId?: string;
-  //     fbId: string;
-  //     email: string;
-  //   }
-
-  //   const data = await req.body<AccountDataToCreate>(res);
-
-  //   const operations = [
-  //     {
-  //       deleteOne: {
-  //         filter: {
-  //           email,
-  //           role,
-  //         },
-  //       },
-  //     },
-  //     {
-  //       insertOne: {
-  //         document: {
-  //           ...data,
-  //         },
-  //       },
-  //     },
-  //   ];
-
-  //   const response = await retryTransaction(
-  //     UserServiceLayer.bulkUpdateUser,
-  //     1,
-  //     {
-  //       operations,
-  //     }
-  //   );
-
-  //   const newUser: string = response.data?.insertedIds[0];
-
-  //   return AppResponse(res, req, StatusCodes.OK, {
-  //     message: "Account updated successfully",
-  //     newUser,
-  //   });
-  // };
-
- async  signInWithGoogle  (req: Request, res: Response) {
-   
     const data: SocialAuthData = req.body
 
-    const { token } = data; 
-    
+    const { token } = data;
 
     const userGoogleData = await verifyGoogleToken(token);
 
@@ -312,69 +133,345 @@ class AuthController {
 
     const { sub, email: googleEmail } = userGoogleData;
 
-    const userData = await UserServiceLayer.getUsers({
-     query:  { 
+
+    let googleUser: (IUser & { _id: Types.ObjectId })[] = []
+
+    googleUser = await UserServiceLayer.getUsers({
+      query: {
         googleId: { $eq: sub },
         googleEmail,
+
       },
 
-      select : "googleId mobile firstName countryCode googleEmail" 
-      
-    });
+    })
 
-    //Create a JWT with this data to allow for update of the mobile if necessary
-    // const googleJWT =  
+    if (!googleUser) {
+      const createdUser = await UserServiceLayer.createUser(
+        {
+          googleId: { $eq: sub },
+          googleEmail,
+          mobileVerified: false,
+          emailVerified: true,
+          status: "new",
+          role: req.role,
+          ...(req.subRole && { subRole: req.subRole }),
+          active: true,
+          emailVerifiedAt: new Date(),
+
+
+        }
+      );
+
+      if (!googleUser) throw new AppError("An Error Occured. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+
+      googleUser = createdUser
+    }
+
+
+
+    checkUserCanAuthenticate(googleUser[0])
 
     const result = {
-      googleId: sub,
-      mobile: userData[0]?.mobile,
-      countryCode: userData[0]?.countryCode,
-      firstname: userData[0]?.firstName,
-      googleEmail,
+      user: googleUser[0]._id,
+      sub,
+      mobile: googleUser[0]?.mobile,
+      countryCode: googleUser[0]?.countryCode,
+      firstname: googleUser[0]?.firstName,
+
     };
 
     return AppResponse(req, res, StatusCodes.OK, result);
   }
 
-async updateMobileOnSocialAccount(req : Request, res : Response){
-    const data : { id : string ,  type : "facebook" | "google", mobile : number ,  countryCode : number, email : string  } = req.body  
+  async checkUserMobileInputDuplicateAccount(req: Request, res: Response) {
 
-     if(!data?.id || !data?.mobile || !data?.countryCode ||  !data.email ) throw new AppError(getReasonPhrase(StatusCodes.BAD_REQUEST), StatusCodes.BAD_REQUEST)
+    const data: { mobile: number, countryCode: number, otpType: "WhatsApp" | "SMS", user?: string, email?: string } = req.body
 
+    const users = await UserServiceLayer.getUsers({
 
-    const existingUsers = await UserServiceLayer.getUsers({
       query: {
-        mobile: data.mobile,
-        countryCode: data.countryCode
-      }, select: "_id"
+
+        countryCode: { $eq: data.countryCode },
+        mobile: { $eq: data.mobile }
+      },
+      select: "_id  email"
+    })
+
+    //Create the otp for the record and redirect to the duplicate account screen on completion of verification of the otp
+
+    const hasDuplicateAccount = users.length > 0 && ((data?.user && users[0]._id?.toString() !== data?.user) || (data?.email && users[0]?.email !== data?.email))
+
+    const otpData = await OtpServiceLayer.createOtp({
+      type: data.otpType,
+      mobile: data.mobile,
+      countryCode: data.countryCode,
+      expiry: 5,
+      ...(hasDuplicateAccount && { next: "DuplicateAccountScreen" })
     })
 
 
-    if (existingUsers && existingUsers.length === 1 && existingUsers[0]._id === req.user) {
-      return AppResponse(req, res, StatusCodes.CONFLICT, { message: "The mobile number is already associated with your account" })
+    return AppResponse(req, res, hasDuplicateAccount ? StatusCodes.CONFLICT : StatusCodes.OK, {
+      message: ` ${hasDuplicateAccount ? "Duplicate account found" : "No duplicate accounts found"} `,
+      data: {
+        users: [users[0]._id],
+        otpId: otpData?.otpId
+      }
+    })
+
+  }
+
+  // async archiveUnselectedDuplicateAccount(req : Request,  res : Response ){
+
+  // const data : {  otpId : string ,  accountId, userId : string } =  req.body  
+
+  // const otpData =  await OtpServiceLayer.getOtps({
+  //     query : { 
+  //         _id : data.otpId,  
+  //         next : "DuplicateAccountScreen"
+  //     }
+  // })
+
+  // if(!otpData || otpData?.length < 1 ) throw new Error("Something went wrong. Please try again ") 
+
+
+  // }
+
+  async verifyAccountViaMobile(req: Request, res: Response) {
+    //Once this happens a user can have their tokens set, 
+    const data: {
+      otpId: string, otp: number, isNonMobileSignup: boolean,
+
+    } = req.body
+
+
+    const otpData = await OtpServiceLayer.verifyOTPs({
+      otpId: data.otpId,
+      otp: data.otp
+    })
+
+    if (!otpData || !otpData?.otpData) throw new AppError(`Something went wrong. Please try again`, StatusCodes.INTERNAL_SERVER_ERROR)
+
+    const users = await UserServiceLayer.getUsers({
+
+      query: {
+
+        countryCode: { $eq: otpData.otpData.countryCode },
+        mobile: { $eq: otpData.otpData.mobile }
+      },
+      select: "_id  email firstName roles"
+    })
+
+    const hasDuplicateAccount = users.length > 0 && ((otpData.otpData?.user && users[0]._id?.toString() !== otpData.otpData?.user?.toString()))
+
+
+
+    const user = await UserServiceLayer.getUserById(otpData.otpData.user!.toString(), "firstName roles")
+
+
+
+    if (!user) throw new AppError("Something went wrong. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+
+
+    //Prevent a normal from assuming the roles of an admin or a role higher than its roles
+    if (!(users[0]?.roles in [ROLES.DRIVER, ROLES.RIDER]) || users[0].roles > user.roles) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+
+    if (!hasDuplicateAccount && data.isNonMobileSignup) {
+      //Set the mobile and countryCode on the user data 
+
+      await UserServiceLayer.updateUser({
+        docToUpdate: {
+          _id: otpData?.otpData?.user,
+
+        },
+        updateData: {
+          mobile: otpData.otpData.mobile!,
+          countryCode: otpData.otpData!.countryCode!,
+          isOnline: true
+
+        },
+        options: { new: false }
+      })
     }
 
-    if (existingUsers.length > 0) return AppResponse(req, res, StatusCodes.CONFLICT, { message: "The mobile number is associated with another account.Please choose another" })
+    if (!hasDuplicateAccount && user?.firstName) {
 
-  const result =    await OtpServiceLayer.createOtp({ 
-        type : "SMS", 
-        user : data?.id,
-        mobile :  parseInt(`${data.countryCode} ${data.mobile}`),
-        next : "change_social_mobile", 
-        email : data.email,
-        expiry : 5
+      await UserServiceLayer.updateUser({
+        docToUpdate: {
+          _id: otpData?.otpData?.user,
+
+        },
+        updateData: {
+
+          isOnline: true
+
+        },
+        options: { new: false }
       })
 
-    return AppResponse(req, res, StatusCodes.OK, { message : "Otp  sent successfully", data : result})
+      setTokens(req, res, req.role, req.subRole)
+      //    return res.redirect("/home")
+
+      return AppResponse(req, res, StatusCodes.OK, {
+        message: "User authenticated succesfully",
+        data: {
+          next: "home"
+        }
+      })
+
+
+    }
+    if (!hasDuplicateAccount && !user?.firstName) {
+
+      await UserServiceLayer.updateUser({
+        docToUpdate: {
+          _id: otpData?.otpData?.user,
+
+        },
+        updateData: {
+
+          isOnline: true
+
+        },
+        options: { new: false }
+      })
+
+      setTokens(req, res, req.role, req.subRole)
+
+      accessLogger.info(`login Event : ${req.user} - ${req.ip} - ${req.headers["mobile-device-id"]} `)
+
+      return AppResponse(req, res, StatusCodes.OK, {
+        message: "User authenticated succesfully",
+        data: {
+          next: "nameAuth"
+        }
+      })
+
+    }
+
+    return AppResponse(req, res, StatusCodes.CONFLICT, {
+      message: "Duplicate account found",
+      data: {
+        next: "duplicateAccount",
+        users,
+        userId: otpData.otpData.user,
+        isNonMobileSignup: data.isNonMobileSignup,
+        mobile: otpData?.otpData?.mobile,
+        countryCode: otpData?.otpData?.countryCode,
+
+      }
+    })
+
+  }
+
+
+  async handleDuplicateAccount(req: Request, res: Response) {
+
+    const data: { user: string, isNonMobileSignup: boolean, selectedAccount: { _id: string, firstName?: string }, accountToArchive: { _id: string, firstName?: string }, mobile: number, countryCode: number } = req.body
+
+    const accounts = await UserServiceLayer.getUsers(
+      {
+        query: {
+          _id: { $in: [data.selectedAccount._id, data.accountToArchive._id] }
+        },
+        select: "roles"
+      }
+    )
+
+
+    const roles = accounts.map(account => account.roles)
+
+    if (roles[0] !== roles[1] || !(roles[0] in [ROLES.DRIVER, ROLES.RIDER]) || !(roles[1] in [ROLES.DRIVER, ROLES.RIDER])) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+
+
+
+    const updatedUsers = await UserServiceLayer.bulkUpdateUser([
+      {
+        updateOne: {
+          filter: { _id: data.accountToArchive._id },
+          update: { archived: true }
+        }
+      },
+
+      {
+        ...(data.isNonMobileSignup && {
+          updateOne: {
+            filter: { _id: data.selectedAccount._id },
+            update: { mobile: data.mobile, countryCode: data.countryCode }
+          }
+        })
+      },
+      {
+        updateOne: {
+          filter: { _id: data.selectedAccount._id }, update: {
+            isOnline: true
+          }
+        }
+      }
+
+    ])
+
+    if (!updatedUsers) throw new AppError("An Error occurred. Please try again.", StatusCodes.INTERNAL_SERVER_ERROR)
+
+
+    req.user = data.selectedAccount._id
+
+    if (!data.selectedAccount?.firstName) {
+
+      setTokens(req, res, req.user, req.role, req.subRole)
+
+      accessLogger.info(`login Event : ${req.user} - ${req.ip} - ${req.headers["mobile-device-id"]} `)
+      //    return res.redirect("/home")
+
+      return AppResponse(req, res, StatusCodes.OK, {
+        message: "User authenticated succesfully",
+        data: {
+          next: "nameAuth"
+        }
+      })
+    }
+    //Change the request user to the selectedAccount User since the user may select the other account
+    req.user = data.selectedAccount._id
+
+    setTokens(req, res, data.selectedAccount._id, req.role, req.subRole)
+    //    return res.redirect("/home")
+    accessLogger.info(`login Event : ${req.user} - ${req.ip} - ${req.headers["mobile-device-id"]} `)
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "User authenticated succesfully",
+      data: {
+        next: "home"
+      }
+    })
 
 
   }
- 
 
+  async logout(req: Request, res: Response) {
+    const data: { user: string } = await req.body
 
+    if (!data)
+      throw new AppError(
+        "An Error occurred.Please try again",
+        StatusCodes.BAD_REQUEST,
+        `Invalid data received for logout - ${req.user}`
+      );
 
+    const loggedOutUser = await this.authService.logout({ user: data.user });
+
+    accessLogger.info(`logout Event : ${req.user} - ${req.ip} - ${req.headers["mobile-device-id"]} `)
+
+    removeAccessTokens(req)
+
+    return AppResponse(req, res, StatusCodes.OK, loggedOutUser);
+  }
+   
+  async revokeTokens (req : Request, res : Response){ 
+
+  }  
 
 }
 export const authController = new AuthController(authService);
 
 export default AuthController;
+
+

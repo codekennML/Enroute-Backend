@@ -1,16 +1,16 @@
 import { format } from "date-fns";
-import uuid from "uuid";
+import { v4 as uuidV4 } from "uuid";
 import fs from "node:fs";
 import path from "node:path";
 import { NextFunction, Request, Response } from "express";
 import AppError from "./BaseError";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 const fsPromises = fs.promises;
-const { v4 } = uuid
+
 
 export const logEvents = async (message: string, logFileName: string) => {
   const dateTime = format(new Date(), "yyyyMMdd\tHH:mm:ss");
-  const logItem = `${dateTime}\t${v4()}\t${message}\n`;
+  const logItem = `${dateTime}\t${uuidV4()}\t${message}\n`;
 
   try {
     if (!fs.existsSync(path.join(__dirname, "..", "logs"))) {

@@ -1,8 +1,9 @@
+// import { tripScheduleServiceLayer } from './../services/tripScheduleService';
 
 import { retryTransaction } from './../utils/helpers/retryTransaction';
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import AppError from "../middlewares/errors/BaseError";
-import TripService, {
+import tripsService, {
     TripsServiceLayer,
 } from "../services/tripService";
 import { Request, Response } from "express";
@@ -18,41 +19,57 @@ import State from "../model/state";
 import { DocumentsServiceLayer } from "../services/documentsService";
 import { COMPANY_NAME } from '../config/constants/base';
 import { UserServiceLayer } from '../services/userService';
+import { VehicleServiceLayer } from '../services/vehicleService';
+import { RideServiceLayer } from '../services/rideService';
+import { isNotAuthorizedToPerformAction } from '../utils/helpers/isAuthorizedForAction';
 
-class TripController {
-    private Trip: TripService;
+class TripsController {
+    private trips: tripsService;
 
-    constructor(service: TripService) {
-        this.Trip = service;
+    constructor(service: tripsService) {
+        this.trips = service;
     }
 
-    async createTrip(req: Request, res: Response) {
+    async createTrips(req: Request, res: Response) {
         const data: ITrip = req.body;
 
-        const createdTrip = await this.Trip.createTrip(data);
+        const createdtrips = await this.trips.createTrip(data);
 
         return AppResponse(req, res, StatusCodes.CREATED, {
             message: "Bus station created successfully",
-            data: createdTrip,
+            data: createdtrips,
         });
     }
 
     async getTrips(req: Request, res: Response) {
         const data: {
-            stationId: string;
-            cursor: string;
-            town: string;
-            state: string;
-            country: string;
-            sort: string;
+            tripId?: string;
+            cursor?: string;
+            town?: string;
+            state?: string;
+            country?: string;
+            sort?: string;
+            driverId? : string;
+            dateFrom?: Date;
+            dateTo?: Date;
 
         } = req.body;
 
         const matchQuery: MatchQuery = {};
 
-        if (data?.stationId) {
-            matchQuery._id = { $eq: data?.stationId };
+        if (data?.tripId) {
+            matchQuery._id = { $eq: data?.tripId };
         }
+
+        if (data?.dateFrom) {
+            matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
+        }
+
+
+        if (data?.driverId) {
+            matchQuery.driverId = { $eq: data?.driverId };
+        }
+
 
         if (data?.country) {
             matchQuery.country = { $eq: data?.country };
@@ -83,10 +100,13 @@ class TripController {
             pagination: { pageSize: 100 },
         };
 
-        const result = await this.Trip.findTrips(query);
+        const result = await this.trips.findTrips (query);
+        
         const driver = result?.data && result.data[0]?.driverId
 
-        if (driver !== req.user && req.role !== ROLES.ADMIN) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+        const isImpostor =  isNotAuthorizedToPerformAction(req)
+
+        if (driver !== req.user && isImpostor ) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
 
 
         const hasData = result?.data?.length === 0;
@@ -97,8 +117,8 @@ class TripController {
             hasData ? StatusCodes.OK : StatusCodes.NOT_FOUND,
             {
                 message: hasData
-                    ? `Stations retrieved succesfully`
-                    : `No stations were found for this request `,
+                    ? `Trips retrieved succesfully`
+                    : `No trips were found for this request `,
                 data: result,
             }
         );
@@ -109,7 +129,7 @@ class TripController {
         const user = req.user as string
 
 
-        const response = await retryTransaction(this._canStartTripSession, 1, { town, user })
+        const response = await retryTransaction(this._canStartTripsSession, 1, { town, user })
 
         if (!response) throw new AppError(`Please complete your verification in order to start a trip. Help us keep ${COMPANY_NAME} safe for you and other users`, StatusCodes.FORBIDDEN)
 
@@ -118,9 +138,9 @@ class TripController {
 
     }
 
-    async _canStartTripSession(args: { user: string, town: string }, session: ClientSession) {
+    async _canStartTripsSession(args: { user: string, town: string }, session: ClientSession) {
 
-        const canStartTrip: boolean = await session.withTransaction(async () => {
+        const canStarttrips: boolean = await session.withTransaction(async () => {
 
 
             //Remember , the document names must match the names in the required Docs field
@@ -142,10 +162,18 @@ class TripController {
                     }
                 ]
             )
-            if (!documents) throw new AppError("Something went wrong. PLease try again", StatusCodes.NOT_FOUND)
+            if (!documents) throw new AppError("Something went wrong. Please try again", StatusCodes.NOT_FOUND)
 
-            //@ts-expect-error This will always populate 
-            const documentNames = [...documents.requiredDocs, ...documents.country.requiredDocs, ...documents.state.requiredDocs]
+                const documentNames = [
+                ...documents.requiredDriverDocs, 
+                //@ts-expect-error THis will be populated
+                ...documents.country.requiredDriverDocs ,
+                    //@ts-expect-error THis will be populated
+                ...documents.state.requiredDriverDocs
+                ]
+             
+            const documentNamesArray =  documentNames.map(document => document.name)
+
 
             const documentsAvailable = await DocumentsServiceLayer.getDocumentsWithPopulate({
                 query: {
@@ -159,18 +187,42 @@ class TripController {
             })
 
             const userPaymentMethod = await UserServiceLayer.getUserById(args.user, "paymentMethod")
-
+        
+            if(!userPaymentMethod) throw new AppError(`An Error occurred`,  StatusCodes.NOT_FOUND)
 
             const hasValidPaymentMethod = userPaymentMethod?.paymentMethod
 
+
+            const vehicleVerified =  await VehicleServiceLayer.
+           findVehicles({ 
+                query : { 
+                    status : { $eq : "accessed"}, 
+                    isArchived : { $eq : false }, 
+                    isVerified : {$eq : true}, 
+                    $or : [ 
+
+                        { "insurance.expiryDate" : { $lte : new Date} } , 
+                        { "inspection.expiryDate": { $lte: new Date } },  
+                    ]
+
+                }, 
+             
+                select : "_id"
+            })
+
+            if (!vehicleVerified ) throw new AppError(`An Error occurred`, StatusCodes.NOT_FOUND)
+ 
             let isVerified: boolean = true
 
             if (!hasValidPaymentMethod) {
                 isVerified = false
                 return isVerified
+            } 
+
+            if(vehicleVerified?.length < 1 ) { 
+                isVerified = false
+                return isVerified
             }
-
-
 
             const names = documentsAvailable.reduce((acc: string[], obj) => {
                 acc.push(obj.name);
@@ -178,10 +230,9 @@ class TripController {
             }, []);
 
 
-
             for (const documentName of names) {
 
-                if (!(documentName in documentNames)) {
+                if (!(documentName in documentNamesArray)) {
                     isVerified = false
                 }
             }
@@ -189,14 +240,15 @@ class TripController {
             return isVerified
         })
 
-        return canStartTrip
+        return canStarttrips
 
     }
 
-    async getBuStationById(req: Request, res: Response) {
-        const stationId: string = req.params.id;
+    async getTripById(req: Request, res: Response) {
 
-        const result = await this.Trip.getTripById(stationId);
+        const tripId : string = req.params.id;
+
+        const result = await this.trips.getTripsById(tripId);
 
         if (!result)
             throw new AppError(
@@ -211,12 +263,18 @@ class TripController {
     }
 
     async updateTrip(req: Request, res: Response) {
-        const data: ITrip & { stationId: string } = req.body;
+        const data: Pick<ITrip, "origin" | "destination" | "departureTime" | "status" > & { tripId: string } = req.body;
 
-        const { stationId, ...rest } = data;
+        const { tripId, ...rest } = data;
 
-        const updatedStation = await this.Trip.updateTrip({
-            docToUpdate: stationId,
+        const docToFind : Record<string , object| string | number > = { tripId : { $eq: tripId }}
+     
+        if(req.role === ROLES.DRIVER ){ 
+            docToFind.driverId = { $eq : req.user }
+        }
+
+        const updatedTrip= await this.trips.updateTrip({
+            docToUpdate: docToFind,
             updateData: {
                 $set: {
                     ...rest,
@@ -225,44 +283,89 @@ class TripController {
             options: {
                 new: true,
                 select: "_id placeId",
-            },
+            }
         });
 
 
-        if (!updatedStation)
+        if (!updatedTrip)
             throw new AppError(
-                "Error : Update to bus station failed",
+                "Error : Update to trip failed",
                 StatusCodes.NOT_FOUND
-            );
+            )
 
         return AppResponse(req, res, StatusCodes.OK, {
-            message: "Bus station updated successfully",
-            data: updatedStation,
+            message: "Trip updated successfully",
+            data: updatedTrip,
         });
+    }
+
+
+    async endTrip(req : Request, res : Response) { 
+
+        const { tripId,  driverId} =  req.body 
+
+        //Check if there are any ongoing rides, with this tripId
+      
+        const ongoingRides =  await RideServiceLayer.
+        findRides({ 
+            query : { 
+                $match : { 
+                tripId : { $eq : tripId }, 
+                dropOffTime : { $exists : true}
+            } },
+            aggregatePipeline : [],
+            pagination : { 
+                pageSize : 2
+            }
+        })
+
+        if(!ongoingRides  || !ongoingRides?.data) throw new AppError("No trip matching this request, Please try again", StatusCodes.NOT_FOUND) 
+
+         if  ( ongoingRides?.data?.length > 0 ) {
+            throw new AppError(`You have to drop off all your riders`, StatusCodes.FORBIDDEN)
+         }
+
+        const updatedTrip =  await this.trips.updateTrip({ 
+            docToUpdate : { tripId : { $eq : tripId }, 
+        driverId : { $eq : driverId}},
+        updateData : { 
+            $set : { 
+                endTime : new Date(),
+                status : "completed"
+            }
+        },
+        options : { new : true , select : "_id"}
+        }) 
+
+        return AppResponse(req, res, StatusCodes.OK, { 
+            message : "Trip ended successfully",
+            data : { _id : updatedTrip?._id}
+        })
+
     }
 
     //Admins only
     async deleteTrips(req: Request, res: Response) {
-        const data: { TripIds: string[] } = req.body;
+        const data: { tripIds: string[] } = req.body;
 
-        const { TripIds } = data;
+        const { tripIds } = data;
 
-        if (TripIds.length === 0)
+        if (tripIds.length === 0)
             throw new AppError(
                 getReasonPhrase(StatusCodes.BAD_REQUEST),
                 StatusCodes.BAD_REQUEST
             );
 
-        const deletedTrips = await this.Trip.deleteTrips(
-            TripIds
+        const deletedtripss = await this.trips.deleteTrips(
+            tripIds
         );
 
         return AppResponse(req, res, StatusCodes.OK, {
-            message: `${deletedTrips.deletedCount} trips deleted.`,
+            message: `${deletedtripss.deletedCount} trips deleted.`,
         });
     }
 
-    async getTripStats(req: Request, res: Response) {
+    async getTripsStats(req: Request, res: Response) {
 
         const data: {
             dateFrom: Date,
@@ -323,14 +426,14 @@ class TripController {
                             {
                                 $group: {
                                     _id: null,
-                                    avgTripMins: { $avg: "$tripMins" }
+                                    avgtripsMins: { $avg: "$tripMins" }
                                 }
                             }
                         ],
                         tripDataAverage: [
                             {
                                 $project: {
-                                    distancePerTrip: {
+                                    distancePertrips: {
                                         $divide: [
                                             "$distance",
                                             {
@@ -346,11 +449,11 @@ class TripController {
                             {
                                 $group: {
                                     _id: null,
-                                    avgKmPerHour: { $avg: "$distancePerTrip" }
+                                    avgKmPerHour: { $avg: "$distancePertrips" }
                                 }
                             }
                         ],
-                        sixhrIntervalDataForTripGroup: [
+                        sixhrIntervalDataFortripsGroup: [
                             {
                                 $project: {
                                     interval: {
@@ -500,10 +603,10 @@ class TripController {
 
         };
 
-        const result = await this.Trip.aggregateTrips(query)
+        const result = await this.trips.aggregateTrips(query)
 
         return AppResponse(req, res, StatusCodes.OK, result)
-        //Trip count, trip count by status,trip ratio 
+        //trips count, trip count by status,trip ratio 
     }
 
 
@@ -512,6 +615,6 @@ class TripController {
 
 }
 
-export const Trip = new TripController(TripsServiceLayer);
+export const trips = new TripsController(TripsServiceLayer);
 
-export default Trip;
+export default TripsController

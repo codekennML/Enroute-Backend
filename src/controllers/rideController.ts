@@ -17,6 +17,12 @@ import PackageSchedule from "../model/packageSchedule";
 import { retryTransaction } from '../utils/helpers/retryTransaction';
 import { distanceBetweenCoordinates } from '../utils/helpers/distanceBetweenTwoPoints';
 import { isNotAuthorizedToPerformAction } from '../utils/helpers/isAuthorizedForAction';
+import { TownServiceLayer } from '../services/townService';
+import { DocumentsServiceLayer } from '../services/documentsService';
+
+import State from '../model/state';
+import Country from '../model/country';
+import { COMPANY_NAME } from '../config/constants/base';
 
 
 class RideController {
@@ -28,16 +34,12 @@ class RideController {
 
     async startScheduledRide(req: Request, res: Response) {
         //Create a ride and assign it to a trip 
-
-        
         const data: IRideSchedule  = req.body
   
-        const isNotAuthorizedToStartRide  =     !(req.allowedRoles.includes(req.role)) || (req.allowedSubRoles.length > 0 && req.subRole && !(req?.allowedSubRoles?.includes(req.subRole))) 
-  
+     
         const isNotDriver = req.user !== data.driverId.toString() 
 
-        if(isNotAuthorizedToStartRide || isNotDriver)  throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN),StatusCodes.FORBIDDEN)
-
+        if(isNotAuthorizedToPerformAction(req) || isNotDriver)  throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN),StatusCodes.FORBIDDEN)
 
 
         const rideRequestData =  await RideRequestServiceLayer.getRideRequestById(data.rideRequest.toString() ,  "" )
@@ -51,7 +53,7 @@ class RideController {
             tripId: new Types.ObjectId(data.tripId),
             riderId: rideRequestData?.riderId,
             pickedUp: true,
-            pickupTime: new Date(Date.now()),
+            pickupTime: new Date(),
             type: rideRequestData?.type === "solo" ? "solo" : "share",
             // category: data.category,
             acceptedFare: data.driverBudget,
@@ -63,11 +65,7 @@ class RideController {
             friendData: rideRequestData?.friendData
         }
 
-//TODO Check if the user cam start the ride
-        // const canStartRide = await 
 
-
-    
         const newStartedRide = await this.ride.createRide(rideData)
 
 
@@ -105,7 +103,7 @@ class RideController {
             tripId: new Types.ObjectId(data.tripId),
             riderId: packageScheduleData.createdBy,
             pickedUp: true,
-            pickupTime: new Date(Date.now()),
+            pickupTime: new Date(),
             type: "package",
             packageCategory: packageScheduleData.type ,
             packageDetails: packageScheduleData.packageDetails,
@@ -153,7 +151,7 @@ class RideController {
     async createLivePackageRide(req: Request, res: Response) {
 
 
-        //WE  can have stop to stop package rides, this will only be for live rides and this is for vehicles who can pickup and drop at a bus stop
+        //we  can have stop to stop package rides, this will only be for live rides and this is for vehicles who can pickup and drop at a bus stop
         const data: IPackageSchedule & { driverId: string, acceptedFare: number, tripId: string } = req.body;
 
 
@@ -188,7 +186,6 @@ class RideController {
             rideId: string
             tripId: string,
             userId: string,
-            userRole: number 
             origin: Coordinates
             destination: Coordinates,
             currentLocation: Place
@@ -199,7 +196,8 @@ class RideController {
         const result = await retryTransaction(this._endRideSession, 1, { 
             ...data, 
             allowedRoles : req.allowedRoles,
-            allowedSubRoles : req.allowedSubRoles
+            allowedSubRoles : req.allowedSubRoles,
+            userRole : req.subRole
         })
 
         return AppResponse(req, res, StatusCodes.OK, {
@@ -227,13 +225,9 @@ class RideController {
             if (!rideData) throw new AppError("Something went wrong.Please try again", StatusCodes.BAD_REQUEST)
 
 
-            if (rideData.driverId.toString() !== args.userId)  throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
-   
-            if (!(args.allowedRoles.includes(args.userRole)) || (args.allowedSubRoles.length  > 0 && args.userSubRole &&  !(args?.allowedSubRoles?.includes(args.userSubRole))  )) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)  
+            if (!(args.allowedRoles.includes(args.userRole)) || (args.allowedSubRoles.length > 0 && args.userSubRole && !(args?.allowedSubRoles?.includes(args.userSubRole)) && rideData.driverId.toString() !== args.userId)) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)  
             
             
-
-
             const originalDestination = rideData?.destination?.location?.coordinates
             const currentLocation = args.currentLocation.location.coordinates
 
@@ -340,21 +334,113 @@ class RideController {
         })
     }
 
+    async canStartRide(req: Request, res: Response) {
+        const town = req.params.id
+        const user = req.user as string
+
+
+        const response = await retryTransaction(this.#canStartRideSession, 1, { town, user })
+
+        if (!response) throw new AppError(`Please complete your verification in order to start a ride or send a package. Help us keep ${COMPANY_NAME} safe for you and other users`, StatusCodes.FORBIDDEN)
+
+
+        return AppResponse(req, res, StatusCodes.OK, { message: "Driver is verified and can begin trip" })
+
+    }
+
+     async  #canStartRideSession(args: { user: string, town: string }, session: ClientSession) {
+
+        const canStartRide: boolean = await session.withTransaction(async () => {
+
+
+            //Remember , the document names must match the names in the required Docs field
+            const documents = await TownServiceLayer.getTownById(
+                args.town,
+                "_id requiredDocs",
+                session,
+                [
+                    {
+                        path: "Country",
+                        select: "requiredRiderDocs",
+                        model: Country
+                    },
+
+                    {
+                        path: "State",
+                        select: "requiredRiderDocs",
+                        model: State
+                    }
+                ]
+            )
+            if (!documents) throw new AppError("Something went wrong. Please try again", StatusCodes.NOT_FOUND)
+
+            const documentNames = [
+                ...documents.requiredRiderDocs,
+                //@ts-expect-error THis will be populated
+                ...documents.country.requiredRiderDocs,
+                //@ts-expect-error THis will be populated
+                ...documents.state.requiredRiderDocs
+            ]
+
+            const documentNamesArray = documentNames.map(document => document.name)
+
+
+            const documentsAvailable = await DocumentsServiceLayer.getDocumentsWithPopulate({
+                query: {
+                    userId: args.user,
+                    status: "assessed",
+                    isVerified: true,
+                    archived: false
+                },
+                select: "name"
+
+            })
+
+
+        
+            let isVerified: boolean = true
+
+            const names = documentsAvailable.reduce((acc: string[], obj) => {
+                acc.push(obj.name);
+                return acc;
+            }, []);
+
+
+            for (const documentName of names) {
+
+                if (!(documentName in documentNamesArray)) {
+                    isVerified = false
+                }
+            }
+
+            return isVerified
+        })
+
+        return canStartRide
+
+    }
+
     async getRides(req: Request, res: Response) {
         const data: {
-            rideId: string;
-            cursor: string;
-            town: string;
-            state: string;
-            country: string;
-            sort: string;
-            tripId? : string
+            rideId?: string;
+            cursor?: string;
+            town?: string;
+            state?: string;
+            country?: string;
+            sort?: string;
+            tripId? : string;
+            dateFrom? : Date;
+            dateTo? : Date;
         } = req.body;
 
         const matchQuery: MatchQuery = {};
 
         if (data?.rideId) {
             matchQuery._id = { $eq: data?.rideId };
+        }
+
+        if (data?.dateFrom) {
+            matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
         }
 
         if (data?.rideId) {
@@ -457,7 +543,7 @@ class RideController {
     // }
 
 
-    async getOutstandingDriverSettlements(req: Request, res: Response) {
+    async getOutstandingDriverRideSettlements(req: Request, res: Response) {
 
         const driverId = req.params.id
 
@@ -502,8 +588,6 @@ class RideController {
         });
 
     }
-
-
 
     async getRideStats(req: Request, res: Response) {
         const data: {
@@ -929,7 +1013,6 @@ class RideController {
         return AppResponse(req, res, StatusCodes.OK, result)
 
     }
-
 
     //Admins only
     async deleteRides(req: Request, res: Response) {

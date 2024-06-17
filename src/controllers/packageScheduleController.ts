@@ -15,8 +15,6 @@ import { cronEventsLogger } from "../middlewares/logging/logger";
 
 //This controller is used by a user to create  a schedule for a packag they want to send
 
-
-
 class PackageSchedule {
   private packageSchedule: PackageScheduleService;
 
@@ -37,11 +35,6 @@ class PackageSchedule {
       expiresAt,
       pickupAddress,
       destinationAddress,
-      destinationTown,
-      destinationState,
-      pickupTown,
-      pickupState,
-      pickupCountry,
       totalDistance
     } = data;
 
@@ -55,11 +48,7 @@ class PackageSchedule {
         expiresAt,
         pickupAddress,
         destinationAddress,
-        destinationTown,
-        destinationState,
-        pickupTown,
-        pickupState,
-        pickupCountry,
+        
         status: "created",
         totalDistance
       });
@@ -72,18 +61,18 @@ class PackageSchedule {
 
   async getPackageSchedules(req: Request, res: Response) {
     const data: {
-      packageScheduleId: string;
-      cursor: string;
-      pickupTown: string;
-      destinatonTown: string;
-      country: string;
-      sort: string;
-      expiresAt: Date;
+      packageScheduleId?: string;
+      cursor?: string;
+      pickupTown?: string;
+      destinationTown?: string;
+      country?: string;
+      sort?: string;
+      expiresAt?: Date;
       budget?: {
         max: number;
         min: number;
       };
-      type: string;
+      type?: string;
     } = req.body;
 
     const matchQuery: MatchQuery = {};
@@ -92,26 +81,26 @@ class PackageSchedule {
       matchQuery.country = { $eq: data.country };
     }
 
-    // if (data?.pickuptown) {
-    //   (matchQuery.destination as Record<string, unknown>).placeId = {
-    //     $eq: destination,
-    //   };
-    // }
+    if (data?.pickupTown) {
+      (matchQuery['pickupAddress.name'] as IPackageSchedule['pickupAddress']['name'])  = { $eq : data.pickupTown } ,
+    
+    } 
+
+    if (data?.destinationTown) {
+      (matchQuery['destinationAddress.name'] as IPackageSchedule['destinationAddress']['name']) = {
+        $eq: data.destinationTown }
+      }
+    
 
     if (data?.budget && data.budget.max) {
       matchQuery.budget = { $lte: data.budget.max };
     }
+
     if (data?.budget && data.budget.min) {
       matchQuery.budget = { $gte: data.budget.min };
     }
 
-    if (data?.destinatonTown) {
-      matchQuery.destinationTown = { $eq: data?.destinatonTown };
-    }
-
-    if (data?.pickupTown) {
-      matchQuery.destinationTown = { $eq: data?.destinatonTown };
-    }
+  
 
     if (data?.expiresAt) {
       matchQuery.expiresAt = { $gte: data.expiresAt };
@@ -170,7 +159,7 @@ class PackageSchedule {
     });
   }
 
-  async deleteSchedule(req: Request, res: Response) {
+  async cancelSchedule(req: Request, res: Response) {
     const { scheduleId } = req.body;
 
     const user = req.user;
@@ -185,11 +174,19 @@ class PackageSchedule {
         StatusCodes.FORBIDDEN
       );
 
-    const deletedPackageSchedule =
-      await this.packageSchedule.deletePackageSchedules([scheduleId]);
+    const cancelledPackageSchedule =
+      await this.packageSchedule.updatePackageSchedule({
+        docToUpdate : { _id : scheduleId }, 
+        updateData : { 
+          $set : { status : "cancelled "}
+        }, 
+        options : { new : true, select :"_id"}
+      }); 
+
+      if(!cancelledPackageSchedule) throw new AppError(`Something went wrong. Please try again`, StatusCodes.INTERNAL_SERVER_ERROR)
 
     return AppResponse(req, res, StatusCodes.OK, {
-      message: `${deletedPackageSchedule.deletedCount} package schedule -  ${scheduleId} -  deleted successfully.`,
+      message: ` Package schedule -  ${scheduleId} -  cancelled successfully.`,
     });
   }
 

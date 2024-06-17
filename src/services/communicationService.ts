@@ -4,8 +4,8 @@ import { notificationFCM } from "./3rdParty/Google/notification";
 import { StatusCodes } from "http-status-codes"
 import AppError from "../middlewares/errors/BaseError";
 import resend from "./3rdParty/resend";
-import { buildSendRequest, formatBatchEmailMessages } from "../utils/helpers/formatNotifications";
-import { MailData, PushData, SMSData } from "../../types/types";
+import { buildSendRequest } from "../utils/helpers/formatNotifications";
+import { EmailData, PushData, SMSData } from "../../types/types";
 import { SendChampService } from "./sendchamp";
 
 
@@ -13,8 +13,7 @@ import { SendChampService } from "./sendchamp";
 class CommunicationService {
 
 
-  async sendSMS(
- data : SMSData) {
+  async sendSMS(data : SMSData) {
 
     const messageData = {
       message  : data.message,
@@ -27,7 +26,7 @@ class CommunicationService {
       await SendChampService.sendSMS(messageData)
     } catch (e: unknown) {
 
-      notificationsLogger.error(`SMS to ${data?.mobile.length} users failed with error ${(e as Error)?.message} `, {
+      notificationsLogger.error(`SMS to ${ data.mobile} failed with error ${(e as Error)?.message} `, {
         extra: {
           error: e,
           channel : data.channel,
@@ -42,7 +41,7 @@ class CommunicationService {
 
   async sendPushNotificationToDevice(data: PushData) {
 
-    const message = buildSendRequest(data.deviceTokens, data.message, data.callToAction, data.imageUrl, data.topic)
+    const message = buildSendRequest(data.deviceTokens, data.message, data.callToAction, data.topic)
 
     const sentPush = await notificationFCM.send(message)
 
@@ -58,7 +57,7 @@ class CommunicationService {
       throw new AppError("Tokens for batch push notifications cannot be more than 500", StatusCodes.BAD_REQUEST)
     }
 
-    const message = buildSendRequest(data?.deviceTokens, data.message, data.callToAction, data.imageUrl, data.topic)
+    const message = buildSendRequest(data?.deviceTokens, data.message, data.callToAction, data.topic)
 
     const sentPush = await notificationFCM.sendEachForMulticast(message as unknown as MulticastMessage)
 
@@ -68,7 +67,7 @@ class CommunicationService {
   }
 
   async sendSingleEmail(
-    data: MailData
+    data: EmailData
 
   ) {
 
@@ -88,15 +87,6 @@ class CommunicationService {
 
     return
 
-  }
-
-  async sendBatchEmails(mailData: MailData[]) {
-
-    if (mailData.length > 100) throw new AppError("Something went wrong. Please try again later", StatusCodes.BAD_REQUEST, "More than 100 emails added for email message in one request")
-
-    const formattedMessages = formatBatchEmailMessages(mailData)
-    //Send the message to the queue for processing 
-    await resend.batch.send(formattedMessages)
   }
 
 

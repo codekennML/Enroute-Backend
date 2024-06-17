@@ -13,9 +13,9 @@ const userSchema = new Schema<IUser>(
     email: {
       type: String,
       max: 255,
-      required:  () =>  {
-        return !this.mobile;
-      },
+      // required:  function(){
+      //   return !this.mobile;
+      // },
       index: true,
       trim: true,
     },
@@ -28,7 +28,7 @@ const userSchema = new Schema<IUser>(
 
     birthDate: {
       type: Date,
-      required: [true, "User Date of Birth required"],
+      required: true
     },
 
     roles: {
@@ -52,14 +52,14 @@ const userSchema = new Schema<IUser>(
       type: Number,
       unique: true,
       max: 13, // +2348105481234
-      required: [true, "User Phone number is required"],
+      required: true,
       index: true,
     },
 
     avatar: {
       type: String,
       default: ".......a...s..s.",
-      required: [true, "User avatar is required"],
+      required: true 
     },
 
     gender: {
@@ -158,7 +158,11 @@ const userSchema = new Schema<IUser>(
     paymentMethod: {
       authorization: Object,
       customer: Object,
-      isValid : true
+      isValid : {
+        type : Boolean,
+        required : true ,
+        default : false
+      }
     },
 
     refreshToken: {

@@ -2,6 +2,7 @@ import { IKnowledgeBaseCategory } from "./../model/interfaces/index";
 import KnowledgeBaseCategory from "../model/knowledgeBaseCategory";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, { PaginationRequestData, QueryData } from "./shared";
+import { UpdateRequestData } from "../../types/types";
 
 class KnowledgeBaseCategoryRepository {
   private KnowledgeBaseCategoryDBLayer: DBLayer<IKnowledgeBaseCategory>;
@@ -37,17 +38,8 @@ class KnowledgeBaseCategoryRepository {
     return KnowledgeBaseCategory;
   }
 
-  async updateKnowledgeBaseCategory(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateKnowledgeBaseCategory(request: UpdateRequestData
+  ) {
     const updatedKnowledgeBaseCategory =
       await this.KnowledgeBaseCategoryDBLayer.updateDoc({
         docToUpdate: request.docToUpdate,
@@ -58,7 +50,7 @@ class KnowledgeBaseCategoryRepository {
     return updatedKnowledgeBaseCategory;
   }
 
-  async deleteKnowledgeBaseCategorys(request: string[]) {
+  async deleteKnowledgeBaseCategories(request: string[]) {
     return this.KnowledgeBaseCategoryDBLayer.deleteDocs(request);
   }
 }

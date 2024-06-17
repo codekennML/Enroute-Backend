@@ -50,7 +50,7 @@ export const buildSendRequest = (tokens: string | string[], messageInfo: { [k: s
 
 
 
-export const formatBatchEmailMessages = (mailData: MailData[]) => {
+export const formatBatchEmailMessages = (mailData: MailData["data"]) => {
 
     // Define the batch size
     const batchSize = 100

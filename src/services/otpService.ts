@@ -118,7 +118,8 @@ class OTPService {
       countryCode : request?.countryCode
     }, session);
 
-    if (request.type === "SMS" || request.type === "WhatsApp") {
+
+    if (request.type === "SMS") {
       //Send the sms to the user
       console.log(otp);
 
@@ -127,10 +128,22 @@ class OTPService {
       const route =  "dnd"
 
 
-      smsQueue.add(`$SMS_OTP_${request.user}`, { message : otpMessage, to,  route}, { priority: 10 })
+      smsQueue.add(`$SMS_OTP_${createdOTP[0]._id}`, {
+         message : otpMessage, to, route}, { priority: 10 })
+
+    } else if(  request.type === "WhatsApp"){ 
+      console.log(otp);
 
 
-      
+      const recipient = `${request.mobile}${request.countryCode}`
+
+      const customData =  { 
+        otp,
+      }
+
+
+      smsQueue.add(`$WHATSAPP_OTP_${createdOTP[0]._id}`, {
+      recipient, customData}, { priority: 10 })
 
   } else {
     //send to email queue
@@ -139,17 +152,15 @@ class OTPService {
 
     
     const mailMessage = {
-      to: request.email,
+      to: request.email!,
       from: OTP_MAIL_ADDRESS,
-      subject: request.subject,
-      html: mailBody,
+      subject: request.subject!,
+      template: mailBody,
     };
 
     emailQueue.add(`$OTP_EMAIL`, mailMessage, {
       priority: 10
     })
-
-
 
   }
 
@@ -189,7 +200,7 @@ class OTPService {
         active: true,
       },
       updateData: { $set: { active: false } },
-      options: { new: true,session  },
+      options: { new: true,session , select : "user" },
     });
 
     console.log(otpData);

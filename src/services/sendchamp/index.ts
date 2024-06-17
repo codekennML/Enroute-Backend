@@ -15,26 +15,28 @@ const smsClient = createAxiosInstance({
 });
 
 
-// };
-
-type SCHAMPSMSDATA = {
+export type SENDCHAMPSMSDATA = {
     message: string;
-    to : number[]
+    to : number| number[]
     route: "dnd" | "non_dnd" | "international"
    
 };
 
-type SCHAMPSMSRESPONSE = {
+export type SENDCHAMPWHATSAPPDATA =  { 
+    recipient : string, 
+    customData : Record<string, string | number>
+}
+
+export type SENDCHAMPRESPONSE = {
    code : number , 
    data : {[k : string] : string}
 };
 
 class SendChamp {
-    async sendSMS(request: SCHAMPSMSDATA) {
+    async sendSMS(request: SENDCHAMPSMSDATA) {
         const { message, route, to} = request;
 
         const SMS_INFO = {
-           
             to, //Country code + phone number
             sender_name: COMPANY_NAME,
             message: message,
@@ -42,12 +44,32 @@ class SendChamp {
     
         };
 
-        const SMS_URL = `/sms`;
+        const SMS_URL = `/sms/send`;
 
-        const response = await smsClient.post<SCHAMPSMSRESPONSE>(SMS_URL, SMS_INFO);
+        const response = await smsClient.post<SENDCHAMPRESPONSE>(SMS_URL, SMS_INFO);
 
         return { success: true, smsResponse: response };
     }
+
+ async sendWhatsApp(request : SENDCHAMPWHATSAPPDATA){ 
+     const { recipient,  customData } = request;
+
+     const WHATSAPP_INFO = {
+         recipient , //Country code + phone number
+         sender_name: process.env.SENDCHAMP_COMPANY_NUMBER  as string,
+         template : process.env.SENDCHAMP_WHATSAPP_TEMPLATE as string,
+         type : "template",
+         customData
+
+     };
+
+     const WHATSAPP_URL = `whatsapp/message/send`;
+
+     const response = await smsClient.post<SENDCHAMPRESPONSE>(WHATSAPP_URL, WHATSAPP_INFO);
+
+     return { success: true, smsResponse: response };
+ }
+ 
 
     async walletBalance(){
         const SMS_URL = `/wallet/wallet_balance`;
