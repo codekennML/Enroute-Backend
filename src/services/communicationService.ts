@@ -5,34 +5,43 @@ import { StatusCodes } from "http-status-codes"
 import AppError from "../middlewares/errors/BaseError";
 import resend from "./3rdParty/resend";
 import { buildSendRequest } from "../utils/helpers/formatNotifications";
-import { EmailData, PushData, SMSData } from "../../types/types";
-import { SendChampService } from "./sendchamp";
+import { EmailData, PushData } from "../../types/types";
+import { AxiosError } from "axios";
+import termii, { SMSDATA } from "./3rdParty/termii";
 
 
 
 class CommunicationService {
 
 
-  async sendSMS(data : SMSData) {
+  async sendOTPMobile(data : SMSDATA ) {
+ 
+     console.log("processing OTP")
 
-    const messageData = {
-      message  : data.message,
-      to: data.mobile,
-      route: data.channel
-    }
+    try { 
+  
 
-    try {
+      if('recipient' in  data){ 
+        //This is for whatsapp 
+        await termii.sendWhatsApp(data)
+      }
+      else {
+        // This is for sms
+           await termii.sendSMS(data)
 
-      await SendChampService.sendSMS(messageData)
+    
+      }
+
     } catch (e: unknown) {
-
-      notificationsLogger.error(`SMS to ${ data.mobile} failed with error ${(e as Error)?.message} `, {
+ 
+      notificationsLogger.error(`SMS to ${'recipient' in data ?  data?.recipient : data?.mobile } failed with error ${e},  - ${(e as Error | AxiosError)?.message} , {
         extra: {
-          error: e,
-          channel : data.channel,
-          mobile : data?.mobile
+          error: ${e?.message},
+          error_status : ${e.status}
+          channel: ${'recipient' in data ? "WhatsApp" : "SMS"}
+         
         }
-      })
+      }`)
     }
 
     return 
@@ -71,19 +80,24 @@ class CommunicationService {
 
   ) {
 
-    const emailMessage = await resend.emails.send({
-      from: data.from,
-      to: data.to,
-      reply_to: data.reply_to,
-      subject: data.subject,
-      html: data.template,
-      attachments: data.attachments
-    })
+    try { 
+      const emailMessage = await resend.emails.send({
+        from: data.from,
+        to: data.to,
+        reply_to: data.reply_to,
+        subject: data.subject,
+        html: data.template,
+        attachments: data.attachments
+      })
 
-    const { error } = emailMessage
+      const { error } = emailMessage
 
-
-    if (error) QueueLogger.error(`Email transmission failed for ${data.to} with subject ${data.subject}`)
+      console.log(error)
+      if (error) QueueLogger.error(`Email transmission failed for ${data.to} with subject ${data.subject}`)
+    }catch(e){
+        console.log(e)
+    }
+   
 
     return
 

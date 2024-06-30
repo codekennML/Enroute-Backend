@@ -2,19 +2,21 @@
 import QueueManager from "./manager";
 import { CommunicationServiceLayer } from "../communicationService";
 import { EmailData, PushData} from "../../../types/types";
-import { SENDCHAMPWHATSAPPDATA, SENDCHAMPSMSDATA } from "../sendchamp";
+import { Settlement } from "../../controllers/settlementsController";
+import { SMSDATA } from "../3rdParty/termii";
 
 
-// export const addJobToQueue = async (queueName: string, jobName: string, data: Record<string, string>) => {
-//     const myQueue = new Queue(queueName);
-//     const job = await myQueue.add(jobName, data)
-//     console.log(`Job ${job.id} has been added to the queue`);
-// }
 
-const pushQueueManager  = new QueueManager<PushData>("singlePushQueue")
-const batchPushQueueManager = new QueueManager<PushData>("batchPushQueue")
-const singleEmailQueueManager = new QueueManager<EmailData>("singleEmailQueue")
-const smsQueueManager = new QueueManager<SENDCHAMPSMSDATA | SENDCHAMPWHATSAPPDATA>("smsQueue")
+
+const pushQueueManager = new QueueManager<PushData>("singlePushQueue", CommunicationServiceLayer.sendPushNotificationToDevice)
+
+
+const batchPushQueueManager = new QueueManager<PushData>("batchPushQueue", CommunicationServiceLayer.sendPushNotificationToDevices)
+const singleEmailQueueManager = new QueueManager<EmailData>("singleEmailQueue", CommunicationServiceLayer.sendSingleEmail )
+
+const smsQueueManager = new QueueManager<SMSDATA>("smsQueue", CommunicationServiceLayer.sendOTPMobile)
+
+const billingQueueManager =  new QueueManager<string>("billingQueue", Settlement.handleQueueSettlements)
 
 
 export const pushQueue =  pushQueueManager.getQueue()
@@ -22,18 +24,19 @@ export const batchPushQueue = batchPushQueueManager.getQueue()
 export const emailQueue = singleEmailQueueManager.getQueue()
 
 export const smsQueue = smsQueueManager.getQueue()
+export const billingQueue = billingQueueManager.getQueue()
 
 
 
+pushQueueManager.startWorkers(10, 3)
 
-pushQueueManager.startWorkers(10, 3, CommunicationServiceLayer.sendPushNotificationToDevice)
+batchPushQueueManager.startWorkers(5, 2)
 
-batchPushQueueManager.startWorkers(10, 1, CommunicationServiceLayer.sendPushNotificationToDevices)
+singleEmailQueueManager.startWorkers(10, 3)
 
+smsQueueManager.startWorkers(10, 3)
 
-singleEmailQueueManager.startWorkers(10, 3, CommunicationServiceLayer.sendSingleEmail)
-
-smsQueueManager.startWorkers(15, 3, CommunicationServiceLayer.sendOTPMobile)
+billingQueueManager.startWorkers(10, 3)
 
 
 

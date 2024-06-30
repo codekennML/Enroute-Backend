@@ -70,19 +70,25 @@ export const accessLogger = winston.createLogger({
 });
 
 export const authLogger = winston.createLogger({
+  level: "info",
+  format,
+  transports: [new winston.transports.Console()],
+});
+
+export const requestLogger =  winston.createLogger({
   level: "http",
   format,
   transports: [new winston.transports.Console()],
 });
 
 export const errorLogger = winston.createLogger({
-  level: "http",
+  level: "error",
   format,
   transports: [new winston.transports.Console()],
 });
 
 export const webhooksLogger = winston.createLogger({
-  level: "http",
+  level: "info",
   format,
   transports: [new winston.transports.Console()],
 });

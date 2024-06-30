@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { ROLES } from './../config/enums';
 
 import { MatchQuery, SortQuery } from "./../../types/types.d";
@@ -8,8 +9,10 @@ import AppResponse from "../utils/helpers/AppResponse";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { IUser } from "../model/interfaces";
 import AppError from "../middlewares/errors/BaseError";
-
-
+import { emailQueue } from '../services/bullmq/queue';
+import { COMPANY_NAME, COMPANY_SLUG } from '../config/constants/base';
+import { AdminInviteMail } from '../views/mails/AdminInvite';
+import { refreshToken } from 'firebase-admin/app';
 
 
 
@@ -20,29 +23,51 @@ class User {
     this.user = userService;
   }
 
-  async createUser(req: Request, res: Response) {
+ createUser = async(req: Request, res: Response) =>  {
     const data: Required<
-      Pick<IUser, "firstName" | "lastName" | "mobile" | "roles" | "countryCode" | "subRole">
+      Pick<IUser, "firstName" | "lastName" | "email" | "roles" | "subRole" >
     > = req.body;
 
     const newUser = {
       ...data,
-      verified: false,
-      mobileVerified : false,
+      verified: true,
       active: true,
+      status : "verified",
+      invitedBy : new Types.ObjectId(req.user)
     };
 
+    //Chck if email exists in the db
+
+    const isExistingUser = await UserServiceLayer.getUsers({
+      query : {email : data.email},
+      select : "_id"
+    })
+
+    if(!isExistingUser) throw new AppError("An Error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+
+    if(isExistingUser.length > 0) throw new AppError("A user exists with the same account data", StatusCodes.CONFLICT)
 
     const createdUser = await this.user.createUser(newUser);
+
+     if(!createdUser) throw new AppError("An Error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+
+      const mail =  AdminInviteMail(data.firstName, data.lastName)
+
+      emailQueue.add(`New User Invite-${createdUser}`,{
+        to : data.email,
+        subject : `${COMPANY_NAME} Account Invitation`, 
+        template : mail, 
+        from : `info@${COMPANY_SLUG}`
+      }, {
+        priority : 6
+      } )
 
     return AppResponse(req, res, StatusCodes.CREATED, {
       message: `User ${createdUser[0]._id} successfully created`,
     });
   }
 
- 
-
-  async getUsers(req: Request, res: Response) {
+ getUsers = async(req: Request, res: Response) => {
     const {
       userId,
       cursor,
@@ -56,11 +81,15 @@ class User {
       gender,
       suspended,
       banned,
-    } = req.body;
+    } = req.query;
 
     const matchQuery: MatchQuery = {
-      _id: { $eq: userId },
+      
     };
+if(userId) {
+    matchQuery._id = { $eq  : userId }
+}
+
 
     if (cursor) {
       matchQuery._id = { $gt: cursor };
@@ -109,7 +138,7 @@ class User {
     };
 
     if (sort) {
-      const sortPattern = sort.toLowerCase().trim().split("_");
+      const sortPattern = (sort as string).toLowerCase().trim().split("_");
 
       const sortRange = sortPattern[1] === "desc" ? 1 : -1;
 
@@ -124,6 +153,9 @@ class User {
       {
         $limit: 101, //The extra one is to check for another page
       },
+      {
+        $project : {refreshToken  : 0}
+      },
       sortQuery,
     ];
 
@@ -135,7 +167,7 @@ class User {
       },
     });
 
-    const hasData = result?.data?.length === 0;
+    const hasData = result?.data?.length > 0
 
     return AppResponse(
       req,
@@ -150,13 +182,16 @@ class User {
     );
   }
 
-  async getUserBasicInfo(req: Request, res: Response) {
+  getUserBasicInfo = async (req: Request, res: Response) =>  {
     //the route validator will handle the error if it does not exist
 
     const userId: string = req.params.id;
 
     const select =
-      "avatar firstName roles lastName about rating mobile countryCode address";
+      "avatar firstName roles lastName about rating mobile countryCode address email";
+      
+      if(userId !== req.user && (req.role === ROLES.RIDER || req.role === ROLES.DRIVER)) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+
 
     const userData = await this.user.getUserById(userId, select);
 
@@ -199,6 +234,8 @@ class User {
     const data: {
       limitType: string;
       user: string;
+      limitReason : string, 
+    
   
     } = req.body;
 
@@ -218,12 +255,23 @@ class User {
       );
     }
 
-    if (user.roles === parseInt(req.role) && (user?.subRole && user.subRole > req?.subRole )) {
+    if (user.roles > req.role || req.role in [ROLES.DRIVER, ROLES.RIDER]) throw new AppError(
+      "Insufficient permissions to limit user",
+      StatusCodes.FORBIDDEN
+    );
+
+    if (!(user.roles in [ROLES.ADMIN, ROLES.SUPERADMIN]) && req.role in [ROLES.DEV, ROLES.CX, ROLES.ACCOUNT, ROLES.MARKETING, ROLES.SALES])  throw new AppError(
+      "Insufficient permissions to limit user",
+      StatusCodes.FORBIDDEN
+    );
+
+    if (user.roles === req.role && (user?.subRole && user.subRole > req?.subRole )) {
       throw new AppError(
         "Insufficient permissions to limit user",
         StatusCodes.FORBIDDEN
       );
     }
+
  
     if (req.role !== ROLES.SUPERADMIN && req.role !== ROLES.ADMIN && req.role !== ROLES.CX && req.role !== ROLES.DEV && (user.roles === ROLES.DRIVER || user.roles === ROLES.RIDER)) throw new AppError(
       "Insufficient permissions to perform this action",
@@ -238,7 +286,7 @@ class User {
 
     const limitedUser = await this.user.updateUser({
       docToUpdate: { _id: data.user },
-      updateData: { $set: { ...update } },
+      updateData: { $set: { ...update, limitReason : data.limitReason , limitedBy : req.user } },
       options: { new: true, select: "_id" },
     });
 
@@ -251,7 +299,7 @@ class User {
   }
 
   async markUserAsVerified(req: Request, res: Response) {
-    const data: Pick<IUser, "verified"> & { _id: string } = req.body;
+    const data: { _id: string } = req.body;
 
     const update = { $set: { verified: true } };
 
@@ -263,8 +311,8 @@ class User {
 
     if (!verifiedUser)
       throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
+      "An Error occurred. Pleas try again",
+       StatusCodes.INTERNAL_SERVER_ERROR
       );
     //if this errors out somehow , the global tryCatch will pick it up
 
@@ -276,95 +324,117 @@ class User {
     });
   }
 
-  async changeUserRole(req: Request, res: Response) {
-    const data: Pick<IUser, "roles" | "subRole"> & {
-      adminRole: number;
-      userId: string;
-    } = req.body;
+  // async changeUserRole(req: Request, res: Response) {
+  //   const data: Pick<IUser, "roles" | "subRole"> & {
+  //     userId: string;
+  //   } = req.body;
 
-    //TODO Implement route guard that checks the allowed roles
-    if (data.roles < data.adminRole)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.FORBIDDEN),
-        StatusCodes.FORBIDDEN
-      );
 
-    const userWithUpdatedRole = await this.user.updateUser({
-      docToUpdate: { _id: data.userId },
-      updateData: {
-        $set: {
-          roles: data.roles,
-        },
-      },
-      options: { new: true, select: "_id" },
-    });
+  
+  //   if (data.roles < data.adminRole)
+  //     throw new AppError(
+  //       getReasonPhrase(StatusCodes.FORBIDDEN),
+  //       StatusCodes.FORBIDDEN
+  //     );
 
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "User role updated successfully",
-      data: {
-        user: userWithUpdatedRole,
-      },
-    });
-  }
+  //   const userWithUpdatedRole = await this.user.updateUser({
+  //     docToUpdate: { _id: data.userId },
+  //     updateData: {
+  //       $set: {
+  //         roles: data.roles,
+  //       },
+  //     },
+  //     options: { new: true, select: "_id" },
+  //   });
 
-  async updateUserPeripheralData(req: Request, res: Response) {
+  //   return AppResponse(req, res, StatusCodes.OK, {
+  //     message: "User role updated successfully",
+  //     data: {
+  //       user: userWithUpdatedRole,
+  //     },
+  //   });
+  // }
+
+ updateUserPeripheralData =  async (req: Request, res: Response) =>  {
     //update the about,emergency contacts, address and image
 
-    type RequestDataType = Pick<
+    type RequestDataType = Partial<Pick<
       IUser,
-      "avatar" | "about" | "emergencyContacts" | "firstName" | "lastName" | "birthDate" | "deviceToken"
-    >
+       "about" | "emergencyContacts" | "firstName" | "lastName" | "birthDate" | "deviceToken" | "country" | "state" | "town" | "serviceType" | "dispatchType"
+    >>
+
+
 
     const data: RequestDataType & {
-      user: string;
       image?: string;
-      adminId: string;
     } = req.body;
 
-    const updateData: { [K in keyof RequestDataType]: RequestDataType[K] } = {};
+  
+    const updateData: Record<string, Record<string,  RequestDataType[keyof RequestDataType]>>  = {$set : {}}
 
-    if (data.about) {
-      updateData.about = data.about;
+    console.log(updateData)
+    if (data?.about) {
+      updateData['$set'] = { ...updateData.$set,  about : data.about}
+    }
+    console.log(updateData)
+    if (data?.country) {
+      updateData['$set']["country"] = data.country;
+    }
+    if (data?.state) {
+      updateData['$set']["state"] = data.state;
+    }
+    if (data?.town) {
+      updateData['$set']["town"] = data.town;
+    }
+    if (data?.serviceType) {
+      updateData['$set']["serviceType"] = data.serviceType;
+    }
+    if (data?.dispatchType) {
+      updateData['$set']["dispatchType"] = data.dispatchType;
     }
 
-    if(data.deviceToken) { updateData.deviceToken =  data.deviceToken}
+    if (data?.deviceToken) { updateData['$set']["deviceToken"] =  data.deviceToken } 
 
     if(data?.firstName){ 
-      updateData.firstName =  data.firstName
+      updateData['$set']['firstName'] =  data.firstName
     }
 
     if (data?.lastName) {
-      updateData.lastName = data.lastName
+      updateData['$set']['lastName'] = data.lastName
     }
     if (data?.birthDate) {
-      updateData.birthDate = data.birthDate
+      updateData['$set']['birthDate'] = data.birthDate
+
+      //TODO : Check to see if there is a need to impose a age limit of 18
     }
 
-
     if (data.emergencyContacts) {
-      //Decided not to override the emergency contacts, instead add to the array , incase of an coordinated attempt at chaos and a deliberate attempt to erase traces of huaman connections
-      updateData.emergencyContacts?.push(...data.emergencyContacts);
+      //Decided not to override the emergency contacts, instead add to the array , incase of  deliberate attempts to erase traces of huaman connections
+      updateData["$push"]['emergencyContacts'] = data.emergencyContacts
     }
 
     if (data?.image) {
-      updateData.avatar = data.image;
+      updateData['$set']['avatar'] = data.image;
     }
+    console.log(req.user, updateData)
 
     const updatedUser = await this.user.updateUser({
       docToUpdate: {
-        _id: data.adminId === data.user ? data.adminId : data.user,
+        _id: { $eq : req.user}
       },
       updateData,
       options: { new: true, select: "_id" },
     });
 
+
+    if(!updatedUser) throw new AppError("An error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+
     let message = "";
 
     Object.keys(data).forEach((key) => {
-      // @ts-expect-error need to jump over the admin id key
-      if (key === "adminId") break;
-
-      message += `& ${key}`;
+  
+  
+      message += ` & ${key}`;
     });
 
     return AppResponse(req, res, StatusCodes.OK, {
@@ -375,23 +445,14 @@ class User {
     });
   }
 
-  // async setUserVerificationData  (req : Request, res : Response ) { 
-  //   //This sets the 
-  //   const data : { 
-  //      firstName : string,
-  //      lastName : string, 
-  //      dateOfBirth : Date
-  //   }
-
-  // }
-
-
-  async getUserStats(req: Request, res: Response) {
+  
+getUserStats = async(req: Request, res: Response)  => {
+  console.log("Errere")
 
     const data: {
-      dateFrom: Date,
+      dateFrom?: Date,
       dateTo?: Date,
-      status: Pick<IUser, "status">,
+      status?: Pick<IUser, "status">,
       country?: string,
       state?: string,
       town?: string,
@@ -407,7 +468,7 @@ class User {
     }
 
     if (data?.userId) {
-      matchQuery._idd = { $eq: data.userId };
+      matchQuery._id = { $eq: data.userId };
     }
 
     if (data?.country) {
@@ -531,14 +592,12 @@ class User {
               }
             ],
 
-
-
             groupByMonthOfYear: [
               {
                 $group: {
                   _id: {
                     month: { $month: "$createdAt" },
-                    // status: "$status"
+                    status: "$status"
                   },
                   count: { $sum: 1 }
                 }
@@ -552,7 +611,7 @@ class User {
 
               {
                 $group: {
-                  _id: "gender",
+                  _id: "$gender",
                   count: { $sum: 1 }
                 }
               }
@@ -561,7 +620,7 @@ class User {
             groupByRoles: [
               {
                 $group: {
-                  _id: "roles",
+                  _id: "$roles",
                   count: { $sum: 1 }
                 }
               }
@@ -664,7 +723,7 @@ class User {
               {
                 $group: {
                   _id: null,
-                  count: { $sum: { $cond: [{ $eq: ["$online", true] }, 1, 0] } }
+                  count: { $sum: { $cond: [{ $gt: ["$accessTokenExpiresAt", new Date(Date.now())] }, 1, 0] } }
                 }
               },
               {
@@ -675,14 +734,14 @@ class User {
               }
             ],
 
-            initialStatusRatio: [
-              {
-                $group: {
-                  _id: "$initialStatus",
-                  count: { $sum: 1 }
-                }
-              }
-            ]
+            // initialStatusRatio: [
+            //   {
+            //     $group: {
+            //       _id: "$initialStatus",
+            //       count: { $sum: 1 }
+            //     }
+            //   }
+            // ]
 
           }
 
@@ -691,17 +750,20 @@ class User {
 
     };
 
+
     //@ts-expect-error ts errors out on the $sort within the group user status BY ROLES
 
     const result = await this.user.aggregateUsers(query)
+    console.log("result", JSON.stringify(result))
 
-    return AppResponse(req, res, StatusCodes.OK, result)
+    return AppResponse(req, res, StatusCodes.OK, { 
+      message : "User statistics retrieved successfully",
+      data : result
+    })
     //Trip count, trip count by status,trip ratio 
   }
 
 }
-
-
 
 export const UserController = new User(UserServiceLayer);
 

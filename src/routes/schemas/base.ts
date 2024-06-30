@@ -1,7 +1,7 @@
 import * as z from 'zod';
 
 
-
+type LatLngCoordinates  =  [number,  number]
 
 export const placeSchema = z.object({
     name: z.string(),
@@ -17,7 +17,7 @@ export const placeSchema = z.object({
 
 export const dateSeekSchema =  z.object({ 
   dateFrom :z.optional(z.date())  ,
-dateTo: z.optional(z.date())
+ dateTo: z.optional(z.date())
 }
 )
 
@@ -73,81 +73,13 @@ export const paymentMethodSchema = z.object({
     isValid: z.boolean(),
 });
 
-export  const emergencyContactSchema = z.object({
-    name: z.string(),
-    mobile: z.number(),
-    countryCode: z.number(),
-    address: z.string(),
-});
 
 
-export const userSchema = z.object({
-    firstName: z.string().optional(),
-    email: z.string().optional(),
-    avatar: z.string().optional(),
-    socialName: z.string().optional(),
-    lastName: z.string().optional(),
-    birthDate: z.date().optional(),
-    mobile: z.number(),
-    gender: z.enum(["male", "female"]).optional(),
-    deviceToken: z.string(),
-    roles: z.number(),
-    subRole: z.number().optional(),
-    hasUsedSocialAuth: z.boolean(),
-    googleId: z.string().optional(),
-    googleEmail: z.string().optional(),
-    fbId: z.string().optional(),
-    fbEmail: z.string().optional(),
-    appleId: z.string().optional(),
-    appleEmail: z.string().optional(),
-    status: z.enum(["new", "verified"]),
-    verifyHash: z.object({
-        token: z.string(),
-        expiresAt: z.date(),
-    }).optional(),
-    verified: z.boolean(),
-    active: z.boolean().optional(),
-    suspended: z.boolean().optional(),
-    banned: z.boolean().optional(),
-    lastLoginAt: z.date(),
-    emailVerifiedAt: z.date(),
-    mobileVerifiedAt: z.date(),
-    emailVerificationData: z.object({
-        token: z.string(),
-        expiry: z.date(),
-    }).optional(),
-    mobileVerificationData: z.object({
-        token: z.string(),
-        expiry: z.date(),
-    }).optional(),
-    emailVerified: z.boolean().optional(),
-    mobileVerified: z.boolean().optional(),
-    resetTokenHash: z.string().optional(),
-    refreshToken: z.string().optional(),
-    countryCode: z.number(),
-    resetTokenData: z.record(z.union([z.date(), z.boolean()])).optional(),
-    paymentMethod: paymentMethodSchema.optional(),
-    about: z.string().optional(),
-    street: z.string().optional(),
-    isOnline: z.boolean().optional(),
-    dispatchType: z.array(z.string()).optional(),
-    rating: z.number(),
-    emergencyContacts: z.array(emergencyContactSchema).optional(),
-    stateOfOrigin: z.string().optional(),
-    serviceType: z.array(z.string()),
-    createdAt: z.date().optional(),
-    updatedAt: z.date().optional(),
-    deviceIds: z.array(z.string()),
-})
 
 export const cancellationDataSchema = z.object({
-    status: z.boolean(),
-    initiator: z.string(),
-    initiatedBy: z.union([z.literal('driver'), z.literal('rider'), z.literal('admin')]),
-    time: z.date(),
-    cancellationReason: z.string(),
-    driverDistanceFromPickup: z.number(),
-    driverEstimatedETA: z.number(),
+    cancellationReason: z.string().optional(),
+    driverDistanceFromPickup: z.number().optional(),
+    driverEstimatedETA: z.number().optional(),
 });
 
 const timedGeojsonSchema = z.object({
@@ -163,61 +95,6 @@ export const routeSchema = z.object({
 });
 
 
-export  const otpSchema = z.object({
-    user: z.string().optional(),
-    mobile: z.number().optional(),
-    countryCode: z.number().optional(),
-    email: z.string().optional(),
-    hash: z.string().optional(),
-    expiry: z.date().optional(),
-    active: z.boolean().optional(),
-    channel: z.string(),
-    next: z.string().optional(),
-})
-
-export const packageScheduleRequestSchema = z.object({
-    packageScheduleId: z.string(),
-    budget: z.number(),
-    body: z.string(),
-    createdBy: z.string(),
-    status: z.string(),
-});
-
-export const packageScheduleSchema = z.object({
-    createdBy: z.string(),
-    type: z.union([z.literal('HTH'), z.literal('STS')]),
-    budget: z.number(),
-    acceptedBudget: z.number().optional(),
-    packageDetails: z.object({
-        recipient: z.object({
-            firstname: z.string(),
-            lastname: z.string(),
-            countryCode: z.string(),
-            mobile: z.string(),
-        }),
-        comments: z.string(),
-    }),
-    dueAt: z.date(),
-    expiresAt: z.date(),
-    status: z.string(),
-    totalDistance: z.number(),
-    destinationAddress: z.unknown(), // Update this based on the actual structure of the 'Place' type
-})
-
-
-export  const ticketsSchema = z.object({
-    userId: z.string(),
-    email: z.string(),
-    category: z.string(),
-    title: z.string(),
-    body: z.string(),
-    documentsUrl: z.object({
-        url: z.string(),
-        type: z.union([z.literal('image'), z.literal('video')]),
-        format: z.union([z.literal('mp4'), z.literal('mp4')]),
-        name: z.string(),
-    })
-});
 
 export  const inspectionSchema = z.object({
     provider: z.string(),
@@ -261,30 +138,8 @@ export  const friendDataSchema = z.object({
     mobile: z.string(),
 });
 
-export  const rideRequestSchema = z.object({
-    tripScheduleId: z.string().optional(),
-    driverId: z.string(),
-    riderId: z.string(),
-    destination: busStationSchema,
-    pickupPoint: busStationSchema,
-    hasLoad: z.boolean(),
-    numberOfSeats: z.number().optional(),
-    type: z.union([z.literal('share'), z.literal('solo')]),
-    cancellationData: cancellationDataSchema.optional(),
-    totalRideDistance: z.number(),
-    initialStatus: z.union([z.literal('scheduled'), z.literal('live')]),
-    riderBudget: z.number(),
-    driverBudget: z.number(),
-    driverDecision: z.union([z.literal('accepted'), z.literal('rejected'), z.literal('riderBudget')]),
-    riderDecision: z.union([z.literal('accepted'), z.literal('rejected')]),
-    status: z.union([z.literal('created'), z.literal('cancelled'), z.literal('closed')]),
-    friendData: z.array(friendDataSchema).optional(),
-})
 
-export  const requiredDocSchema = z.object({
-    name: z.string(),
-    options: z.array(z.string()),
-});
+
 
 export const settlementSchema = z.object({
     amount: z.number(),
@@ -317,7 +172,7 @@ export  const tripScheduleSchema = z.object({
 });
 
 export const coordinatesSchema = z.object({
-    coordinates: z.array(z.number),
+    coordinates: z.array(z.number()),
     name: z.optional(z.string()),
     placeId: z.optional(z.string()),
 });

@@ -8,7 +8,8 @@ import { IBusStation } from "../model/interfaces";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
-
+import { Types} from 'mongoose'
+import { ROLES } from "../config/enums";
 
 class BusStationController {
   private busStation: BusStationService;
@@ -28,16 +29,50 @@ class BusStationController {
     });
   }
 
+  async suggestBusStation(req : Request,  res : Response) {
+    const data: Omit<IBusStation, 'active' | 'suggested'> & { user : string} = req.body;
+
+  
+    const createdSuggestedBusStation = await this.busStation.createBusStation({ ...data , status : "suggested" , suggestedBy : new Types.ObjectId(data.user)});
+
+    return AppResponse(req, res, StatusCodes.CREATED, {
+      message: "Bus station suggestion sent  successfully",
+      data: createdSuggestedBusStation,
+    });
+  }
+
+  async considerSuggestedStation (req : Request,  res : Response ) {
+    const data : { stationId : string, decision : "approved" | "rejected" } =  req.body  
+
+    const updatedStation =  await this.busStation.updateBusStation({
+      docToUpdate : { 
+        _id : { $eq : data.stationId}
+      }, 
+      updateData : { 
+        $set : { 
+          ...(data.decision === "approved" && {status : "active" , approvedBy : req.user}),
+          ...(data.decision === "rejected" && { status: "rejected", approvedBy: req.user })
+        }
+      }, 
+      options : { new : true ,  select : "_id"}
+    }) 
+
+    if(!updatedStation) throw new AppError("An Error occured. Please try again", StatusCodes.INTERNAL_SERVER_ERROR) 
+
+    return AppResponse(req, res, StatusCodes.OK, { message : "Station has been approved successfully", data :{ _id : updatedStation._id}})
+  }
+  
+
   async getBusStations(req: Request, res: Response) {
     const data: {
       stationId: string;
       dateFrom?: Date;
       dateTo?: Date;
-      cursor: string;
-      town: string;
-      state: string;
-      country: string;
-      sort: string;
+      cursor?: string;
+      town?: string;
+      state?: string;
+      country?: string;
+      sort?: string;
       active : boolean;
     } = req.body;
 
@@ -58,10 +93,14 @@ class BusStationController {
     if (data?.town) {
       matchQuery.town = { $eq: data?.town };
     }
+
     if (data?.active) {
-      matchQuery.active = { $eq: data?.active };
+      matchQuery.active = { $eq: data.active };
     }
 
+  if(req.role in [ROLES.RIDER, ROLES.DRIVER]){
+    matchQuery.active = { $eq: true };
+  }
 
     if (data?.dateFrom) {
       matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
@@ -126,10 +165,8 @@ class BusStationController {
 
     const { stationId, ...rest } = data;
 
-
-
     const updatedStation = await this.busStation.updateBusStation({
-      docToUpdate: stationId,
+      docToUpdate: {_id :{ $eq : stationId}},
       updateData: {
         $set: {
           ...rest,
@@ -175,7 +212,60 @@ class BusStationController {
       message: `${deletedBusStations.deletedCount} bus stations deleted.`,
     });
   }
+  
 
+  async getBusStationStats(req : Request, res : Response){ 
+    
+    const data: {
+      country?: string,
+      state?: string,
+      town?: string,
+
+    } = req.body
+
+    const matchQuery: MatchQuery = {
+      // createdAt: { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) }
+    };
+
+    if (data?.country) {
+      matchQuery.country = { $eq: data?.country };
+    }
+
+    if (data?.state) {
+      matchQuery.state = { $eq: data?.state };
+    }
+
+    if (data?.town) {
+      matchQuery.town = { $eq: data?.town };
+    }
+
+    const query = {
+      pipeline: [
+        // { $match: matchQuery },
+        {
+          $facet: {
+            count: [{ $count: "total" }],
+            getStationCountByStatus : [ 
+             { 
+              $group : {
+                _id : "$status", 
+                count : { $sum : 1 }
+              }
+             }
+            ]
+         
+          }
+        }
+      ]
+    };
+
+    //@ts-expect-error //ts doesnt recognize the stage correctly
+    const result = await this.ride.aggregateRides(query)
+
+    return AppResponse(req, res, StatusCodes.OK, result)
+   
+
+  }
 
 }
 

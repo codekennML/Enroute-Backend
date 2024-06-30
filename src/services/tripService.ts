@@ -1,5 +1,5 @@
 import { AggregateData, PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { ITrip } from "../model/interfaces";
 import TripsRepository, { tripsDataLayer } from "../repository/trips";
 import { UpdateRequestData } from "../../types/types";
@@ -27,17 +27,20 @@ class TripsService {
   }
 
   async getTripById(
-    TripsId: string,
+    tripId: string,
     select?: string,
     session?: ClientSession
   ) {
-    const Trips = await this.trips.findTripById({
-      query: { id: TripsId },
+
+
+    const trip = await this.trips.findTripById({
+      query:  new Types.ObjectId(tripId),
       select,
       session,
     });
+   
 
-    return Trips;
+    return trip;
   }
 
   async deleteTrips(request: string[]) {

@@ -1,5 +1,5 @@
-import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { PaginationRequestData, QueryData } from "./../repository/shared";
+import { ClientSession, Types } from "mongoose";
 import { ICountry } from "../model/interfaces";
 import CountryRepository, { CountryDataLayer } from "../repository/country";
 import { UpdateRequestData } from "../../types/types";
@@ -21,18 +21,24 @@ class CountryService {
     return this.country.returnPaginatedCountries(request);
   }
 
+  async getCountries(request : QueryData) {
+    const result =  await this.country.getCountries(request)
+
+    return result
+  }
+
   async updateCountry(request: UpdateRequestData) {
     const updatedCountry = await this.country.updateCountry(request);
     return updatedCountry;
   }
 
   async getCountryById(
-    CountryId: string,
+    countryId: string,
     select?: string,
     session?: ClientSession
   ) {
     const Country = await this.country.findCountryById({
-      query: { id: CountryId },
+      query: new Types.ObjectId(countryId),
       select,
       session,
     });

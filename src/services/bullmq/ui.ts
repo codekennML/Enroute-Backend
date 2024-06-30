@@ -4,7 +4,6 @@ import { ExpressAdapter } from '@bull-board/express'
 import { 
     emailQueue, 
     pushQueue, 
-    batchEmailQueue,
     batchPushQueue,
     smsQueue 
 
@@ -16,7 +15,6 @@ serverAdapter.setBasePath('/admin/queueviewer/ui');
 createBullBoard({
     queues: [
         new BullMQAdapter(emailQueue),
-        new BullMQAdapter(batchEmailQueue),
         new BullMQAdapter(pushQueue),
         new BullMQAdapter(batchPushQueue),
         new BullMQAdapter(smsQueue)

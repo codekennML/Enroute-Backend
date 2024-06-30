@@ -39,17 +39,7 @@ class PackageScheduleRequestRepository {
     return PackageScheduleRequest;
   }
 
-  async updatePackageScheduleRequest(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updatePackageScheduleRequest(request: UpdateRequestData) {
     const updatedPackageScheduleRequest =
       await this.PackageScheduleRequestDBLayer.updateDoc({
         docToUpdate: request.docToUpdate,

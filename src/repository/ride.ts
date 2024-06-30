@@ -1,7 +1,7 @@
 import { Model, ClientSession } from "mongoose";
 import { IRide } from "../model/interfaces";
 import { Ride } from "../model/rides";
-import DBLayer, { AggregateData, PaginationRequestData, QueryData, updateManyQuery } from "./shared";
+import DBLayer, { AggregateData, PaginationRequestData,  QueryId, updateManyQuery } from "./shared";
 import { UpdateRequestData } from "../../types/types";
 
 class RideRepository {
@@ -23,7 +23,7 @@ class RideRepository {
     return newRide;
   }
 
-  async getRideById(request: QueryData) {
+  async getRideById(request: QueryId) {
     return await this.ridesDBLayer.findDocById(request)
   }
 

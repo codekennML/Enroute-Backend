@@ -19,9 +19,9 @@ class BusStationRepository {
     request: IBusStation,
     session?: ClientSession
   ): Promise<IBusStation[]> {
-    let createdBusStations: IBusStation[] = [];
+ 
 
-    createdBusStations = await this.busStationDBLayer.createDocs(
+   const createdBusStations = await this.busStationDBLayer.createDocs(
       [request],
       session
     );

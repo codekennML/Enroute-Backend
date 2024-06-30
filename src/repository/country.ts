@@ -1,27 +1,29 @@
-import Country, { CountryModel } from "../model/country";
+import Country from "../model/country";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, {
   AggregateData,
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { ICountry } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class CountryRepository {
-  private CountryDBLayer: DBLayer<CountryModel>;
+  private CountryDBLayer: DBLayer<ICountry>;
 
-  constructor(model: Model<CountryModel>) {
-    this.CountryDBLayer = new DBLayer<CountryModel>(model);
+  constructor(model: Model<ICountry>) {
+    this.CountryDBLayer = new DBLayer<ICountry>(model);
   }
 
   async createCountry(
     request: ICountry,
     session?: ClientSession
-  ): Promise<CountryModel[]> {
-    let createdCountries: CountryModel[] = [];
+  ): Promise<ICountry[]> {
+    
 
-    createdCountries = await this.CountryDBLayer.createDocs([request], session);
+    const createdCountries = await this.CountryDBLayer.createDocs([request], session);
 
     return createdCountries;
   }
@@ -32,22 +34,16 @@ class CountryRepository {
     return paginatedCountries;
   }
 
-  async findCountryById(request: QueryData) {
+  async findCountryById(request: QueryId) {
     const Country = await this.CountryDBLayer.findDocById(request);
     return Country;
   }
 
-  async updateCountry(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async getCountries(request :QueryData){
+    return await this.CountryDBLayer.findDocs(request)
+  }
+
+  async updateCountry(request:UpdateRequestData) {
     const updatedCountry = await this.CountryDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,
@@ -57,7 +53,7 @@ class CountryRepository {
     return updatedCountry;
   }
 
-  async updateManyCountries(request: updateManyQuery<CountryModel>) {
+  async updateManyCountries(request: updateManyQuery<ICountry>) {
     const result = await this.CountryDBLayer.updateManyDocs(request);
 
     return result;

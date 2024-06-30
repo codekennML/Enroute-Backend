@@ -1,7 +1,7 @@
-import z from "zod"
+import z  from "zod"
 import { placeSchema,  cancellationDataSchema, coordinatesSchema, dateSeekSchema} from "./base"
 import { busStationSchema } from "./busStation"
-import {packageScheduleSchema} from "./packageSchedule"
+
 
 
 export const rideSchema = z.object({
@@ -9,19 +9,24 @@ export const rideSchema = z.object({
     tripId: z.string(),
     riderId: z.string(),
     packageRequestId: z.optional(z.string()),
-    pickedUp: z.boolean(),
-    pickupTime: z.date(),
-    alighted: z.optional(z.boolean()),
     dropOffTime: z.optional(z.date()),
     type: z.union([z.literal('solo'), z.literal('share'), z.literal('package')]),
     packageCategory: z.optional(z.union([z.literal('STS'), z.literal('HTH')])),
     cancellationData: z.optional(cancellationDataSchema),
     seatsOccupied: z.optional(z.number()),
-    pickupStation: z.optional(busStationSchema),
-    origin: z.union([placeSchema, busStationSchema]),
+    pickupStation: z.union([placeSchema, busStationSchema.extend({
+        active : z.boolean().optional()
+    }).optional()]),
+    origin:z.object({
+        type :  z.literal("Point"),
+        coordinates : z.array(z.number(), z.number())
+    }).optional(),
     distance: z.optional(z.number()),
     destination: z.union([busStationSchema, placeSchema]),
-    dropOffLocation: z.optional(placeSchema),
+    dropOffLocation: z.object({
+        type :  z.literal("Point"),
+        coordinates : z.array(z.number(), z.number())
+    }).optional(),
     route: z.optional(z.string()),
     rideTotalDistance: z.number(),
     acceptedFare: z.number(),
@@ -66,12 +71,23 @@ export const rideSchema = z.object({
             })
         )
     ),
-});
+})
+.refine((data) => {
+
+    const hasPickupStation = data.pickupStation !== undefined;
+    const hasOrigin = data.origin !== undefined;
+    
+  
+    return (hasPickupStation && hasOrigin) 
+}, {
+    message: 'Pick-up station must be provided',
+})
 
 
 export const getRidesSchema =  dateSeekSchema.extend({ 
     rideId: z.string().optional(),
     cursor: z.string().optional(),
+    status: z.string().optional(),
     town: z.string().optional(),
     state: z.string().optional(),
     country: z.string().optional(),
@@ -80,10 +96,15 @@ export const getRidesSchema =  dateSeekSchema.extend({
 })
 
 
-export const livePackageScheduleSchema = packageScheduleSchema.extend({
+export const livePackageScheduleSchema =z.object({
     driverId: z.string(),
-    acceptedFared: z.number(),
-    tripId: z.string()
+    acceptedFare: z.number(),
+    tripId: z.string(),
+    createdBy : z.string(),
+    pickupAddress : placeSchema, 
+    destinationAddress : placeSchema,
+    type : z.union([z.literal("STS"),  z.literal("HTH")]),
+    totalDistance : z.number()
 })
 
 export const startScheduledPackageRideSchema = z.object({
@@ -110,19 +131,15 @@ export const cancelRideSchema = z.object({
 
 })
 
-export const endRideSchema = z.object({ 
+export const billRideSchema = z.object({ 
     tripId :z.string(), 
     rideId : z.string(), 
-    userId : z.string(), 
-    origin : coordinatesSchema, 
-    destination : coordinatesSchema, 
     currentLocation : placeSchema
-
 })
 
 export const rideStatsSchema =  z.object({
-    dateFrom: z.date(),
-    dateTo: z.date(),
+    dateFrom: z.date().optional(),
+    dateTo: z.date().optional(),
     country : z.optional(z.string()),
     state : z.optional(z.string()),
     town : z.optional(z.string()),

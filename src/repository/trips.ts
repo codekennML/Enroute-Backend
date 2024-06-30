@@ -5,8 +5,10 @@ import DBLayer, {
   AggregateData,
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
+import { UpdateRequestData } from "../../types/types";
 
 class TripRepository {
   private tripsDBLayer: DBLayer<ITrip>;
@@ -15,14 +17,12 @@ class TripRepository {
     this.tripsDBLayer = new DBLayer<ITrip>(model);
   }
 
-  async createTrip(request: ITrip, session?: ClientSession): Promise<ITrip[]> {
-    let newTrip: ITrip[] = [];
+  async createTrip(request: ITrip, session?: ClientSession) {
+   
 
-    try {
-      newTrip = await this.tripsDBLayer.createDocs([request], session);
-    } catch (error) {
-      console.error(error);
-    }
+
+  const newTrip = await this.tripsDBLayer.createDocs([request], session);
+ 
 
     return newTrip;
   }
@@ -38,7 +38,8 @@ class TripRepository {
 
     return paginatedUsers;
   }
-  async findTripById(request: QueryData) {
+  async findTripById(request: QueryId) {
+
     const trip = await this.tripsDBLayer.findDocById(request);
     return trip;
   }
@@ -49,17 +50,7 @@ class TripRepository {
     return result;
   }
 
-  async updateTrip(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateTrip(request: UpdateRequestData) {
     const updatedTrip = await this.tripsDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

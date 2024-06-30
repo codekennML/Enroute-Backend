@@ -8,6 +8,7 @@ import { OtpServiceLayer } from "../../services/otpService";
 import { checkUserCanAuthenticate } from "../../utils/helpers/canLogin";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { NextFunction, Request, Response} from "express"
+import { ROLES } from "../../config/enums";
 
 interface DecodedToken extends JwtPayload {
   user: string;  // Adjust the type based on your actual payload
@@ -16,97 +17,143 @@ interface DecodedToken extends JwtPayload {
   subRole : number
 }
 
-// const REFRESH_TOKEN_ID = process.env.REFRESH_TOKEN_ID as string;
-// const ACCESS_TOKEN_ID = process.env.REFRESH_TOKEN_ID as string;
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET as string;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET as string;
+const driver_app_id =  process.env.DRIVER_APP_ID as string
+const rider_app_id =  process.env.RIDER_APP_ID as string
 
-const AuthGuard = (req: Request, res: Response, next: NextFunction) => {
+
+const AuthGuard = 
+
+ async (req: Request, res: Response, next: NextFunction) => {
 
   const mobileId = req.headers["mobile-device-id"] as string |  undefined
+  const app_id  =  req.headers["app_id"]
 
-  const accessToken = req.headers["X_A_T"] as string
-  const refreshToken  =  req.headers["X_R_T"] as string
 
+  const accessToken = req.headers["x_a_t"] as string
+  const refreshToken  =  req.headers["x_r_t"] as string
+
+
+  try {
+
+  
   if (!accessToken || !refreshToken)
     throw new AppError(
       getReasonPhrase(StatusCodes.UNAUTHORIZED),
       StatusCodes.UNAUTHORIZED
     );
 
-  jwt.verify(accessToken, ACCESS_TOKEN_SECRET, async(err, decoded ) => {
+    console.log("here", app_id,  rider_app_id, driver_app_id)
+
+  await jwt.verify(accessToken, ACCESS_TOKEN_SECRET, async(err,  decoded)=> {
+   console.log(decoded, err)
     if (err) {
-      await refreshUserToken(
-        req,
-        res,
-        refreshToken,
-        next,
-        mobileId
-      );
+    console.log("Missi", err)
+        await refreshUserToken(
+              req,
+              res,
+              refreshToken,
+              mobileId
+            );
 
-    }
-    //If the device does not match the device this token was created for ,or this accessToken was created for a mobile device and is being used via another platform
+        return  next()
 
-    const {mobileId  : userMobileId, user,  role, subRole } =  decoded as DecodedToken
+          }
+  
 
-    if (!mobileId || 
-      (mobileId && mobileId !== userMobileId) 
-      
-    )
-      throw new AppError(
-        getReasonPhrase(StatusCodes.UNAUTHORIZED),
-        StatusCodes.UNAUTHORIZED
-      );
+      //If the device does not match the device this token was created for ,or this accessToken was created for a mobile device and is being used via another platform
 
-    req.user = user
-    req.role = role
-    req.subRole =  subRole
-    next();
-  });
-};
+const {mobileId  : userMobileId, user,  role, subRole } =  decoded as DecodedToken
+
+if (mobileId &&  mobileId !== userMobileId) 
+  {
+
+
+    throw new AppError(
+      getReasonPhrase(StatusCodes.UNAUTHORIZED),
+      StatusCodes.UNAUTHORIZED
+    );
+  }
+ console.log(app_id, app_id===driver_app_id, role)
+
+  if(app_id === rider_app_id && role !== ROLES.RIDER) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
+
+  if(app_id === driver_app_id && role !== ROLES.DRIVER) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
+
+    if(!app_id && role in [ROLES.DRIVER, ROLES.RIDER])throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED) 
+ 
+req.user = user
+req.role = role
+req.subRole =  subRole
+   next();
+})
+}catch(err){
+  next(err)
+}
+
+}
 
 const refreshUserToken = async (
   req: Request ,
   res: Response,
   refreshToken: string,
-  next : NextFunction,
   mobileId?: string,
 ) => {
-  jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, async (err, decoded) => {
+
+  await jwt.verify(refreshToken,REFRESH_TOKEN_SECRET, async (err, decoded) => {
     if (err)
       throw new AppError(
         getReasonPhrase(StatusCodes.UNAUTHORIZED),
         StatusCodes.UNAUTHORIZED
       );
+      
+    console.log(decoded)
+    const { user,role }  = decoded as DecodedToken
 
-    //Check that the token matches the one in the db, hash & compare
+    const app_id = req.headers["app_id"]
+    
+    console.log(app_id === rider_app_id, role, user) 
 
-    const { user }  = decoded as DecodedToken
+    if(app_id === rider_app_id && role !== ROLES.RIDER) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
+
+    if(app_id === driver_app_id && role !== ROLES.DRIVER) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
+     
+    if(!app_id && role in [ROLES.DRIVER, ROLES.RIDER])throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED) 
 
     const hashedRefreshToken = OtpServiceLayer.hashOTP(refreshToken);
 
-    const userWithRefreshToken = await UserServiceLayer.getUsers({
-      query: {
-        refreshToken: hashedRefreshToken,
-        _id: user,
-        mobileAuthId: mobileId,
+    const docToUpdate : Record<string , string> = {
+      refreshToken: hashedRefreshToken,
+      _id: user,
+    } 
+
+    if(mobileId) docToUpdate["mobileAuthId"] = mobileId
+
+  
+    const userWithRefreshToken = await UserServiceLayer.updateUser({
+       docToUpdate, 
+       updateData : {
+        accessTokenExpiresAt: new Date(Date.now() + 16 * 60 * 1000)
       },
-      select: "suspended active banned roles subRole",
-      lean: true,
+      options :{ 
+        new : true, 
+        select: "suspended active banned roles subRole",
+      }
+
     });
 
-    if (!userWithRefreshToken || userWithRefreshToken.length === 0)
+    if (!userWithRefreshToken)
       throw new AppError(
         getReasonPhrase(StatusCodes.UNAUTHORIZED),
         StatusCodes.UNAUTHORIZED
       );
+ 
+    checkUserCanAuthenticate(userWithRefreshToken);
+console.log("Viaa")
+   await setAccessToken(req, res, user, userWithRefreshToken.roles, userWithRefreshToken?.subRole)
 
-    checkUserCanAuthenticate(userWithRefreshToken[0]);
-
-    setAccessToken(req, res, user, userWithRefreshToken[0].roles, userWithRefreshToken[0]?.subRole)
-  
-    next()
   });
 };
 

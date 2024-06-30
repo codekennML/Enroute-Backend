@@ -31,11 +31,11 @@ class KnowledgeBaseController {
 
     async getKnowledgeBase(req: Request, res: Response) {
         const data: {
-            knowledgeBaseId: string;
-            parentCategoryId: string,
-            subCategoryId : string,
-            cursor: string;
-            sort: string;
+            knowledgeBaseId?: string;
+            parentKnowledgeBaseId?: string,
+            subKnowledgeBaseId? : string,
+            cursor?: string;
+            sort?: string;
         } = req.body;
 
         const matchQuery: MatchQuery = {};
@@ -46,12 +46,12 @@ class KnowledgeBaseController {
 
     
 
-        if (data?.parentCategoryId) {
-            matchQuery.parentId = { $eq: new Types.ObjectId(data.parentCategoryId) };
+        if (data?.parentKnowledgeBaseId) {
+            matchQuery.parentId = { $eq: new Types.ObjectId(data.parentKnowledgeBaseId) };
         }
 
-        if (data?.subCategoryId) {
-            matchQuery.subCategory = { $eq: new Types.ObjectId(data.subCategoryId) };
+        if (data?.subKnowledgeBaseId) {
+            matchQuery.subKnowledgeBase = { $eq: new Types.ObjectId(data.subKnowledgeBaseId) };
         }
 
     
@@ -77,7 +77,7 @@ class KnowledgeBaseController {
 
         const result = await this.knowledgeBase.findKnowledgeBases(query);
 
-        const hasData = result?.data?.length === 0;
+        const hasData = result?.data?.length && result?.data?.length > 0;
 
         return AppResponse(
             req,
@@ -92,7 +92,7 @@ class KnowledgeBaseController {
         );
     }
 
-    async getCategoryById(req: Request, res: Response) {
+    async getKnowledgeBaseById(req: Request, res: Response) {
         const stationId: string = req.params.id;
 
         const result = await this.knowledgeBase.getKnowledgeBaseById(stationId);
@@ -104,7 +104,7 @@ class KnowledgeBaseController {
             );
 
         return AppResponse(req, res, StatusCodes.OK, {
-            message: "Bus station retrieved successfully",
+            message: "Knowledge base retrieved successfully",
             data: result,
         });
     }
@@ -116,9 +116,8 @@ class KnowledgeBaseController {
         const { knowledgeBaseId, ...rest } = data;
 
 
-
-        const updatedCategory = await this.knowledgeBase.updateKnowledgeBase({
-            docToUpdate: knowledgeBaseId,
+        const updatedKnowledgeBase = await this.knowledgeBase.updateKnowledgeBase({
+            docToUpdate: {_id : new Types.ObjectId(knowledgeBaseId)} ,
             updateData: {
                 $set: {
                     ...rest,
@@ -130,22 +129,22 @@ class KnowledgeBaseController {
             },
         });
 
-        if (!updatedCategory)
+        if (!updatedKnowledgeBase)
             throw new AppError(
-                "Error : Bus station update  failed",
+                "Error : Knowledge base update  failed",
                 StatusCodes.NOT_FOUND
             );
 
 
 
         return AppResponse(req, res, StatusCodes.OK, {
-            message: "Knowledge Base Category updated successfully",
-            data: updatedCategory,
+            message: "Knowledge Base KnowledgeBase updated successfully",
+            data: updatedKnowledgeBase,
         });
     }
 
     //Admins only
-    async deleteCategory(req: Request, res: Response) {
+    async deleteKnowledgeBase(req: Request, res: Response) {
         const data: { knowledgeBaseIds: string[] } = req.body;
 
         const { knowledgeBaseIds } = data;
@@ -156,18 +155,18 @@ class KnowledgeBaseController {
                 StatusCodes.BAD_REQUEST
             );
 
-        const deletedBusStations = await this.knowledgeBase.deleteKnowledgeBases(
+        const deletedKnowledgeBases = await this.knowledgeBase.deleteKnowledgeBases(
             knowledgeBaseIds
         )
 
         return AppResponse(req, res, StatusCodes.OK, {
-            message: `${deletedBusStations.deletedCount} bus stations deleted.`,
+            message: `${deletedKnowledgeBases.deletedCount} knowledge bases deleted.`,
         });
     }
 
 
 }
 
-export const BusStation = new KnowledgeBaseController(KnowledgeBaseServiceLayer);
+export const KnowledgeBase = new KnowledgeBaseController(KnowledgeBaseServiceLayer);
 
-export default BusStation;
+export default KnowledgeBase;

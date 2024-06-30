@@ -2,33 +2,38 @@ import { Schema, Model, model, SchemaTypes } from "mongoose";
 import { IUser } from "./interfaces";
 
 
+
 const userSchema = new Schema<IUser>(
   {
     firstName: {
       type: String,
       trim: true,
       max: 100,
+      immutable : true
     },
 
     email: {
       type: String,
       max: 255,
-      // required:  function(){
-      //   return !this.mobile;
-      // },
+      required:  function(){
+        return !this.mobile && !this.googleEmail
+      },
       index: true,
-      trim: true,
+      unique : true, 
+      sparse : true,
+      trim: true
     },
 
     lastName: {
       type: String,
       trim: true,
       max: 100,
+      immutable : true
     },
 
     birthDate: {
       type: Date,
-      required: true
+      immutable : true
     },
 
     roles: {
@@ -51,9 +56,8 @@ const userSchema = new Schema<IUser>(
     mobile: {
       type: Number,
       unique: true,
-      max: 13, // +2348105481234
-      required: true,
-      index: true,
+      sparse : true,
+      index: true
     },
 
     avatar: {
@@ -65,6 +69,12 @@ const userSchema = new Schema<IUser>(
     gender: {
       type: String,
       enum: ["male", "female", "other"],
+    },
+
+    archived : {
+      type : Boolean, 
+      required : true ,
+      default : false
     },
 
     googleId: {
@@ -127,21 +137,12 @@ const userSchema = new Schema<IUser>(
       required: true,
     },
 
-    mobileVerificationData: {
-      token: String,
-      expiry: Date,
-    },
+    mobileAuthId : String, 
 
-    emailVerificationData: {
-      token: String,
-      expiry: Date,
-    },
+    accessTokenExpiresAt : Date,
 
-    emailVerified: {
-      type: Boolean,
-      default: false,
-      required: true,
-    },
+
+  
     emailVerifiedAt: Date,
     mobileVerifiedAt: Date,
 
@@ -158,11 +159,21 @@ const userSchema = new Schema<IUser>(
     paymentMethod: {
       authorization: Object,
       customer: Object,
+
+      //This is for ensuring e capture a users payment accurately at all times
       isValid : {
         type : Boolean,
         required : true ,
         default : false
-      }
+      }, 
+
+      defaults: [
+        {
+          type: String,
+          enum: ["subscription", "settlement"],
+          required: false
+        }
+      ]
     },
 
     refreshToken: {
@@ -175,43 +186,35 @@ const userSchema = new Schema<IUser>(
     serviceType: {
       type: [String],
       enum: ["dispatch", "ride"],
-      required: true,
+    },
+    
+    status : { 
+      type : String, 
+      enum :['new', 'verified'],
+      default : 'new'
     },
 
     dispatchType: {
       type: [String],
-      enum: ["STS", "HTS", "HTH", "STH"],
-      required: true,
+      enum: ["STS", "HTH", "STH"],
     },
 
     street: String,
 
     town: {
       type: SchemaTypes.ObjectId,
-      required: true,
       ref: "Town",
     },
 
     state: {
       type: SchemaTypes.ObjectId,
-      required: true,
       ref: "State",
     },
 
     country: {
       type: SchemaTypes.ObjectId,
-      required: true,
       ref: "Country",
     },
-
-    status: {
-      type: String,
-      required: true,
-      default: "new",
-      enum: ["new", "verified"],
-    },
-
-    isOnline: Boolean,
 
     rating: {
       type: Number,
@@ -226,6 +229,19 @@ const userSchema = new Schema<IUser>(
       type: String,
       max: 640,
     },
+
+    devices : [{
+      
+      type : String
+    }, 
+
+
+    ], 
+    invitedBy : {
+      type : SchemaTypes.ObjectId, 
+      ref : "User", 
+      required : false
+    }
   },
 
   {
@@ -237,6 +253,7 @@ const userSchema = new Schema<IUser>(
 
 userSchema.index({
   town: 1,
+  archived : 1,
   country: 1,
   state: 1,
   gender: 1,
@@ -245,6 +262,8 @@ userSchema.index({
   suspended: 1,
   verified: 1,
   status: 1,
+  accessTokenExpiresAt : 1,
+  mobileAuthId : 1
 });
 // userSchema.pre("save", async function (next) {
 //   if (this.password && this.isModified(this.password)) {

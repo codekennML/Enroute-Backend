@@ -1,5 +1,5 @@
 import Settlement from "../model/settlements";
-import { ClientSession, Model } from "mongoose";
+import { ClientSession, FilterQuery, Model } from "mongoose";
 import DBLayer, {
   AggregateData,
   PaginationRequestData,
@@ -7,6 +7,7 @@ import DBLayer, {
   updateManyQuery,
 } from "./shared";
 import { ISettlements } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class SettlementRepository {
   private settlementDBLayer: DBLayer<ISettlements>;
@@ -16,13 +17,13 @@ class SettlementRepository {
   }
 
   async createSettlement(
-    request: ISettlements,
+    request: ISettlements[],
     session?: ClientSession
   ) {
 
 
     const createdsettlements = await this.settlementDBLayer.createDocs(
-      [request],
+      request,
       session
     );
 
@@ -37,17 +38,7 @@ class SettlementRepository {
     return paginatedsettlements;
   }
 
-  async updateSettlement(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateSettlement(request: UpdateRequestData) {
     const updatedsettlement = await this.settlementDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,
@@ -68,7 +59,7 @@ class SettlementRepository {
     return settlement;
   }
 
-  async deleteSettlements(request: string[]) {
+  async deleteSettlements(request: string[] | FilterQuery<ISettlements>) {
     return this.settlementDBLayer.deleteDocs(request);
   }
 

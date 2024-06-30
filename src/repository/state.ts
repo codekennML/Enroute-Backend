@@ -48,13 +48,13 @@ class StateRepository {
     return updatedState;
   }
 
-  async updateManyCountries(request: updateManyQuery<IState>) {
+  async updateManyStates(request: updateManyQuery<IState>) {
     const result = await this.stateDBLayer.updateManyDocs(request);
 
     return result;
   }
 
-  async bulkUpdateCountries(request: {
+  async bulkUpdateStates(request: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     operations: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

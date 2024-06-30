@@ -3,7 +3,7 @@ import { IVehicle } from "../model/interfaces";
 import VehicleRepository, { VehicleDataLayer } from "../repository/vehicles";
 import { UpdateRequestData } from "../../types/types";
 import Documents from "../model/documents";
-import { PaginationRequestData } from "../repository/shared";
+import { PaginationRequestData, QueryData } from "../repository/shared";
 
 class VehicleService {
   private vehicle: VehicleRepository;
@@ -35,6 +35,11 @@ class VehicleService {
   async getVehicles(request: PaginationRequestData) {
     return this.vehicle.returnPaginatedVehicles(request);
   }
+
+  async findVehicles(request : QueryData){
+    return await this.vehicle.getVehicles(request)
+  }
+
   async getVehicleById(
     vehicleId: string,
     select: string,

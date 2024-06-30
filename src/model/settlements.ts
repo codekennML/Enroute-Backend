@@ -32,12 +32,17 @@ const settlementsSchema = new Schema<ISettlements>(
       type: Boolean,
       required: true
     },
-    failedCount: {
-      type: Number,
-      max: 3,
-      default: 0,
-      required: true,
-
+    refunded : {
+      type : Boolean,  
+      required : true,  
+      default : false,
+    }
+    
+    workerCreated : { 
+      type : Boolean , 
+      required : true, 
+      index : true, 
+      default : false 
     }
   },
   {
@@ -50,6 +55,7 @@ settlementsSchema.index({
   processor: 1,
   driverId: 1,
   status: 1,
+  workerCreated : 1
 });
 
 const Settlement: Model<ISettlements> = model<ISettlements>(

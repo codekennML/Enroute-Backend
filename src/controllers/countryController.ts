@@ -8,6 +8,7 @@ import { ICountry } from "../model/interfaces";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
+import { Types } from "mongoose";
 
 class CountryController {
   private country: CountryService;
@@ -17,6 +18,7 @@ class CountryController {
   }
 
   async createCountry(req: Request, res: Response) {
+
     const data: ICountry = req.body;
 
     const createdCountry = await this.country.createCountry(data);
@@ -30,9 +32,9 @@ class CountryController {
   async getCountries(req: Request, res: Response) {
     const data: {
       countryId: string;
-      cursor: string;
-     
-      sort: string;
+      cursor?: string;
+      sort?: string;
+      name? : string
     } = req.body;
 
     const matchQuery: MatchQuery = {};
@@ -40,6 +42,10 @@ class CountryController {
     const sortQuery: SortQuery = sortRequest(data?.sort);
     if(data?.countryId) {
       matchQuery._id  =  { _$eq : data.countryId }
+    }
+
+    if(data?.name) {
+      matchQuery.name  =  { _$eq : data.name }
     }
 
     if (data?.cursor) {
@@ -64,17 +70,21 @@ class CountryController {
     return AppResponse(
       req,
       res,
-      hasData ? StatusCodes.OK : StatusCodes.NOT_FOUND,
+      hasData ? StatusCodes.NOT_FOUND :  StatusCodes.OK ,
       {
         message: hasData
-          ? `Countries retrieved retrieved succesfully`
-          : `No countries were found for this request `,
+        ? `No countries were found for this request `
+          : `Countries retrieved retrieved succesfully`
+           ,
         data: result,
       }
     );
   }
 
+  
+
   async getCountryById(req: Request, res: Response) {
+
     const countryId: string = req.params.id;
 
     const result = await this.country.getCountryById(countryId);
@@ -96,12 +106,8 @@ class CountryController {
 
     const { countryId, requiredDriverDocs, requiredRiderDocs,  ...rest } = data; 
 
-    //This will overwrite the data 
-
-    
-
     const updatedcountry = await this.country.updateCountry({
-      docToUpdate: countryId,
+      docToUpdate: { _id : { $eq : new Types.ObjectId(countryId)}},
       updateData: {
         $set: {
        ...rest,

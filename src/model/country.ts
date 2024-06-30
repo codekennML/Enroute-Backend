@@ -8,9 +8,10 @@ const CountrySchema = new Schema<ICountry>(
     name: {
       type: String,
       required: true,
+      index : 1
     },
 
-    code: {
+    code: { //Calling code
       type: String,
       required: true,
     },
@@ -20,6 +21,34 @@ const CountrySchema = new Schema<ICountry>(
       required: true,
       default: [0.0, 0.0, 0.0, 0.0],
     },
+
+    currency : {
+      type : String, 
+      required: true 
+    },
+
+    paymentProcessorbillingPercentage : {
+      type : Number, 
+      default : 0, 
+    },
+    paymentProcessorbillingExtraAmount : {
+      type : Number, 
+      default : 0, 
+    },
+    
+    driverPercentage : {
+      type : Number,
+      required : true, 
+      default :0
+    }, 
+    
+    riderCommission : {
+      type : Number,
+      required : true, 
+      default :0
+    }, 
+
+
     requiredDriverDocs:  [
         {
           name : String, 
@@ -43,7 +72,7 @@ const CountrySchema = new Schema<ICountry>(
 
 CountrySchema.index({
   code: 1,
-  name: 1,
+ currency : 1
 });
 
 const Country: Model<ICountry> = model<ICountry>(

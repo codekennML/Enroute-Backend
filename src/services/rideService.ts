@@ -1,5 +1,5 @@
 import { AggregateData, PaginationRequestData, updateManyQuery } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { IRide } from "../model/interfaces";
 import RideRepository, { ridesDataLayer } from "../repository/ride";
 import { UpdateRequestData } from "../../types/types";
@@ -31,9 +31,9 @@ class RideService {
     return updatedRide;
   }
 
-  async getRideById(RideId: string, select?: string, session?: ClientSession) {
+  async getRideById(rideId: string, select?: string, session?: ClientSession) {
     const Ride = await this.Ride.getRideById({
-      query: { id: RideId },
+      query: new Types.ObjectId(rideId),
       select,
       session,
     });

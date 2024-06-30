@@ -2,7 +2,7 @@
 import express from "express" 
 const router  = express.Router()
 
-import rideController from "../controllers/rideController" 
+import {Ride as rideController} from "../controllers/rideController" 
 import { tryCatch } from "../middlewares/errors/tryCatch"
 import { verifyPermissions } from "../middlewares/auth/permissionGuard"
 import { ROLES, SUBROLES, excludeEnum} from "../config/enums"
@@ -15,26 +15,32 @@ import {
     livePackageScheduleSchema,
 startScheduledPackageRideSchema,
 getRidesSchema,
-rideStatsSchema
+rideStatsSchema,
+billRideSchema
 } from "./schemas/ride"
+import AuthGuard from "../middlewares/auth/verifyTokens"
 
 
+router.use(AuthGuard)
 //RIDERS
-router.post("/live/start", validateRequest(rideSchema), verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), tryCatch(rideController.createLiveRide))
-
+router.post("/live/start", 
+    validateRequest(rideSchema)
+, 
+verifyPermissions([ROLES.RIDER, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), 
+tryCatch(rideController.createLiveRide)
+)
 
 router.post("/live/package/start", 
-    validateRequest(livePackageScheduleSchema),
-    verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), 
+validateRequest(livePackageScheduleSchema),
+verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), 
 tryCatch(rideController.createLivePackageRide))
 
 router.post("/schedule/start", validateRequest(IRideScheduleSchema), verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN],[SUBROLES.MANAGER]), tryCatch(rideController.startScheduledRide))
 
 router.post("/schedule/package/start", validateRequest(startScheduledPackageRideSchema),  verifyPermissions([ROLES.DRIVER]), tryCatch(rideController.startScheduledRide))
 
-
-router.get("/all",
-    validateRequest(getRidesSchema),
+router.get("/",
+validateRequest(getRidesSchema),
 verifyPermissions(Object.values(ROLES), Object.values(SUBROLES) ),
 tryCatch(rideController.getRides))
 
@@ -42,22 +48,26 @@ router.get("/:id", validateRequest(getRideByIdSchema), verifyPermissions([...Obj
 
 router.get("/can_ride", validateRequest(canStartRideSchema), verifyPermissions([ROLES.RIDER]), tryCatch(rideController.canStartRide ))
 
-router.put("/cancel", validateRequest(cancelRideSchema), verifyPermissions([ROLES.RIDER, ROLES.RIDER, ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX],  [SUBROLES.MANAGER, SUBROLES.STAFF]), tryCatch(rideController.cancelRide))
+router.patch("/cancel", validateRequest(cancelRideSchema), verifyPermissions([ROLES.RIDER, ROLES.RIDER, ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX],  [SUBROLES.MANAGER, SUBROLES.STAFF]), tryCatch(rideController.cancelRide))
 
-router.get("/driver/settlements", validateRequest(getOutstandingDriverRideSettlementsSchema),  verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN, ROLES.CX, ROLES.ACCOUNT], Object.values(SUBROLES)))
+router.get("/settlements/:id", validateRequest(getOutstandingDriverRideSettlementsSchema),  
+
+verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN, ROLES.CX, ROLES.ACCOUNT], Object.values(SUBROLES)), 
+
+tryCatch(rideController.getOutstandingDriverRideSettlements))
 
 //DRIVERS
-router.put("/end",
-     validateRequest(endRideSchema),
+router.patch("/bill",
+     validateRequest(billRideSchema),
      verifyPermissions([ROLES.DRIVER, ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX],  [SUBROLES.MANAGER,  SUBROLES.STAFF]),
-tryCatch(rideController.endRide))
+tryCatch(rideController.calculateRideBill))
 
 
 
 //ADMIN
-router.get("/stats", 
-    validateRequest(rideStatsSchema),
-verifyPermissions(excludeEnum(ROLES, ["DRIVER", "RIDER","DEV"])),
+router.get("/stats/calculate", 
+validateRequest(rideStatsSchema),
+verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER])),
 tryCatch(rideController.getRideStats))
 
 export default router

@@ -30,8 +30,24 @@ const sosSchema = new Schema<ISOS>(
         enum: ["Point"],
         required : true
       },
-      coordinates: [Number],
+      coordinates: [Number]
     },
+    
+    town : { 
+      type : String, 
+      index : true
+    }, 
+    state : { 
+       
+    type: String,
+    index: true
+  }, 
+    
+    country: {
+      type: String,
+      index: true
+    }
+
   },
 
   {

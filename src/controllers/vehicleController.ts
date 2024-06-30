@@ -10,6 +10,9 @@ import { retryTransaction } from "../utils/helpers/retryTransaction";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
+import { emailQueue } from "../services/bullmq/queue";
+import { COMPANY_NAME, COMPANY_SLUG } from "../config/constants/base";
+import { VehicleRejectedMail } from "../views/mails/vehicleRejected";
 
 class VehicleController {
   private vehicle: VehicleService;
@@ -34,9 +37,7 @@ class VehicleController {
       inspection,
       hasAC,
       prevVehicleId,
-      town,
-      state,
-      country,
+ 
     } = data;
 
     const changeVehicleSessionFn = async (
@@ -75,9 +76,7 @@ class VehicleController {
                 isVerified: false,
                 status: "pending",
                 isRejected: false,
-                town,
-                state,
-                country,
+          
               },
             },
           },
@@ -145,8 +144,8 @@ class VehicleController {
       // userEmail
     } = data;
 
-    const approvedVehicle = await this.vehicle.updateVehicle({
-      docToUpdate: { _id: vehicleId },
+    const rejectedVehicle = await this.vehicle.updateVehicle({
+      docToUpdate: { _id: data.vehicleId },
       updateData: {
         $set: {
           isVerified: false,
@@ -154,19 +153,26 @@ class VehicleController {
           status: "assessed",
         },
       },
-      options: { new: true, select: "_id" },
+      options: { new: true, select: "_id vehicleMake vehicleModel licensePlate " },
     });
 
-    if (!approvedVehicle)
+    if (!rejectedVehicle)
       throw new AppError(
         getReasonPhrase(StatusCodes.BAD_REQUEST),
         StatusCodes.BAD_REQUEST
       );
 
+      const template =  VehicleRejectedMail(rejectedVehicle)
     //TODO Send an email to the driver here using the userEmail
+    emailQueue.add(`Vehicle_Rejected_${vehicleId}`,  { 
+      subject : `${COMPANY_NAME} - Vehicle Rejected`, 
+      template,
+      to :  data.userEmail,
+      from : `info@${COMPANY_SLUG}`
+    })
 
     return AppResponse(req, res, StatusCodes.OK, {
-      message: `Vehicle ${approvedVehicle._id} has been approved.`,
+      message: `Vehicle ${rejectedVehicle._id} has been approved.`,
     });
   }
 
@@ -196,7 +202,7 @@ class VehicleController {
       sort?: string;
     } = req.params;
 
-    const { isVerified, status, vehicleId, isArchived, town, country, state } =
+    const { isVerified, status, vehicleId, isArchived} =
       data;
 
     const matchQuery: MatchQuery = {};
@@ -217,19 +223,8 @@ class VehicleController {
       matchQuery.isVerified = { $eq: isVerified };
     }
 
-    if (country) {
-      matchQuery.country = { $eq: country };
-    }
-
-    if (state) {
-      matchQuery.state = { $eq: state };
-    }
-    if (town) {
-      matchQuery.town = { $eq: town };
-    }
-
     if (status) {
-      matchQuery.status = { $eq: town };
+      matchQuery.status = { $eq: status };
     }
 
     const sortQuery = sortRequest(data?.sort);

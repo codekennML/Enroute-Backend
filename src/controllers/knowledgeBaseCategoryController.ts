@@ -167,6 +167,6 @@ class KnowledgeBaseCategoryController {
 
 }
 
-export const BusStation = new KnowledgeBaseCategoryController(KnowledgeBaseCategoryServiceLayer);
+export const KnowledgeBaseCategory = new KnowledgeBaseCategoryController(KnowledgeBaseCategoryServiceLayer);
 
-export default BusStation;
+export default KnowledgeBaseCategory;

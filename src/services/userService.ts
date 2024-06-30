@@ -1,10 +1,9 @@
 import UserRepository, { UserDataLayer } from "../repository/user";
 
-import { ClientSession, PopulateOptions } from "mongoose";
+import { ClientSession} from "mongoose";
 import { UpdateRequestData } from "../../types/types";
 import { AggregateData, PaginationRequestData, QueryData } from "../repository/shared";
 import { IUser } from "../model/interfaces";
-import Documents from "../model/documents";
 
 class User {
   private user: UserRepository;
@@ -14,7 +13,7 @@ class User {
   }
 
   async createUser(
-    userData: Required<Pick<IUser, "firstName" | "lastName" | "mobile">>
+    userData: Required<Pick<IUser, "firstName" | "lastName" | "email">>
   ) {
     const user = await this.user.createUser(userData);
 
@@ -31,41 +30,41 @@ class User {
   }
 
   async getUserById(userId: string, select: string, session?: ClientSession) {
-    const verificationDataArray = [
-      "vehicle",
-      "identification",
-      "selfie",
-      "license",
-      "lasraa",
-    ];
+    // const verificationDataArray = [
+    //   "vehicle",
+    //   "identification",
+    //   "selfie",
+    //   "license",
+    //   "lasraa",
+    // ];
 
     //always include the adddress
-    const populateQuery: PopulateOptions[] = [
-      {
-        path: "address",
-        model: Documents,
-        populate: {
-          path: "documents",
-          select: "imageUrl status isVerified ",
-          model: Documents,
-        },
-      },
-    ];
+    // const populateQuery: PopulateOptions[] = [
+    //   {
+    //     path: "address",
+    //     model: Documents,
+    //     populate: {
+    //       path: "documents",
+    //       select: "imageUrl status isVerified ",
+    //       model: Documents,
+    //     },
+    //   },
+    // ];
 
-    for (const key of verificationDataArray) {
-      if (select.includes(key)) {
-        populateQuery.push({
-          path: key,
-          model: Documents,
-        });
-      }
-    }
+    // for (const key of verificationDataArray) {
+    //   if (select.includes(key)) {
+    //     populateQuery.push({
+    //       path: key,
+    //       model: Documents,
+    //     });
+    //   }
+    // }
 
     const user = await this.user.getUserById({
-      query: { id: userId },
+      query: { _id: userId },
       select,
       session,
-      populatedQuery: populateQuery,
+      
     });
 
     return user;
@@ -77,7 +76,7 @@ class User {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async bulkUpdateUser(request: any, session: ClientSession) {
+  async bulkUpdateUser(request: any, session?: ClientSession) {
     const { operations } = request;
 
     const updatedAccountData = await this.user.bulkUpdateUsers({

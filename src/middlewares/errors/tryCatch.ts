@@ -4,7 +4,7 @@ type AsyncControllerMethod<T = void> = (
   req: Request,
   res: Response,
   next: NextFunction
-) => Promise<T | void>;
+) => void | Promise<T | void>;
 
 export const tryCatch = (basefn: AsyncControllerMethod): RequestHandler => {
   return async (req, res, next) => {

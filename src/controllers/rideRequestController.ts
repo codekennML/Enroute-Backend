@@ -15,6 +15,7 @@ import { retryTransaction } from "../utils/helpers/retryTransaction";
 import { UserServiceLayer } from "../services/userService";
 
 import { emailQueue, pushQueue } from "../services/bullmq/queue";
+import { COMPANY_MAIL_SENDER_ADDRESS } from '../config/constants/notification';
 
 class RideRequestController {
   private rideRequest: RideRequestService;
@@ -143,11 +144,10 @@ class RideRequestController {
    * @param {Response} res - The response object
    * @return {AppResponse} Object containing message and retrieved ride schedules
    */
-  async getRideScheduleRequestByTripSchedule(req: Request, res: Response) {
+  async getRideRequestByTripSchedule(req: Request, res: Response) {
 
     const { tripScheduleId, cursor, driverId } = req.params;
 
-  
 
    const matchQuery : MatchQuery  =  { } 
     
@@ -229,7 +229,7 @@ class RideRequestController {
       },
     });
 
-    const hasData = rideScheduleRequests?.data?.length === 0;
+    const hasData = rideScheduleRequests?.data?.length > 0;
 
     
 
@@ -241,7 +241,7 @@ class RideRequestController {
 
     return AppResponse(req, res, StatusCodes.OK, {
       message: "Ride requests retrieved successfuly",
-      data: rideSchedulRequests,
+      data: rideScheduleRequests,
     });
   }
 
@@ -394,15 +394,15 @@ class RideRequestController {
   async negotiateRideScheduleRequestPriceDriver(req: Request, res: Response) {
     const data: {
       rideRequestId: string;
-      driverId: number;
+      driverId: string;
       driverBudget: string;
     } = req.body;
 
     const negotiatedRide = await this.rideRequest.updateRideRequest({
       docToUpdate: {
-        _id: data.rideRequestId,
+        _id:  { $eq :  data.rideRequestId },
         status: "created",
-        driverId: data.driverId,
+        driverId: {$eq : data.driverId},
       },
       updateData: {
         $set: {
@@ -537,6 +537,8 @@ class RideRequestController {
   async rejectNegotiatedScheduleRequestPriceRider(req: Request, res: Response) {
     const { rideRequestId, riderId } = req.body;
 
+
+
     const rejectedRide = await this.rideRequest.updateRideRequest({
       docToUpdate: {
         _id: rideRequestId,
@@ -636,6 +638,7 @@ class RideRequestController {
     if (cancelledRideRequest?.driverId) {
       emailQueue.add(`RIDE_CANCELLED_${cancelledRideRequest._id}`, {
         to: cancelledRideRequest.driverEmail!,
+        from : `${COMPANY_MAIL_SENDER_ADDRESS}`,
         template: ``,
         subject: "Ride request cancellation "
       }, { priority: 7 })
@@ -651,13 +654,12 @@ class RideRequestController {
     const data: {
       cursor?: string;
       status?: string;
+      rideRequestId? : string
       tripScheduleId?: string;
       driverId?: string;
       sort?: string;
       type?: "solo" | "share"
-      forThirdParty : boolean
-      dateFrom? : Date, 
-      dateTo ? : Date 
+      forThirdParty? : boolean
     } = req.body;
 
     const matchQuery: MatchQuery = {};
@@ -670,6 +672,10 @@ class RideRequestController {
       matchQuery.tripId = { status: { $eq: data.tripScheduleId } };
     }
 
+    if(data?.rideRequestId){
+      matchQuery._d = { status: { $eq: data.rideRequestId } };
+    }
+
     if (data?.forThirdParty) {
       matchQuery.friendData = { $exists: true }
     }
@@ -679,6 +685,7 @@ class RideRequestController {
     }
     if (data?.driverId) {
       matchQuery.driverId = { status: { $eq: data.driverId } };
+
     }
 
     const sortQuery = sortRequest(data.sort);
@@ -770,8 +777,6 @@ class RideRequestController {
       data: rideScheduleRequests,
     });
   }
-
-
   async deleteRideRequests(req: Request, res: Response) {
     const data: { rideRequestIds: string[] } = req.body;
 
@@ -795,8 +800,8 @@ class RideRequestController {
   async getRideRequestStats(req: Request, res: Response) {
 
     const data: {
-      dateFrom: Date,
-      dateTo: Date,
+      dateFrom?: Date,
+      dateTo?: Date,
       status: Pick<IRideRequest, "status">,
       type?: "package" | "selfride" | "thirdParty",
       country?: string,
@@ -807,8 +812,12 @@ class RideRequestController {
     } = req.body
 
     const matchQuery: MatchQuery = {
-      createdAt: { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) }
-    };
+     
+    }; 
+
+    if(data.dateFrom){
+      matchQuery.createdAt =  { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) }
+    }
 
     if (data?.country) {
       matchQuery.country = { $eq: data.country };

@@ -6,6 +6,7 @@ const StateSchema = new Schema<IState>(
     name: {
       type: String,
       required: true,
+      index : 1
     },
 
     boundary: {
@@ -40,7 +41,6 @@ const StateSchema = new Schema<IState>(
 
 StateSchema.index({
   country: 1,
-  name: 1,
 });
 
 const State: Model<IState> = model<IState>("State", StateSchema);

@@ -13,15 +13,15 @@ export const approvePackageScheduleRequestSchema =z.object({
     packageRequestId : z.string()
 })
 
-export const getPackageSchedules = z.object({
+export const getPackageScheduleRequestSchema = z.object({
     packageScheduleId: z.string().optional(),
     cursor: z.string().optional(),
     pickupTown: z.string().optional(),
     sort: z.string().optional(),
     expiresAt: z.date().optional(),
     budget: z.optional(z.object({
-        max: z.number(),
-        min: z.number()
+        max: z.number().optional(),
+        min: z.number().optional()
     })),
     status: z.string().optional(),
     dateFrom :z.date().optional(),
@@ -32,10 +32,12 @@ export const getPackageRequestScheduleByIdSchema = z.object({
     id: z.string()
 })
 
-export const cancelPackageSchedule = z.object({
+export const cancelPackageScheduleSchema = z.object({
     scheduleRequestId: z.string()
 })
 
-export const deletePackageSchedulesSchema = z.object({
+export const deletePackageScheduleRequestSchema = z.object({
     scheduleRequestIds: z.array(z.string())
 })
+
+// export const delete

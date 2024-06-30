@@ -7,7 +7,7 @@ import RideService, {
     RideServiceLayer,
 } from "../services/rideService";
 import { Request, Response } from "express";
-import { IRide, Place, CancellationData, Coordinates, IPackageSchedule, IRideSchedule, } from "../model/interfaces";
+import { IRide, Place, CancellationData,  IPackageSchedule, IRideSchedule, } from "../model/interfaces";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
@@ -23,6 +23,7 @@ import { DocumentsServiceLayer } from '../services/documentsService';
 import State from '../model/state';
 import Country from '../model/country';
 import { COMPANY_NAME } from '../config/constants/base';
+import { CountryServiceLayer } from '../services/countryService';
 
 
 class RideController {
@@ -52,7 +53,7 @@ class RideController {
             driverId: data.driverId,
             tripId: new Types.ObjectId(data.tripId),
             riderId: rideRequestData?.riderId,
-            pickedUp: true,
+       
             pickupTime: new Date(),
             type: rideRequestData?.type === "solo" ? "solo" : "share",
             // category: data.category,
@@ -102,7 +103,6 @@ class RideController {
             driverId: packageRequestData.createdBy,
             tripId: new Types.ObjectId(data.tripId),
             riderId: packageScheduleData.createdBy,
-            pickedUp: true,
             pickupTime: new Date(),
             type: "package",
             packageCategory: packageScheduleData.type ,
@@ -127,18 +127,30 @@ class RideController {
 
     }
 
-    async createLiveRide(req: Request, res: Response) {
+    createLiveRide = async(req: Request, res: Response) =>  {
 
-        const data: IRide = req.body;
+        const user = req.user 
+        // const role  =  req.role 
 
+        const data: Omit<IRide, "pickupTime" | "riderId"> & { riderId : string} = req.body;
+       
+        console.log(data, "data")
 
         const rideData: IRide = {
             ...data,
+            riderId : new Types.ObjectId(data.riderId),
+            pickupTime : new Date(),
             initialStatus: "none",
             status: "ongoing",
+            
             type: data.type === "solo" ? "solo" : "share",
 
         }
+
+        //Check the user role and 
+        if(
+            isNotAuthorizedToPerformAction(req)  ||
+             ( !(req.role in [ROLES.RIDER]) &&  data?.riderId !== user) ) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
 
         const createdRide = await this.ride.createRide(rideData);
 
@@ -148,12 +160,10 @@ class RideController {
         });
     }
 
-    async createLivePackageRide(req: Request, res: Response) {
+    createLivePackageRide =  async(req: Request, res: Response) => {
 
-
-        //we  can have stop to stop package rides, this will only be for live rides and this is for vehicles who can pickup and drop at a bus stop
-        const data: IPackageSchedule & { driverId: string, acceptedFare: number, tripId: string } = req.body;
-
+    //we  can have stop to stop package rides, this will only be for live rides and this is for vehicles who can pickup and drop at a bus stop
+        const data: Omit<IPackageSchedule, "dueAt" | "expiresAt" | "status"> & { driverId: string, acceptedFare: number, tripId: string } = req.body;
 
         const rideData: IRide = {
             status: "ongoing",
@@ -161,40 +171,39 @@ class RideController {
             driverId: new Types.ObjectId(data.driverId),
             tripId: new Types.ObjectId(data.tripId),
             riderId: data.createdBy,
-            pickedUp: true,
             pickupTime: new Date(Date.now()),
             type: "package",
             packageCategory: data.type,
             packageDetails: data.packageDetails,
             acceptedFare: data.acceptedFare,
             destination: data.destinationAddress,
+            pickupStation : data.pickupAddress,
             origin: data.pickupAddress,
             rideTotalDistance: data.totalDistance,
-
         }
+
+        if((!isNotAuthorizedToPerformAction(req) && req.role in [ROLES.DRIVER] && req.user !== data.driverId) || ( isNotAuthorizedToPerformAction(req) ) ) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
 
         const createdRide = await this.ride.createRide(rideData);
 
         return AppResponse(req, res, StatusCodes.CREATED, {
-            message: "Live ride created successfully",
+            message: "Live package ride created successfully",
             data: createdRide,
         });
     }
 
-    async endRide(req: Request, res: Response) {
+    async calculateRideBill(req: Request, res: Response) {
         const data: {
             rideId: string
             tripId: string,
-            userId: string,
-            origin: Coordinates
-            destination: Coordinates,
             currentLocation: Place
         } = req.body
 
+       const userId =  req.user!
 
-
-        const result = await retryTransaction(this._endRideSession, 1, { 
+        const result = await retryTransaction(this._billSession, 1, { 
             ...data, 
+            userId,
             allowedRoles : req.allowedRoles,
             allowedSubRoles : req.allowedSubRoles,
             userRole : req.subRole
@@ -206,7 +215,7 @@ class RideController {
         })
     }
 
-    async _endRideSession(args: {
+    async _billSession(args: {
         rideId: string
         userId: string
         userRole: number
@@ -214,13 +223,11 @@ class RideController {
         allowedRoles : number[]
         allowedSubRoles : number[] 
         tripId: string,
-        origin: Coordinates
-        destination: Coordinates,
         currentLocation: Place
     }, session: ClientSession) {
 
         const result = await session.withTransaction(async () => {
-            const rideData = await this.ride.getRideById(args.rideId, "pickupStation origin destination seatsOccupied category type acceptedFare rideTotalDistance driverIdroi")
+            const rideData = await this.ride.getRideById(args.rideId, "pickupStation origin destination seatsOccupied category type acceptedFare rideTotalDistance driverId")
 
             if (!rideData) throw new AppError("Something went wrong.Please try again", StatusCodes.BAD_REQUEST)
 
@@ -238,7 +245,7 @@ class RideController {
             }
 
             let newFare: number = 0
-            let hasExtraKMs = 1
+
 
             if (distanceAwayFromOriginalDestination > 1000) {
                 //Recalculate the bill
@@ -246,9 +253,7 @@ class RideController {
 
                 const costForExtraKMs = distanceAwayFromOriginalDestination * costPerKm
 
-                newFare = costForExtraKMs + rideData.acceptedFare + 50
-
-
+                newFare = costForExtraKMs + rideData.acceptedFare 
 
             } else if (distanceAwayFromOriginalDestination < 0) {
 
@@ -256,29 +261,36 @@ class RideController {
 
                 const costForExtraKMs = distanceAwayFromOriginalDestination * costPerKm
 
-                newFare = rideData.acceptedFare - costForExtraKMs + 50
+                newFare = rideData.acceptedFare - costForExtraKMs 
 
-                hasExtraKMs = -1
+           
             }
             else {
+          
                 newFare = rideData.acceptedFare
-                hasExtraKMs = 0
             }
 
+           const countryData = await CountryServiceLayer.getCountries({ 
+            query : { name : rideData?.origin?.name}, 
+            select : "riderCommission driverPercentage"
+           })
 
-            const driverCommission = 100 + (0.05 * rideData.acceptedFare)
+           if(!countryData || !countryData[0]?.riderCommission || !countryData[0]?.driverPercentage) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
 
-            const riderCommission = hasExtraKMs === 0 ? 0 : hasExtraKMs === 1 ? 50 : 50
+            const driverCommission =  countryData[0].driverPercentage * rideData.acceptedFare
 
+            const riderCommission = countryData[0].riderCommission
 
             await this.ride.updateRide({
                 docToUpdate: { _id: args.rideId },
                 updateData: {
                     $set: {
                         droffOffLocation: args.currentLocation,
+                        dropffTime : new Date(),
                         rideTotalDistance: rideData.rideTotalDistance,
                         driverCommission,
                         riderCommission,
+                        paidFare :  newFare,
                         totalCommission: riderCommission + driverCommission,
                         comissionPaid: false,
                         status: "completed",
@@ -299,7 +311,7 @@ class RideController {
         return result
     }
 
-    async cancelRide(req: Request, res: Response) {
+  cancelRide =   async (req: Request, res: Response) => {
 
         const data: { userId: string,  cancellationData: CancellationData, rideId: string } = req.body
 
@@ -313,10 +325,11 @@ class RideController {
                         status: true,
                         initiator: new Types.ObjectId(data.userId),
                         initiatedBy: req.role === ROLES.DRIVER ? "driver" : req.role === ROLES.RIDER ? "rider" : "admin" ,
-                        cancellationReason: data.cancellationData.cancellationReason,
+                        cancellationReason: data.cancellationData?.cancellationReason,
                         driverDistanceFromPickup: data.cancellationData.driverDistanceFromPickup,
-                        driverEStimatedETA: data.cancellationData.driverEstimatedETA
-                    }
+                        driverEstimatedETA: data.cancellationData.driverEstimatedETA
+                    },
+                    status : "cancelled"
                 }
             },
             options: {
@@ -335,6 +348,7 @@ class RideController {
     }
 
     async canStartRide(req: Request, res: Response) {
+
         const town = req.params.id
         const user = req.user as string
 
@@ -420,9 +434,10 @@ class RideController {
 
     }
 
-    async getRides(req: Request, res: Response) {
+    getRides =  async(req: Request, res: Response) =>  {
         const data: {
             rideId?: string;
+            driverId? : string
             cursor?: string;
             town?: string;
             state?: string;
@@ -431,12 +446,31 @@ class RideController {
             tripId? : string;
             dateFrom? : Date;
             dateTo? : Date;
-        } = req.body;
-
+            status? : string
+        } = req.query
+        
         const matchQuery: MatchQuery = {};
 
+        if(req.role === ROLES.DRIVER){
+           matchQuery.driverId  =  {$eq : req.user}
+        }
+
+        if(req.role === ROLES.RIDER){
+            matchQuery.riderId  =  {$eq : req.user}
+         }
+ 
+
+
+        if(req.role === ROLES.DRIVER) {
+            matchQuery.driverId = { $eq : new Types.ObjectId(req.user)}
+        }
+
+        if(req.role === ROLES.RIDER) {
+            matchQuery.riderId = { $eq : new Types.ObjectId(req.user)}
+        }
+
         if (data?.rideId) {
-            matchQuery._id = { $eq: data?.rideId };
+            matchQuery._id = { $eq: data.rideId };
         }
 
         if (data?.dateFrom) {
@@ -448,15 +482,19 @@ class RideController {
         }
 
         if (data?.country) {
-            matchQuery.country = { $eq: data?.country };
+            matchQuery.pickupStation.country = { $eq: data?.country };
         }
 
         if (data?.state) {
-            matchQuery.state = { $eq: data?.state };
+            matchQuery.pickupStation.state = { $eq: data?.state };
         }
 
         if (data?.town) {
-            matchQuery.town = { $eq: data?.town };
+            matchQuery.pickupStation.town = { $eq: data?.town };
+        }
+
+        if(data.status){
+            matchQuery.status = {$eq :data.status }
         }
 
         const sortQuery: SortQuery = sortRequest(data?.sort);
@@ -475,29 +513,37 @@ class RideController {
             aggregatePipeline: [{ $limit: 101 }, sortQuery],
             pagination: { pageSize: 100 },
         };
+        console.log(query)
 
         const result = await this.ride.findRides(query);
-
-        const hasData = result?.data?.length === 0;
+     console.log(result.data.length )
+     
+        const hasNoData = result?.data?.length === 0;
 
         return AppResponse(
             req,
             res,
-            hasData ? StatusCodes.OK : StatusCodes.NOT_FOUND,
+            hasNoData ?  StatusCodes.NOT_FOUND : StatusCodes.OK,
             {
-                message: hasData
-                    ? `Rides retrieved succesfully`
-                    : `No rides were found for this request `,
+                message: hasNoData
+                ? `No rides were found for this request `
+                  :   `Rides retrieved succesfully`,
                 data: result,
             }
         );
     }
 
-    async getRideById(req: Request, res: Response) {
+    getRideById = async(req: Request, res: Response) =>{
 
         const rideId: string = req.params.id;
 
+
         const result = await this.ride.getRideById(rideId);
+
+      
+
+        if(result && (result?.driverId?.toString() !== req.user && result?.riderId?.toString() !== req.user &&  req.role in [ROLES.DRIVER ,ROLES.RIDER])) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+
 
         if (!result)
             throw new AppError(
@@ -510,40 +556,46 @@ class RideController {
             data: result,
         });
     }
+    
 
-    // async updateRide(req: Request, res: Response) {
+    async endRide(req: Request, res: Response) {
 
-    //     const data: IRide & { rideId: string } = req.body;
+        const data: { rideId: string, driverId : string  } = req.body;
 
-    //     const { rideId, ...rest } = data;
+        const { rideId } = data; 
 
-    //     const updatedride = await this.ride.updateRide({
-    //         docToUpdate: rideId,
-    //         updateData: {
-    //             $set: {
-    //                 ...rest,
-    //             },
-    //         },
-    //         options: {
-    //             new: true,
-    //             select: "_id placeId",
-    //         },
-    //     });
+        if((req.user !== data.driverId) && (req.role in [ROLES.DRIVER, ROLES.ADMIN]) || isNotAuthorizedToPerformAction(req)) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
 
-    //     if (!updatedride)
-    //         throw new AppError(
-    //             "Error : Ride update failed. Please try again",
-    //             StatusCodes.NOT_FOUND
-    //         );
+        const updatedride = await this.ride.updateRide({
+            docToUpdate: {
+                _id : { $eq : new Types.ObjectId(rideId)}, 
+                driverId :{ $eq :  new Types.ObjectId(req.user) }
+            },
+            updateData: {
+                $set: {
+                status : "completed",
+                },
+            },
+            options: {
+                new: true,
+                select: "_id ",
+            },
+        });
 
-    //     return AppResponse(req, res, StatusCodes.OK, {
-    //         message: "ride updated successfully",
-    //         data: updatedride,
-    //     });
-    // }
+        if (!updatedride)
+            throw new AppError(
+                "An error occured. Please try again",
+                StatusCodes.INTERNAL_SERVER_ERROR
+            );
+
+        return AppResponse(req, res, StatusCodes.OK, {
+            message: "Ride ended successfully",
+            data: updatedride,
+        });
+    }
 
 
-    async getOutstandingDriverRideSettlements(req: Request, res: Response) {
+    getOutstandingDriverRideSettlements = async (req: Request, res: Response) => {
 
         const driverId = req.params.id
 
@@ -551,7 +603,7 @@ class RideController {
             pipeline: [{
 
                 $match: {
-                    driverId: driverId,
+                    driverId: new Types.ObjectId(driverId),
                     status: "completed",
                     commissionPaid: false,
                 },
@@ -571,28 +623,31 @@ class RideController {
                 },
             }
 
-
-
             ]
-        });
+        })
 
-        if (!unsettledRidesAndCommission) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+        console.log(unsettledRidesAndCommission)
 
-        if (driverId !== req.user && req.role !== ROLES.ADMIN) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+        if (!unsettledRidesAndCommission || unsettledRidesAndCommission?.length === 0) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+
+        if (driverId !== req.user && req.role in [ROLES.RIDER, ROLES.DRIVER]) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
 
         return AppResponse(req, res, StatusCodes.OK, {
             message: "Settlement data retrieved successfully",
             data: {
-                ...unsettledRidesAndCommission,
+                totalCommission : unsettledRidesAndCommission[0]?.totalBill ?? 0, 
+                documents : unsettledRidesAndCommission[0]?.documents ?? null
             },
         });
 
     }
+    
+  
 
-    async getRideStats(req: Request, res: Response) {
+    getRideStats = async (req: Request, res: Response) => {
         const data: {
             dateFrom: Date,
-            dateTo: Date,
+            dateTo?: Date,
             country?: string,
             state?: string,
             town?: string,
@@ -600,25 +655,26 @@ class RideController {
             user?: string,
             userType?: "driver" | "rider"
 
-
-
         } = req.body
 
         const matchQuery: MatchQuery = {
-            createdAt: { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) }
+            createdAt: {  $lte: data?.dateTo ?? new Date(Date.now()) }
         };
+        if(data?.dateFrom){
+            matchQuery.createdAt["$gte"] =   new Date(data.dateFrom)
+        }
 
 
         if (data?.country) {
-            matchQuery.country = { $eq: data?.country };
+            matchQuery.pickupStation.country = { $eq: data?.country };
         }
 
         if (data?.state) {
-            matchQuery.state = { $eq: data?.state };
+            matchQuery.pickupStation.state = { $eq: data?.state };
         }
 
         if (data?.town) {
-            matchQuery.town = { $eq: data?.town };
+            matchQuery.pickupStation.town = { $eq: data?.town };
         }
 
 
@@ -637,7 +693,7 @@ class RideController {
 
         const query = {
             pipeline: [
-                // { $match: matchQuery },
+                { $match: matchQuery },
                 {
                     $facet: {
                         count: [{ $count: "total" }],
@@ -734,40 +790,44 @@ class RideController {
                                 }
                             }
                         ],
-                        rideCountsByTypeSplitByCategory: [
-                            {
-                                $group: {
-                                    _id: {
-                                        month: { $month: "$createdAt" },
-                                        type: "$type",
-                                        category: "$category"
-                                    },
-                                    count: { $sum: 1 }
-                                }
-                            },
-                            {
-                                $group: {
-                                    _id: {
-                                        month: "$_id.month",
-                                        category: "$_id.category"
-                                    },
-                                    types: { $push: { k: "$_id.type", v: "$count" } }
-                                }
-                            },
-                            {
-                                $group: {
-                                    _id: "$_id.month",
-                                    categoriesCounts: { $push: { k: "$_id.category", v: { $arrayToObject: "$types" } } }
-                                }
-                            },
-                            {
-                                $project: {
-                                    _id: 0,
-                                    month: "$_id",
-                                    categoriesCount: { $arrayToObject: "$categoriesCounts" }
-                                }
-                            }
-                        ],
+                        // rideCountsByTypeSplitByCategory: [
+                        //     {
+                        //       $group: {
+                        //         _id: {
+                        //           month: { $month: "$createdAt" },
+                        //           type: "$type",
+                        //           category: "$category"
+                        //         },
+                        //         count: { $sum: 1 }
+                        //       }
+                        //     },
+                        //     {
+                        //       $group: {
+                        //         _id: {
+                        //           month: "$_id.month",
+                        //           category: "$_id.category"
+                        //         },
+                        //         types: {
+                        //           $push: { k: "$_id.type", v: "$count" }
+                        //         }
+                        //       }
+                        //     },
+                        //     {
+                        //       $group: {
+                        //         _id: "$_id.month",
+                        //         categoriesCounts: {
+                        //           $push: { k: "$_id.category", v: { $arrayToObject: "$types" } }
+                        //         }
+                        //       }
+                        //     },
+                        //     {
+                        //       $project: {
+                        //         _id: 0,
+                        //         month: "$_id",
+                        //         categoriesCount: { $arrayToObject: "$categoriesCounts" }
+                        //       }
+                        //     }
+                        //   ],
                         topDestinationTown: [
                             {
                                 $lookup: {
@@ -1007,33 +1067,38 @@ class RideController {
             ]
         };
 
+        console.log(query)
         //@ts-expect-error //ts doesnt recognize the stage correctly
         const result = await this.ride.aggregateRides(query)
 
-        return AppResponse(req, res, StatusCodes.OK, result)
+        console.log(result)
+        return AppResponse(req, res, StatusCodes.OK, {
+            message : "Stats retrieved successfully", 
+            data : result[0]
+        })
 
     }
 
     //Admins only
-    async deleteRides(req: Request, res: Response) {
-        const data: { RideIds: string[] } = req.body;
+    // async deleteRides(req: Request, res: Response) {
+    //     const data: { rideIds: string[] } = req.body;
 
-        const { RideIds } = data;
+    //     const { rideIds } = data;
 
-        if (RideIds.length === 0)
-            throw new AppError(
-                getReasonPhrase(StatusCodes.BAD_REQUEST),
-                StatusCodes.BAD_REQUEST
-            );
+    //     if (rideIds.length === 0)
+    //         throw new AppError(
+    //             getReasonPhrase(StatusCodes.BAD_REQUEST),
+    //             StatusCodes.BAD_REQUEST
+    //         );
 
-        const deletedRides = await this.ride.deleteRides(
-            RideIds
-        );
+    //     const deletedRides = await this.ride.deleteRides(
+    //         rideIds
+    //     );
 
-        return AppResponse(req, res, StatusCodes.OK, {
-            message: `${deletedRides.deletedCount} rides deleted.`,
-        });
-    }
+    //     return AppResponse(req, res, StatusCodes.OK, {
+    //         message: `${deletedRides.deletedCount} rides deleted.`,
+    //     });
+    // }
 }
 
 export const Ride = new RideController(RideServiceLayer);

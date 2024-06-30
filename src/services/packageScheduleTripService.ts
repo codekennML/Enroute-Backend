@@ -1,4 +1,4 @@
-import { PaginationRequestData } from "../repository/shared";
+import { AggregateData, PaginationRequestData } from "../repository/shared";
 import { ClientSession, FilterQuery } from "mongoose";
 import { IPackageSchedule } from "../model/interfaces";
 import PackageScheduleRepository, {
@@ -50,6 +50,10 @@ class PackageScheduleService {
       await this.PackageSchedule.deletePackageSchedules(request);
 
     return deletedPackageSchedules;
+  }
+
+  async aggregatePackageSchedules(request : AggregateData){
+    return await this.PackageSchedule.aggregatePackageSchedules(request)
   }
 }
 

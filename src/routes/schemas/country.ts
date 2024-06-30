@@ -5,10 +5,14 @@ const countryDocs =  z.object({
     options : z.array(z.string())
 })
 
-const CountrySchema =  z.object({ 
+export const countrySchema =  z.object({ 
     name : z.string(), 
     code : z.string(), 
     boundary : z.array(z.number()), 
+    monthlySubscription : z.number(),
+    paymentProcessorbillingPercentage : z.number(), 
+    currency : z.string(),
+    paymentProcessorbillingExtraAmount: z.number(),
     requiredDriverDocs : countryDocs, 
     requiredRiderDocs : countryDocs
 }) 
@@ -17,6 +21,7 @@ export const getCountriesSchema =  z.object({
     countryId : z.string().optional(),
     cursor: z.string().optional(),
     sort: z.string().optional(),
+    name : z.string().optional()
     
 })
 

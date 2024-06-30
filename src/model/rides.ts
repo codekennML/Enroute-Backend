@@ -47,7 +47,7 @@ const rideSchema = new Schema<IRide>(
       required: false,
     },
 
-    pickedUp: Boolean,
+    // pickedUp: Boolean,
 
 
     packageCategory: {
@@ -57,41 +57,50 @@ const rideSchema = new Schema<IRide>(
     },
 
     origin: {
+      type: {
+        type : String,
+        enum: ["Point"],
+      },
+      coordinates: [Number],
+    },
+
+    pickupStation: {
       name: String,
+      placeId: String,
+      country : String,
+      state: String,
+      town: String,
       location: {
         type: {
-         type :  String,
+          type : String,
           enum: ["Point"],
-          required: true
         },
         coordinates: [Number],
       }
     },
 
-    pickupStation: {
-      type: SchemaTypes.ObjectId,
-      required: true,
-    },
-
     dropOffLocation: {
+        type: {
+          type : String,
+          enum: ["Point"],
+        },
+        coordinates: [Number],
+      }
+    ,
+
+    destination: {
       name: String,
+      placeId: String,
+      country : String,
+      state: String,
+      town: String,
       location: {
         type: {
           type : String,
           enum: ["Point"],
-          required: true
         },
         coordinates: [Number],
-      },
-      state: String,
-      town: String,
-      country: String,
-      placeId: String,
-    },
-
-    destination: {
-      type: SchemaTypes.ObjectId,
-      required: true,
+      }
     },
 
     dropOffTime: {
@@ -107,13 +116,12 @@ const rideSchema = new Schema<IRide>(
     cancellationData: {
       status: {
         type: Boolean,
-        required: true,
         default: false,
       },
-      initiatedBy: {
-        type: SchemaTypes.ObjectId,
-        required: true,
-        ref: "User"
+      initiatedBy:  {
+        type : String ,
+        enum : ["admin", "rider", "driver"],
+        required : true
       },
       time: Date,
       initiator: SchemaTypes.ObjectId,
@@ -226,6 +234,10 @@ const rideSchema = new Schema<IRide>(
 );
 
 rideSchema.index({
+ "pickupStation.placeId" : 1,
+ "dropOffLocation.placeId" : 1
+})
+rideSchema.index({
   status: 1,
   tripId: 1,
   riderId: 1,
@@ -234,11 +246,6 @@ rideSchema.index({
   type: 1,
   category: 1,
   initialStatus: 1,
-  pickupTown: 1,
-  pickupState: 1,
-  pickupCountry: 1,
-  dropOffTown: 1,
-  dropOffState: 1,
 });
 
 export const Ride: Model<IRide> = model<IRide>("Ride", rideSchema);

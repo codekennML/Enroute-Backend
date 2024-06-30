@@ -1,7 +1,7 @@
 import { PaginationRequestData } from "./../repository/shared";
 import { ClientSession } from "mongoose";
 import { ISOS } from "../model/interfaces";
-import SOSRepository, { SOSDataLayer } from "../repository/sos";
+import SOSRepository, { sosDataLayer } from "../repository/sos";
 import { UpdateRequestData } from "../../types/types";
 
 class SOSService {
@@ -36,13 +36,13 @@ class SOSService {
     return SOS;
   }
 
-  async deleteSOSs(request: string[]) {
-    const deletedSOSs = await this.SOS.deleteSOSs(request);
+  async deleteSOS(request: string[]) {
+    const deletedSOSs = await this.SOS.deleteSOS(request);
 
     return deletedSOSs;
   }
 }
 
-export const SOSServiceLayer = new SOSService(SOSDataLayer);
+export const SOSServiceLayer = new SOSService(sosDataLayer);
 
 export default SOSService;

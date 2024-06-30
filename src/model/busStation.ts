@@ -8,6 +8,8 @@ const busStationSchema = new Schema<IBusStation>(
       required: true,
     },
 
+
+
     placeId: {
       type: String,
       required: true,
@@ -38,6 +40,23 @@ const busStationSchema = new Schema<IBusStation>(
       required: true,
       ref: "Country",
     },
+
+    status: {
+      type: String,
+      enum: ['active', 'suggested', 'rejected'],
+      required: true, 
+      default: "active"
+    },  
+
+    suggestedBy : { 
+      type : SchemaTypes.ObjectId, 
+      ref : "User"
+    },
+
+     approvedBy: {
+      type: SchemaTypes.ObjectId,
+      ref: "User"
+    }
   },
   {
     timestamps: true,

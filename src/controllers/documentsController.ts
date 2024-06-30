@@ -156,7 +156,9 @@ class DocumentsController {
   //Get a users pending documents
   async getPendingDocumentsByUser(req: Request, res: Response) {
    
-    const data: { cursor?: string, user : string } = req.params;
+    const data: { cursor?: string, user? : string } = req.params;
+
+   //The validator will catch the error if a user is ommitted
 
     const matchQuery: MatchQuery = { userId : { $eq : data.user}, status: { $eq: "pending" } };
 

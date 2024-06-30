@@ -47,10 +47,8 @@ const rideRequestSchema = new Schema<RideRequestModel>(
       required: true,
       enum: ["created", "cancelled", "closed"],
     },
-    driverBudget : Number, 
-
- 
-
+    driverBudget : Number,
+  
     friendData : [ 
       { 
         firstname : String, 

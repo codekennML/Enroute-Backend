@@ -5,7 +5,7 @@ import {
 } from "../utils/helpers/authTokens";
 import OtpRepository, { otpDataLayer } from "../repository/otp";
 import otpGenerator from "otp-generator";
-import { IOtp } from "../model/interfaces";
+
 import { Types } from "mongoose"
 import { UpdateRequestData } from "../../types/types";
 
@@ -13,6 +13,7 @@ import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import AppError from "../middlewares/errors/BaseError";
 import { emailQueue, smsQueue } from "./bullmq/queue";
 import { OTP_MAIL_ADDRESS } from "../config/constants/otp";
+import { QueryData } from "../repository/shared";
 
 class OTPService {
   private otpDataLayer: OtpRepository;
@@ -44,10 +45,12 @@ class OTPService {
   }
 
   async updateOtpForResend(
-    request: Omit<IOtp, "expiry" | "channel"> & {
-      otpId: string, type : "SMS" | "Email"
+    request: 
+    {
+ 
+      otpId: string, type : "SMS" | "Email" | "WhatsApp"
     }
-    // session?: ClientSession
+
   ) {
 
     
@@ -92,13 +95,13 @@ class OTPService {
    
     if (request.type === "Email" && !request?.email)
       throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
+        "Email is required",
         StatusCodes.BAD_REQUEST
       );
 
-    if ((request.type === "SMS" || request.type === "WhatsApp") && !request?.mobile)
+    if ((request.type === "SMS" || request.type === "WhatsApp") && (!(request?.mobile|| request.countryCode) ))
       throw new AppError(
-        getReasonPhrase(StatusCodes.BAD_REQUEST),
+       "Mobile number is required",
         StatusCodes.BAD_REQUEST
       );
 
@@ -106,6 +109,8 @@ class OTPService {
     const otp = this.generateOTP(4);
 
     const hashedOtp = this.hashOTP(otp);
+
+   
 
     const createdOTP = await this.otpDataLayer.createOTP({
       user: request?.user ? new Types.ObjectId(request.user) : undefined,
@@ -118,49 +123,72 @@ class OTPService {
       countryCode : request?.countryCode
     }, session);
 
+    const otpMessage = `${otp} is your verification code. Please do not share it with anyone`;
 
     if (request.type === "SMS") {
       //Send the sms to the user
       console.log(otp);
 
-      const otpMessage = `${otp} is your verification code. Please do not share it with anyone`;
-      const to = parseInt(`${request.mobile}${request.countryCode}`)
+      const to = [`${request.countryCode}${request.mobile}`]
       const route =  "dnd"
 
+//TODO UNCOMMENT THE CODE BELOW AFTER TESTING
 
-      smsQueue.add(`$SMS_OTP_${createdOTP[0]._id}`, {
-         message : otpMessage, to, route}, { priority: 10 })
-
-    } else if(  request.type === "WhatsApp"){ 
+      // smsQueue.add(`SMS_OTP_${createdOTP[0]._id}`, {
+      //   message: otpMessage, mobile: to, channel: route
+      // }, {
+      //   priority: 10, removeOnFail: true,
+      //   removeOnComplete: true,
+      //   attempts: 3,
+      //   backoff: {
+      //     type: 'exponential',
+      //     delay: 1000,
+      //   } })
+      
+    } else if(request.type === "WhatsApp"){ 
       console.log(otp);
 
 
       const recipient = `${request.mobile}${request.countryCode}`
 
-      const customData =  { 
-        otp,
-      }
-
-
+      
       smsQueue.add(`$WHATSAPP_OTP_${createdOTP[0]._id}`, {
-      recipient, customData}, { priority: 10 })
+         recipient,
+         message : otpMessage, 
+        channel: "whatsapp"
+      }, {
+        priority: 10, removeOnFail: true,
+        removeOnComplete: true,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        }})
 
-  } else {
+     } else {
     //send to email queue
 
       const mailBody = `${otp} is your verification code. Do not share this code with anyone`;
-
-    
+  
     const mailMessage = {
       to: request.email!,
-      from: OTP_MAIL_ADDRESS,
+      from: process.env.NODE_ENV as string === "production" ? OTP_MAIL_ADDRESS : "onboarding@resend.dev",
       subject: request.subject!,
-      template: mailBody,
+      template: `<strong>${mailBody}</>`,
     };
 
-    emailQueue.add(`$OTP_EMAIL`, mailMessage, {
-      priority: 10
-    })
+    console.log("User Data",createdOTP[0]._id,  otp)
+
+    // emailQueue.add(`$OTP_EMAIL`, mailMessage, {
+    //   priority: 10,
+    //   removeOnFail : true, 
+    //   removeOnComplete : true,
+    //   attempts: 3,
+    //   backoff: {
+    //     type: 'exponential',
+    //     delay: 1000,
+    //   },
+    // })
 
   }
 
@@ -174,11 +202,11 @@ class OTPService {
   //   return Otps;
   // }
 
-  // async getOtps(request: QueryData) {
-  //   const Otps = await this.otpDataLayer.findOtp(request);
-
-  //   return Otps;
-  // }
+  async getOtps(request: QueryData) {
+    const Otps = await this.otpDataLayer.findOtp(request);
+  
+    return Otps;
+  }
 
   async updateOTP(request: UpdateRequestData) {
     const updatedOTP = await this.otpDataLayer.updateOtp(request);
@@ -186,26 +214,80 @@ class OTPService {
     return updatedOTP;
   }
 
-  async verifyOTPs(request: { otpId: string; otp: number }, session? : ClientSession) {
+  async verifyOTP(request: { otpId: string; otp: number }, session? : ClientSession) {
     const { otpId, otp} = request;
     
 
     const hashedOtp = this.hashOTP(otp);
-    //Change this to an update so we just update th Otp statsus to used , once its been verified
-    const otpData = await this.otpDataLayer.updateOtp({
-      docToUpdate: {
-        _id: otpId,
-        hash: hashedOtp,
-        expiry: { $gte: new Date() },
-        active: true,
-      },
-      updateData: { $set: { active: false } },
-      options: { new: true,session , select : "user" },
-    });
 
-    console.log(otpData);
+    // const updatedDocument = await this.otpDataLayer.updateOtp(
+    // { 
+    //   docToUpdate :   {
+    //     _id: new Types.ObjectId(otpId),
+    //     hash: hashedOtp,
+    //     expiry: { $gte: new Date() },
+    //     active: true,
+    //   },
+    //  updateData :    {
+    //     $set: {
+    //       active: false,
+    //     },
+    //   },
+    //   options : {
+    //     session: session,
+    //     new : true 
+    //   }
+    // }
+    // );
 
-    return { otpData, otp };
+    const otpData = await this.otpDataLayer.aggregateOtp({
+      pipeline: [
+        {
+          $match: {
+            _id: new Types.ObjectId(otpId),
+            hash: hashedOtp,
+            expiry: { $gte: new Date() },
+            active: true,
+          }
+        },  
+        {
+          $set : { active : false }
+        },
+  
+        {
+          $lookup : {
+            from : "users",
+            localField: "user",
+            foreignField: "_id", 
+             pipeline : [
+               { 
+                $project : { 
+                roles : 1 ,
+                _id : 1 , 
+                mobile : 1 , 
+                countryCode : 1 ,
+                devices : 1 , 
+                firstName : 1,
+                emailVerifiedAt : 1,
+                email : 1,
+                active : 1
+              }
+            }
+            ],
+            as : "user"
+          }
+        }, 
+        {
+          $unwind : "$user"
+        }, 
+
+      ],
+    session})
+
+ 
+
+
+    return { otpData : otpData[0], otp };
   }
 
   // async updateOtp(request: UpdateRequestData) {

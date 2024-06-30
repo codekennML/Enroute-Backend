@@ -2,60 +2,69 @@ import OTPService, { OtpServiceLayer } from "../services/otpService";
 import { Request, Response } from "express";
 import AppResponse from "../utils/helpers/AppResponse";
 import { StatusCodes } from "http-status-codes";
+import AppError from "../middlewares/errors/BaseError";
 
 
 class OTP {
+
   private otpService: OTPService;
 
   constructor(otp: OTPService) {
     this.otpService = otp;
   }
 
-  // async createOTP(req: Request, res: Response) {
+  createOTP = async (req: Request, res: Response) => {
 
-  //   const data: {
-  //     type: "SMS" | "Email" | "WhatsApp";
+    const data: {
+      type: "SMS" | "Email" | "WhatsApp";
+      countryCode?: number;
+      mobile?: number; 
+      email?: string;
+       user? : string
+      next?: string;
+    } = req.body
+
   
-  //     countryCode?: string;
-  //     mobile?: string; //This is a combination of mobile and country code without the + sign
-  //     email?: string;
-  //     user?: string;
-  //     next: string;
-  //   } = req.body
- 
+    const createdOTP  =  await this.otpService.createOtp({ 
+      type : data.type, 
+      ...((data.type === "SMS" ||  data.type === "WhatsApp") && { countryCode : data.countryCode, mobile: data.mobile }),
+      ...(data.type ===  "Email" && { subject:  "Email Verification", email : data.email}),
+      expiry : 5,
+  
+     ...(data?.next  && { next :  data.next }),
+      ...(data?.user && { user :data.user })
 
-  //   // const messageChannel  =  data?.channel
+    })
+  
+    const { otpId } = createdOTP 
+    
+    if(!otpId) throw new AppError("Something went wrong, Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
 
-  //     return AppResponse(req, res, StatusCodes.CREATED, result);
-  //   } else {
-  //     await this.sendOTPEmail({ otp, email: data.email! });
+      return AppResponse(req, res, StatusCodes.CREATED, { message : "otp sent successfully", data : { otpId}});
+    } 
+  
 
-  //     const result = { otpId: createdOTP._id };
+  verifyOTP = async(req: Request, res: Response) => {
+    const data: {
+      otpId: string;
+      otp: number;
+    } = req.body
+    //This endpoint verifies an otp and sets it to used by making the active property false
+   
+  
+    const result = await this.otpService.verifyOTP({
+      otpId: data.otpId,
+      otp: data.otp,
+    });
 
-  //     return AppResponse(req, res, StatusCodes.CREATED, result);
-  //   }
-  // }
+    if (!result?.otpData)
+      throw new AppError(`Invalid or expired token`, StatusCodes.NOT_FOUND);
 
-  // async verifyOTP(req: Request, res: Response) {
-  //   const data: {
-  //     otpId: string;
-  //     otp: string;
-  //   } = req.body
-  //   //This endpoint verifies an otp and sets it to used by making the active property false
-
-  //   const result = await this.otpService.verifyOTPs({
-  //     otpId: data.otpId,
-  //     otp: data.otp,
-  //   });
-
-  //   if (!result?.otpData)
-  //     throw new AppError(`Invalid or expired token`, StatusCodes.NOT_FOUND);
-
-  //   return AppResponse(req, res, StatusCodes.OK, { otpData: result.otpData });
-  // }
+    return AppResponse(req, res, StatusCodes.OK, { otpData: result.otpData });
+  }
 
 
-  async updateOTP(req: Request, res: Response) {
+   updateOTP = async (req: Request, res: Response)  =>{
     //this endpoint updates the otp, otp hash and expiry of the user when they click the resendCode button on the frontend
 
     const data: {

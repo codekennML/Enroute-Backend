@@ -1,6 +1,7 @@
-import { ZodIssue } from "zod"
+import { ZodIssue} from "zod"
 
 class AppError extends Error {
+
   public loggerMessage?: string;
   public statusCode: number;
   public reason?: ZodIssue[]
@@ -18,6 +19,7 @@ class AppError extends Error {
     // Capture the stack trace
     Error.captureStackTrace(this, this.constructor);
   }
+
 }
 
 export default AppError;

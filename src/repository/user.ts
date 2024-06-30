@@ -1,7 +1,7 @@
 import User from "../model/user";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, { QueryData, PaginationRequestData, AggregateData } from "./shared";
-import { SignupData } from "../../types/types";
+import { SignupData, UpdateRequestData } from "../../types/types";
 import { IUser } from "../model/interfaces";
 
 class UserRepository {
@@ -37,17 +37,7 @@ class UserRepository {
     return paginatedUsers;
   }
 
-  async updateUser(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string | number> };
-    updateData: { [k: string]: string | object | boolean | number };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateUser(request: UpdateRequestData) {
     const updatedUser = await this.userDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

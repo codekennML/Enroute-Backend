@@ -3,6 +3,7 @@ import { ROLES, SUBROLES } from "../src/config/enums";
 import { Coordinates } from "../src/model/interfaces";
 import { LocationCacheData } from "./types";
 import { Request } from "express";
+import { ClientSession } from 'mongoose';
 
 declare module "@turf/turf";
 declare module "@mapbox/polyline";
@@ -39,7 +40,7 @@ interface Request {
 }
 
 export interface UpdateRequestData {
-  docToUpdate: Types.ObjectId;
+  docToUpdate: Record<string, string | object >
   updateData: Record<string, string | boolean | object | number>;
   options: {
     session?: ClientSession;
@@ -365,6 +366,18 @@ export namespace Paystack {
       authorization: Authorization;
       customer: Customer;
     };
+  }
+
+  export interface Initialize {
+    status : boolean , 
+    message : string, 
+    data : {
+
+      authorization_url : string, 
+      access_code : string,  
+      reference : string
+    }
+
   }
 
   export interface CreateTransferRecipientResponse {

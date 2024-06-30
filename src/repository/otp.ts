@@ -1,23 +1,22 @@
 import { Model, ClientSession } from "mongoose";
 import { IOtp } from "../model/interfaces";
-import IOtpModel, { Otp } from "../model/otp";
-import DBLayer, { PaginationRequestData, QueryData } from "./shared";
+import { Otp } from "../model/otp";
+import DBLayer, { AggregateData, PaginationRequestData, QueryData } from "./shared";
 import { UpdateRequestData } from "../../types/types";
 
 class OtpRepository {
-  private otpDBLayer: DBLayer<IOtpModel>;
+  private otpDBLayer: DBLayer<IOtp>;
 
-  constructor(model: Model<IOtpModel>) {
-    this.otpDBLayer = new DBLayer<IOtpModel>(model);
+  constructor(model: Model<IOtp>) {
+    this.otpDBLayer = new DBLayer<IOtp>(model);
   }
 
   async createOTP(
     request: IOtp,
     session?: ClientSession
-  ): Promise<IOtpModel[]> {
-    let newOtp: IOtpModel[] = [];
-
-    newOtp = await this.otpDBLayer.createDocs([request], session);
+  ) {
+  
+    const newOtp = await this.otpDBLayer.createDocs([request], session);
 
     return newOtp;
   }
@@ -38,6 +37,9 @@ class OtpRepository {
     const updatedDocs = await this.otpDBLayer.updateDoc(request);
 
     return updatedDocs;
+  }
+  async aggregateOtp(request : AggregateData){
+    return await this.otpDBLayer.aggregateData(request)
   }
 }
 

@@ -8,8 +8,8 @@ interface UpdateData {
 
 //1, User wants to login with email 
 //2, User wants to change mobile via email or via social 
-//User wants to updat account with email 
-//User is need and is verifying email
+//User wants to update account with email 
+//User is new and is verifying email
 
 
 const EmailForm = (props : { 

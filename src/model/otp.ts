@@ -56,12 +56,7 @@ otpSchema.index({
 
 })
 
-otpSchema.virtual("userData",  {
-   ref : "User", 
-  localField : "user", 
-  foreignField : "_id", 
 
-})
 otpSchema.set("toJSON", { getters : true, virtuals : true})
 
 export const Otp: Model<IOtp> = model<IOtp>("Otp", otpSchema);

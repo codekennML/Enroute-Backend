@@ -1,6 +1,7 @@
 import PackageSchedule from "../model/packageSchedule";
 import { ClientSession, FilterQuery, Model } from "mongoose";
 import DBLayer, {
+  AggregateData,
   PaginationRequestData,
   QueryData,
   updateManyQuery,
@@ -41,17 +42,7 @@ class PackageScheduleRepository {
     return PackageSchedule;
   }
 
-  async updatePackageSchedule(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updatePackageSchedule(request: UpdateRequestData) {
     const updatedPackageSchedule = await this.packageScheduleDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,
@@ -83,6 +74,10 @@ class PackageScheduleRepository {
   ) {
     return this.packageScheduleDBLayer.deleteDocs(request);
   }
+  async aggregatePackageSchedules(request: AggregateData) {
+    return await this.packageScheduleDBLayer.aggregateData(request)
+  }
+
 }
 
 export const PackageScheduleDataLayer = new PackageScheduleRepository(

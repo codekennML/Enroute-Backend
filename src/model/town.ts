@@ -8,6 +8,7 @@ const TownSchema = new Schema<TownModel>(
     name: {
       type: String,
       required: true,
+
     },
 
     state: {
@@ -21,9 +22,19 @@ const TownSchema = new Schema<TownModel>(
       required: true,
       ref: "Country",
     },
-    requiredDocs: {
-      type: [String],
-    },
+
+       requiredDriverDocs: [
+      {
+        name: String,
+        options: [String]
+      }
+    ],
+    requiredRiderDocs: [
+      {
+        name: String,
+        options: [String]
+      }
+    ],
   },
   {
     timestamps: true,

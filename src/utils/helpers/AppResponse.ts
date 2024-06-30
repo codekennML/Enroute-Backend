@@ -17,8 +17,6 @@ const AppResponse = <T>(
     refreshToken: req.headers[process.env.REFRESH_TOKEN_ID as string],
   };
 
-
-
   if (Array.isArray(data)) {
 
 
@@ -41,10 +39,13 @@ const AppResponse = <T>(
     delete (data.password)
   }
 
-  const response = {
-    data,
-    ...(tokens && { tokens: { ...tokens } }),
+  const response : Record<string, T | typeof tokens> = {
+    data 
   };
+
+  if(tokens?.accessToken){
+      response["tokens"] =  tokens
+  }
 
   res.status(status).json(response);
 

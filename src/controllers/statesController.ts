@@ -57,7 +57,7 @@ class StateController {
 
     const result = await this.state.findStates(query);
 
-    const hasData = result?.data?.length === 0;
+    const hasData = result?.data?.length > 0;
 
     return AppResponse(
       req,
@@ -120,20 +120,20 @@ class StateController {
   }
 
   async deleteStates(req: Request, res: Response) {
-    const data: { StateIds: string[] } = req.body;
+    const data: { stateIds: string[] } = req.body;
 
-    const { StateIds } = data;
+    const { stateIds } = data;
 
-    if (StateIds.length === 0)
+    if (stateIds.length === 0)
       throw new AppError(
         getReasonPhrase(StatusCodes.BAD_REQUEST),
         StatusCodes.BAD_REQUEST
       );
 
-    const deletedStates = await this.state.deleteStates(StateIds);
+    const deletedStates = await this.state.deleteStates(stateIds);
 
     return AppResponse(req, res, StatusCodes.OK, {
-      message: `${deletedStates.deletedCount} bus States deleted.`,
+      message: `${deletedStates.deletedCount} states deleted.`,
     });
   }
 }

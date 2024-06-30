@@ -10,7 +10,6 @@ export enum PAYSTACKCHANNELS {
 }
 
 
-
 export const ROLES =  {
   DRIVER :  4536,
   RIDER : 2435,
@@ -29,16 +28,17 @@ export const SUBROLES =  {
   INTERN  :12090,
 }
 
-export function excludeEnum<T extends { [key : string] : number}>(
-  enumObj: T,
-  excludeValues: (keyof T)[]
-): T[keyof T][] {
-  return Object.keys(enumObj)
-    .filter(key => !excludeValues.includes(enumObj[key as keyof T]))
-    .map(key => enumObj[key as keyof T]);
+export function excludeEnum(obj: { [key: string]: number;} , valuesToRemove: number[]): number[] {
+  const result: number[] =  []
+ 
+  Object.keys(obj).forEach(key => {
+      if (!valuesToRemove.includes(obj[key])) {
+          result.push(obj[key])
+      }
+  });
+
+  return result;
 }
-
-
 
 
 

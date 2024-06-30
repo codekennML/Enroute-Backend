@@ -7,6 +7,7 @@ import {
   FilterQuery,
   UpdateQuery,
   QueryOptions,
+  Types,
 } from "mongoose";
 import { UpdateManyData } from "../../types/types";
 
@@ -16,6 +17,9 @@ export interface QueryData {
   session?: ClientSession;
   populatedQuery?: PopulateOptions[];
   lean?: boolean;
+}
+export type QueryId = Omit<QueryData, "query"> & {
+  query : Types.ObjectId
 }
 
 type commonKeys = Pick<QueryData, "query" | "session">;
@@ -28,7 +32,8 @@ export interface PaginationRequestData extends commonKeys {
 }
 
 export interface AggregateData {
-  pipeline: PipelineStage[]
+  pipeline: PipelineStage[],
+  session? : ClientSession
 }
 
 interface PaginationMeta {
@@ -38,8 +43,8 @@ interface PaginationMeta {
 }
 
 export interface PaginatedResult<T> {
-  data: T[] | undefined;
-  meta: PaginationMeta | undefined;
+  data: T[] | []
+  meta: PaginationMeta | object
 }
 
 export interface updateManyQuery<T> {
@@ -115,21 +120,27 @@ class DBLayer<T> {
     return null;
   }
 
-  async findDocById(queryData: QueryData) {
-    const { query, select, populatedQuery, session, lean } = queryData;
+  async findDocById(queryData: QueryId) {
 
+    const { query, select, populatedQuery, session, lean } = queryData;
+      
+    console.log(query, "GHU")
+  
     if (!populatedQuery && !lean) {
+      console.log(queryData, "TYue")
       const data = await this.model.findById(query, select, { session });
 
       return data;
     }
 
     if (!populatedQuery && lean) {
+      console.log("FG")
       const data = await this.model.findById(query, select, { session }).lean();
       return data;
     }
 
     if (populatedQuery && lean) {
+      console.log("DFTy")
       const data = await this.model
         .findById(query, select, { session })
         .populate(populatedQuery)
@@ -137,23 +148,29 @@ class DBLayer<T> {
       return data;
     }
 
+    console.log("DFG")
     return null;
   }
 
   async aggregateData(request: AggregateData) {
 
+    if(request?.session){
+
+      return this.model.aggregate(request.pipeline).session(request.session)
+    }
+
     const data = await this.model.aggregate(
 
       request.pipeline
     )
-
+  
     return data
 
   }
 
   async paginateData(
     request: PaginationRequestData
-  ): Promise<PaginatedResult<T> | void> {
+  ): Promise<PaginatedResult<T>> {
 
 
 
@@ -180,15 +197,16 @@ class DBLayer<T> {
       },
     ]);
 
+
     if (!data || data.length === 0) {
       return {
-        data: undefined,
-        meta: undefined,
+        data: [],
+        meta: {},
       };
     }
 
     const results = data[0]?.data;
-    const mainData = results.slice(0, results.length - 1);
+    const mainData = results.length > request.pagination.pageSize ? results.slice(0, results.length - 1) : results
 
     const paginatedResult: PaginatedResult<T> = {
       data: mainData,
@@ -211,7 +229,6 @@ class DBLayer<T> {
     const update = request.updateData;
     const options = request.options;
     const filter: FilterQuery<T> = request.docToUpdate;
-
     const data = await this.model.findOneAndUpdate(filter, update, options);
 
     return data;
