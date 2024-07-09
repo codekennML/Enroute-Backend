@@ -10,6 +10,12 @@ const documentsSchema = new Schema<IDocumentsModel>(
       ref: "User",
       required: true,
     },
+    
+    country : {
+      type: SchemaTypes.ObjectId,
+      ref: "Country",
+      required: true,
+    },
 
     name: {
       type: String,

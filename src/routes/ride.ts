@@ -9,7 +9,7 @@ import { ROLES, SUBROLES, excludeEnum} from "../config/enums"
 import validateRequest from "../middlewares/validation/base"
 import { IRideScheduleSchema,    } from "./schemas/base"
 import { 
-    canStartRideSchema, cancelRideSchema, endRideSchema, 
+    canStartRideSchema, cancelRideSchema, 
     getOutstandingDriverRideSettlementsSchema, getRideByIdSchema, 
     rideSchema,
     livePackageScheduleSchema,
@@ -34,9 +34,9 @@ router.post("/live/package/start",
 validateRequest(livePackageScheduleSchema),
 verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), 
 tryCatch(rideController.createLivePackageRide))
-
+//TODO Test the route
 router.post("/schedule/start", validateRequest(IRideScheduleSchema), verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.SUPERADMIN],[SUBROLES.MANAGER]), tryCatch(rideController.startScheduledRide))
-
+//TODO Test the route
 router.post("/schedule/package/start", validateRequest(startScheduledPackageRideSchema),  verifyPermissions([ROLES.DRIVER]), tryCatch(rideController.startScheduledRide))
 
 router.get("/",
@@ -46,6 +46,7 @@ tryCatch(rideController.getRides))
 
 router.get("/:id", validateRequest(getRideByIdSchema), verifyPermissions([...Object.values(ROLES)], Object.values(SUBROLES)), tryCatch(rideController.getRideById))
 
+//TODO Test the route
 router.get("/can_ride", validateRequest(canStartRideSchema), verifyPermissions([ROLES.RIDER]), tryCatch(rideController.canStartRide ))
 
 router.patch("/cancel", validateRequest(cancelRideSchema), verifyPermissions([ROLES.RIDER, ROLES.RIDER, ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX],  [SUBROLES.MANAGER, SUBROLES.STAFF]), tryCatch(rideController.cancelRide))
@@ -61,7 +62,6 @@ router.patch("/bill",
      validateRequest(billRideSchema),
      verifyPermissions([ROLES.DRIVER, ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX],  [SUBROLES.MANAGER,  SUBROLES.STAFF]),
 tryCatch(rideController.calculateRideBill))
-
 
 
 //ADMIN

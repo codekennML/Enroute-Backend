@@ -1,6 +1,40 @@
 import winston from "winston";
 import path from "node:path";
 import fs from "node:fs";
+import { BaselimeTransport } from '@baselime/winston-transport';
+
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'
+import logsAPI from '@opentelemetry/api-logs'
+import  {
+    LoggerProvider,
+    SimpleLogRecordProcessor,
+    ConsoleLogRecordExporter,
+} from '@opentelemetry/sdk-logs'
+import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston'
+import  { registerInstrumentations } from '@opentelemetry/instrumentation'
+
+const tracerProvider = new NodeTracerProvider();
+tracerProvider.register();
+
+// To start a logger, you first need to initialize the Logger provider.
+const loggerProvider = new LoggerProvider();
+// Add a processor to export log record
+loggerProvider.addLogRecordProcessor(
+    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter())
+);
+logsAPI.logs.setGlobalLoggerProvider(loggerProvider);
+
+registerInstrumentations({
+    instrumentations: [
+        new WinstonInstrumentation({
+        }),
+    ],
+});
+
+
+
+
+const BASELIME_API_KEY =  process.env.BASELIME_KEY as string
 
 //Create zip archive
 // async function createZipArchive(logFiles, zipFilePath) {
@@ -42,12 +76,26 @@ import fs from "node:fs";
 
 const format = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-  // winston.format.colorize({ all: true }),
-  winston.format.printf(
-    (info) =>
-      `${info.timestamp} ~ ${info.level.toUpperCase()} ~  ${info.message}`
-  )
-);
+
+  winston.format.printf(info => {
+
+    const { timestamp, level, message, trace_id, span_id, trace_flags, duration,requestId, method, url ipAddress } = info;
+
+    return JSON.stringify({
+      timestamp,
+      level,
+      message,
+      traceId : trace_id,
+      namespace : url,
+      method,
+      duration,
+      requestId,
+      span_id,
+      trace_flags,
+      ipAddress
+    });
+  })
+)
 
 const logs = path.join(__dirname, "logs");
 if (!fs.existsSync(logs)) {
@@ -65,6 +113,12 @@ export const accessLogger = winston.createLogger({
     //   maxSize: "20m",
     //   maxFiles: "10d",
     // }),
+    new BaselimeTransport({
+      baselimeApiKey: BASELIME_API_KEY,
+      dataset : "accessLogs", 
+      service : "access",
+      namespace : "node-route"
+  }),
     new winston.transports.Console(),
   ],
 });
@@ -72,31 +126,68 @@ export const accessLogger = winston.createLogger({
 export const authLogger = winston.createLogger({
   level: "info",
   format,
-  transports: [new winston.transports.Console()],
+  transports: [
+    new winston.transports.Console(),
+    new BaselimeTransport({
+      baselimeApiKey: BASELIME_API_KEY,
+      dataset : "authenticationLogs", 
+      service : "auth",
+      namespace : "node-route"
+ })
+
+  ],
 });
 
 export const requestLogger =  winston.createLogger({
   level: "http",
   format,
-  transports: [new winston.transports.Console()],
+  transports: [new winston.transports.Console(),
+    new BaselimeTransport({
+      baselimeApiKey: BASELIME_API_KEY,
+      dataset : "requestLogs", 
+      service : "requests",
+      namespace : "node-route"
+  })
+  ],
 });
 
 export const errorLogger = winston.createLogger({
   level: "error",
   format,
-  transports: [new winston.transports.Console()],
+  transports: [new winston.transports.Console(),
+    new BaselimeTransport({
+      baselimeApiKey: BASELIME_API_KEY, 
+      dataset : "errorLogs", 
+      service : "errors",
+      namespace : "node-route"
+  })
+  ],
 });
 
 export const webhooksLogger = winston.createLogger({
   level: "info",
   format,
-  transports: [new winston.transports.Console()],
+  transports: [new winston.transports.Console(),
+    new BaselimeTransport({
+      baselimeApiKey: BASELIME_API_KEY, 
+      dataset : "webhookLogs", 
+      service : "webhooks",
+      namespace : "node-route"
+  })
+  ],
 });
 
 export const cronEventsLogger = winston.createLogger({
   level: "info",
   format,
-  transports: [new winston.transports.Console()],
+  transports: [new winston.transports.Console(),
+    new BaselimeTransport({
+      baselimeApiKey: BASELIME_API_KEY,
+      dataset : "cronLogs", 
+      service : "crons",
+      namespace : "node-route"
+  })
+  ],
 });
 
 export const notificationsLogger = winston.createLogger({
@@ -108,7 +199,14 @@ export const notificationsLogger = winston.createLogger({
 export const QueueLogger = winston.createLogger({
   level: "error",
   format,
-  transports: [new winston.transports.Console()],
+  transports: [new winston.transports.Console(),
+    new BaselimeTransport({
+      baselimeApiKey: BASELIME_API_KEY,
+      dataset : "queueLogs", 
+      service : "queues",
+      namespace : "node-route"
+  })
+  ],
 });
 
 

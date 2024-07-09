@@ -1,9 +1,10 @@
-import { PaginationRequestData, QueryData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData, QueryData } from "./../repository/shared";
 import { UpdateRequestData } from "../../types/types";
 import { IDocuments } from "../model/interfaces";
 import DocumentsRepository, {
   DocumentsDataLayer,
 } from "../repository/documents";
+import { ClientSession, Types } from "mongoose";
 
 class DocumentsService {
   private documents: DocumentsRepository;
@@ -22,8 +23,13 @@ class DocumentsService {
     return this.documents.findDocuments(request);
   }
 
-  async getDocumentById(request: QueryData) {
-    const document = await this.documents.findDocumentById(request);
+  async getDocumentById(documentId : string, select? : string, session? : ClientSession) {
+    
+    const document = await this.documents.findDocumentById({
+  query : new Types.ObjectId(documentId),
+  select, 
+  session
+    });
 
     return document;
   }
@@ -42,6 +48,10 @@ class DocumentsService {
     const deletedDocuments = await this.documents.deleteDocuments(userIds);
 
     return deletedDocuments;
+  }
+
+  async aggregateDocuments(request : AggregateData){
+    return await this.documents.aggregateData(request)
   }
 }
 

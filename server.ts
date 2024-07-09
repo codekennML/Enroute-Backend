@@ -23,7 +23,7 @@ import { StatusCodes } from "http-status-codes";
 import { errorLogger } from "./src/middlewares/logging/logger";
 import { tryCatch } from "./src/middlewares/errors/tryCatch";
 import validateRequest from "./src/middlewares/validation/base";
-import { ticketsSchema } from "./src/routes/schemas/tickets";
+
 import axios from "axios";
 //@ts-expect-error No types for this module
 import {  xss }  from "express-xss-sanitizer"
@@ -34,6 +34,23 @@ import tripRouter from "./src/routes/trips";
 import morganMiddleware from "./src/middlewares/logging/morgan";
 import rtracer  from "cls-rtracer"
 import userRouter from "./src/routes/user";
+import tripScheduleRouter from "./src/routes/tripSchedule"
+import documentRouter from "./src/routes/documents"
+import rideRequestRouter from "./src/routes/rideRequest"
+import packageScheduleRouter from "./src/routes/packageSchedule"
+import packageScheduleRequestRouter from "./src/routes/packageScheduleRequest"
+import ratingRouter from "./src/routes/ratings"
+import sosRouter from "./src/routes/sos"
+import settlementRouter from "./src/routes/settlements"
+import countryRouter from "./src/routes/country"
+import townRouter from "./src/routes/town"
+import stateRouter from "./src/routes/state"
+import vehicleRouter from "./src/routes/vehicle"
+import busStationRouter from "./src/routes/busStation"
+import AuthGuard from "./src/middlewares/auth/verifyTokens";
+import { verifyPermissions } from "./src/middlewares/auth/permissionGuard";
+import { ROLES } from "./src/config/enums";
+import { ticketsSchema} from "./src/routes/schemas/tickets"
 
 const upload = multer({ 
   dest : "uploads/"
@@ -64,27 +81,28 @@ app.get("/api/health",(req, res) =>{
 })
 
 
-app.use("/admin/queueviewer/ui", serverAdapter.getRouter());
-app.use('/api/otp',otpLimiter,otpRouter)
+app.use('/api/otp', otpLimiter , otpRouter)
+
+app.use("/admin/queueviewer/ui", AuthGuard, verifyPermissions([ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.DEV]), serverAdapter.getRouter());
+
 
 app.use(apiLimiter)
 
 app.use('/api/auth', authRouter)
 
-
-// app.use("/api/auth/secure/", )
 app.use("/api/ride", rideRouter)
-// app.use('api/trip_schedule')
+app.use('/api/trip_schedule', tripScheduleRouter)
 app.use("/api/trip", tripRouter)
 app.use("/api/user", userRouter )
-// app.use("api/documents/")
-// app.use("api/package_schedule/")
-// app.use("api/package_schedule/request/")
-// app.use("api/state/")
-// app.use("api/country/")
-// app.use("api/town/")
-// app.use("api/sos/")
-app.use("api/upload/", upload.single('image'),  validateRequest(z.object({ name: z.string() })),
+app.use("/api/documents/", documentRouter)
+app.use("/api/package_schedule/", packageScheduleRouter)
+app.use("/api/package_schedule_request/", packageScheduleRequestRouter)
+app.use("/api/ride_request/", rideRequestRouter)
+app.use("/api/state/", stateRouter)
+app.use("/api/country/", countryRouter)
+app.use("/api/town/", townRouter)
+app.use("/api/sos/", sosRouter)
+app.use("/api/upload/", upload.single('image'),  validateRequest(z.object({ name: z.string() })),
 tryCatch( async (req, res) => {
 
   if(!req?.file) return AppResponse(req, res, StatusCodes.BAD_REQUEST, { message : "Please add at least one file"})
@@ -135,18 +153,18 @@ tryCatch( async (req, res) => {
 })
 
 )
-// app.use("api/ratings/")
-// app.use("api/settlements/")
-// app.use("api/bus_station/")
-// app.use("api/vehicle")
+app.use("/api/ratings/", ratingRouter)
+app.use("/api/settlements/", settlementRouter)
+app.use("/api/bus_station/", busStationRouter)
+app.use("/api/vehicle", vehicleRouter)
 
 //This is handled by seventy-seven.dev
-app.use("api/tickets", validateRequest(ticketsSchema),
+app.use("/api/tickets", validateRequest(ticketsSchema), AuthGuard,
   tryCatch(async(req, res)=>{
 
-const createdTicketResponse  =  await axios.post<{id : string}>("https://app.seventy-seven.dev/api/tickets", {
+const createdTicketResponse  =  await axios.post<{id : string}>("https://app.seventy-seven.dev//api/tickets", {
      
-        subject : `${req.body.title}-${req.body.userId}`, 
+        subject : `${req.body.title}-${req.user}`, 
         body : req.body.body, 
         senderAvatarUrl : req.body.sendAvatarUrl, 
         senderFullName : req.body.senderFullName, 
@@ -164,10 +182,11 @@ const createdTicketResponse  =  await axios.post<{id : string}>("https://app.sev
 
         if(createdTicketResponse?.status  ===  408){
           
-          errorLogger.error(`Tickets Gateway creation timeout -  ${createdTicketResponse.statusText} - user - ${req.user}`)
+        errorLogger.error(`Tickets Gateway creation timeout -  ${createdTicketResponse.statusText} - user - ${req.user}`)
         
         } else { 
-          errorLogger.error(`Tickets Gateway Error -  ${createdTicketResponse.statusText} - user - ${req.user} - error - ${createdTicketResponse.statusText}`)
+
+        errorLogger.error(`Tickets Gateway Error -  ${createdTicketResponse.statusText} - user - ${req.user} - error - ${createdTicketResponse.statusText}`)
 
         }
         return AppResponse(req, res, StatusCodes.REQUEST_TIMEOUT, { message: "We are unable to complete this request.Please try again later" })
@@ -181,8 +200,6 @@ const createdTicketResponse  =  await axios.post<{id : string}>("https://app.sev
       })
     })
 )
-
-
 
 app.all("*", (req, res) => {
   res.status(404).json({
@@ -209,11 +226,12 @@ const server = app.listen(PORT, () =>
 
 process.on("uncaughtException", (error : Error) => { 
   console.log(`Unhandled Rejection: ${error}`)
+  logEvents(`${error.name}: ${error.message}\t${error.stack}`, "uncaughtExceptions.log")
   process.exit(1)
 })
 
 process.on("unhandledRejection", (error : Error) => {
-  console.log(`Unhandled Rejection:  ${error}`)
+  logEvents(`${error.name}: ${error.message}\t${error.stack}`, "unhandledRejections.log")
   process.exit(1)
 })
 

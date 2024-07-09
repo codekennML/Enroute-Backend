@@ -7,12 +7,11 @@ import AppResponse from "../utils/helpers/AppResponse";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { Request, Response } from "express";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
-// import { UserServiceLayer } from "../services/userService";
 import AppError from "../middlewares/errors/BaseError";
-// import { VehicleServiceLayer } from "../services/vehicleService";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
 import Vehicle from "../model/vehicles";
+import { ROLES } from "../config/enums";
 
 class DocumentsController {
   private documents: DocumentsService;
@@ -32,6 +31,7 @@ class DocumentsController {
       issued,
       fieldData,
       vehicleId,
+      country 
     } = req.body;
     //Field data contains the data we need to push into the user or vehicle model when the document is approved
 
@@ -46,7 +46,8 @@ class DocumentsController {
       fieldData,
       status: "pending",
       archived : false ,
-      isRejected : false
+      isRejected : false,
+      country
     });
 
     return AppResponse(req, res, StatusCodes.OK, { createdDocument });
@@ -269,15 +270,18 @@ class DocumentsController {
 
   //Mark a document as approved
   async markDocumentApproved(req: Request, res: Response) {
-    const data: { documentId: string; adminId: string } = req.body;
 
-    // const vehicleInfo = ["insurance", "inspection"];
+    const data: { documentId: string } = req.body;
+    
+   if(!([ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX].includes(req.role))) throw new AppError("Insufficient permissions to approve document", StatusCodes.FORBIDDEN);
+
 
     const approveDocumentSessionFn = async (
       args: typeof data,
       session: ClientSession
     ) => {
       await session.withTransaction(async () => {
+
         const approvedDocument = await this.documents.updateDocument({
           docToUpdate: { _id: args.documentId },
           updateData: {
@@ -285,7 +289,7 @@ class DocumentsController {
               isRejected: false,
               status: "assessed",
               isVerified: true,
-              approvedBy: new Types.ObjectId(data.adminId),
+              approvedBy: new Types.ObjectId(req.user),
             },
           },
           options: { session, new: true, select: "fieldData _id name userId" },
@@ -307,25 +311,8 @@ class DocumentsController {
           },
           options: { session, new: true, select: "fieldData _id name userId" },
         });
-//This can  be null and its okay 
-        
-        //Update the user data with the approved document id
-       
-        //Update the vehicleInfo if the changed or approved document belongs to the vehicle model , not the user model
-        // if (vehicleInfo.includes(approvedDocument.name.toUpperCase())) {
-        //   await VehicleServiceLayer.updateVehicle({
-        //     docToUpdate: { _id: approvedDocument.userId },
-        //     updateData: {
-        //       $set: {
-        //         [approvedDocument.name]: approvedDocument?._id,
-              
-        //       },
-        //     },
-        //     options: { session, select: "_id" },
-        //   });
-        // }
-
-     
+         //This can  be null and its okay 
+   
         return args.documentId;
       });
     };
@@ -338,7 +325,8 @@ class DocumentsController {
   }
 
   //This fetches all documents by a user that have not been archived, meaning they are active -either rejected, verified or undergoing verification
-  async getUserVerificationDocuments(req: Request, res: Response) {
+  getUserVerificationDocuments = async(req: Request, res: Response) =>  {
+    
     const userId = req.params.id;
 
     const results = await this.documents.getDocumentsWithPopulate({
@@ -347,14 +335,14 @@ class DocumentsController {
         "name status imageUrl issued expiry rejectionFeedback isVerified vehicleId",
       populatedQuery: [
         {
-          path: "vehicle",
+          path: "vehicleId",
           select: "vehicleMake vehicleModel isVerified isArchived",
           model: Vehicle,
         },
       ],
     });
 
-    const hasData = results?.length === 0;
+    const hasData = results?.length > 0;
 
     return AppResponse(
       req,
@@ -369,8 +357,11 @@ class DocumentsController {
     );
   }
 
-  async markDocumentRejected(req: Request, res: Response) {
+  markDocumentRejected =  async (req: Request, res: Response)=>  {
     const data: { documentId: string; rejectionFeedback: string } = req.body;
+
+    if(!( [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX].includes(req.role ))) throw new AppError("Insufficient permissions to approve document", StatusCodes.FORBIDDEN);
+
 
     const rejectDocumentSessionFn = async (
       args: typeof data,
@@ -405,8 +396,68 @@ class DocumentsController {
       message: `Document with id ${data.documentId} rejected successfully`,
     });
   }
+  
+  getDocumentsStats = async (req : Request, res : Response ) => { 
+    const data: {
+      dateFrom?: Date,
+      dateTo?: Date,
+      status?: "assessed" | "pending" 
+      country?: string,
+      userId?: string
+  } = req.body
+
+  const matchQuery: MatchQuery = {
+
+  };
+
+  if (data?.dateFrom) {
+      matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
+  }
+
+  if (data?.userId) {
+      matchQuery.userId = { $eq: data.userId };
+  }
+
+  const query = {
+
+      pipeline: [
+          {
+              $match: matchQuery
+          },
+          {
+              $facet: {
+                  count: [{ $count: "total" }],
+
+                  status: [
+                      {
+                          $group: {
+                              _id: "$status",
+                              count: { $sum: 1 }
+                          }
+                      }
+                  ],
+                 
+              }
+
+          }
+      ],
+
+  };
+
+  const result = await this.documents.aggregateDocuments(query)
+
+
+  return AppResponse(req, res, StatusCodes.OK, {
+      message : "Documents statistics retrieved successfully", 
+      data : result
+  })
+
 }
 
-const Documents = new DocumentsController(DocumentsServiceLayer);
+  }
+
+
+
+export const Documents = new DocumentsController(DocumentsServiceLayer);
 
 export default Documents;

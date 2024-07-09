@@ -15,7 +15,7 @@ class SettlementService {
 
   async createSettlements(request: ISettlements, session?: ClientSession) {
     const settlements = await this.settlements.createSettlement(
-      request,
+      [request],
       session
     );
 

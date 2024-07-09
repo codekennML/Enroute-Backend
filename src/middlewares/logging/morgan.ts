@@ -19,7 +19,7 @@ morgan.token('requestId', () => { return  rtracer.id() as string });
 const morganMiddleware = morgan(
     format,
     {
-        write: (message) => {
+        write: (message : string) => {
             requestLogger.http(message);
         },
         skip

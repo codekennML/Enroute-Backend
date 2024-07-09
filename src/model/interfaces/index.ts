@@ -30,18 +30,13 @@ export interface IDocuments {
   rejectionFeedback?: string;
   status?: "pending" | "assessed" | "none";
   approvedBy?: Types.ObjectId;
+  country : Types.ObjectId
 }
 
 export interface ITripSchedule {
   driverId: Types.ObjectId;
   origin: Place;
-  originTown: Types.ObjectId;
-  originState: Types.ObjectId;
-  originCountry: Types.ObjectId;
-  destinationTown: Types.ObjectId;
-  destinationState: Types.ObjectId;
   destination: Place;
-  vehicleId: Types.ObjectId;
   departureTime: Date;
   seatAllocationsForTrip: number;
   route: string,
@@ -69,7 +64,7 @@ export interface ISettlements extends Locale {
   data?: Record<string, unknown>;
   rides?: Types.ObjectId[];
   isPaymentInit: boolean
-  // failedCount: number
+  refunded : boolean
   workerCreated : boolean
   settlements? : { type : "subscription" | "commisison", amount : number }[] //WE need this for when both a us er subscription and commission charges fail at the same time, this beomes the single entry for the combined charge when reevaluating the users payment method 
 
@@ -233,10 +228,7 @@ export interface IVehicle {
    provider : string, 
    issueDate : Date
    expiryDate : Date
-   image : { 
-    front : string, 
-    back?: string
-   } 
+   image : Record<string, string>
   },
     insurance: {
       provider: Date,
@@ -247,6 +239,7 @@ export interface IVehicle {
         back?: string
       } 
   },
+  
   licensePlate: string
   year: number;
   hasAC: boolean;
@@ -386,6 +379,9 @@ export interface ISOS extends Locale {
     type: "Point";
     coordinates: number[];
   };
+  town : string, 
+  country : string, 
+  state : string
 }
 
 export interface IBusStation {

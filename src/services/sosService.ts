@@ -1,4 +1,4 @@
-import { PaginationRequestData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData } from "./../repository/shared";
 import { ClientSession } from "mongoose";
 import { ISOS } from "../model/interfaces";
 import SOSRepository, { sosDataLayer } from "../repository/sos";
@@ -41,6 +41,11 @@ class SOSService {
 
     return deletedSOSs;
   }
+
+  async aggregateSOS(request: AggregateData) {
+    return await this.SOS.aggregateData(request)
+  }
+
 }
 
 export const SOSServiceLayer = new SOSService(sosDataLayer);

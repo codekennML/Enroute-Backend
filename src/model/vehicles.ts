@@ -22,6 +22,13 @@ const vehicleSchema = new Schema<IVehicle>(
       required: true,
     },
 
+    image : [ 
+      { 
+        type : String, 
+          
+      }
+    ],
+
     year: {
       type: Number,
       default: 2000,

@@ -477,7 +477,7 @@ class RideController {
             matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
         }
 
-        if (data?.rideId) {
+        if (data?.tripId) {
             matchQuery.tripId = { $eq: data?.tripId };
         }
 
@@ -510,7 +510,23 @@ class RideController {
 
         const query = {
             query: matchQuery,
-            aggregatePipeline: [{ $limit: 101 }, sortQuery],
+            aggregatePipeline: [{ $limit: 101 }, sortQuery, { 
+                $lookup : { 
+                    from :  "users", 
+                    foreignField : "_id",
+                    localField : "riderId" , 
+                    pipeline : [
+                        { 
+                            $project : { 
+                                firstName : 1,
+                                lastName : 1,
+                                avatar : 1, 
+                                dateOfBirth : 1     
+                            }
+                        }
+                    ]
+                }
+            }],
             pagination: { pageSize: 100 },
         };
         console.log(query)

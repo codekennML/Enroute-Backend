@@ -2,10 +2,11 @@ import RideRequestModel, { RideRequest } from "../model/rideRequest";
 import { ClientSession, Model, PipelineStage } from "mongoose";
 import DBLayer, {
   PaginationRequestData,
-  QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { IRideRequest } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class RideRequestRepository {
   private rideRequestDBLayer: DBLayer<RideRequestModel>;
@@ -36,22 +37,12 @@ class RideRequestRepository {
     return paginatedRideRequests;
   }
 
-  async getRideRequestById(request: QueryData) {
+  async getRideRequestById(request: QueryId) {
     const rideRequest = await this.rideRequestDBLayer.findDocById(request);
     return rideRequest;
   }
 
-  async updateRideRequest(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: Record<string, string | object | number | boolean>,
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateRideRequest(request: UpdateRequestData) {
     const updatedRideRequest = await this.rideRequestDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,
@@ -67,8 +58,8 @@ class RideRequestRepository {
     return result;
   }
 
-  async aggregateRideRequests(request: PipelineStage[]) {
-    return await this.rideRequestDBLayer.aggregateDocs(request);
+  async aggregateRideRequests(request: PipelineStage[], session? : ClientSession) {
+    return await this.rideRequestDBLayer.aggregateDocs(request, session);
   }
 
   async deleteRideRequests(request: string[]) {

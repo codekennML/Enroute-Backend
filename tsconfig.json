@@ -110,7 +110,7 @@
     "skipLibCheck": true /* Skip type checking all .d.ts files. */
    
   },
-    "ts-node": {
-      "swc": true
-    }
+    // "ts-node": {
+    //   "swc": true
+    // }
 }
