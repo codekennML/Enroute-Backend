@@ -1,6 +1,6 @@
 import { COMPANY_ADDRESS, COMPANY_NAME } from "../../config/constants/base";
 
-export const CommissionDebitSuccesssMail = (amount: number, date : Date, reference : string,firstName : string ) => {
+export const CommissionDebitSuccesssMail = (amount: number, date : Date, reference : string ) => {
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="https://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head>
     <meta charset="UTF-8">
@@ -413,7 +413,7 @@ export const CommissionDebitSuccesssMail = (amount: number, date : Date, referen
                                                                                                             <span style="letter-spacing: -0.1px;" data-letter-spacing-original="-0.1px"></span>
                                                                                                         </div>
                                                                                                         <div esd-text="true" class="esd-text">
-                                                                                                            <span style="letter-spacing: -0.1px;" data-letter-spacing-original="-0.1px">Hello ${firstName}</span>
+                                                                                                            <span style="letter-spacing: -0.1px;" data-letter-spacing-original="-0.1px">Hello,</span>
                                                                                                         </div>
                                                                                                         <div esd-text="true" class="esd-text">
                                                                                                             <span style="letter-spacing: -0.1px;" data-letter-spacing-original="-0.1px"></span>

@@ -1,7 +1,8 @@
 import Town, { TownModel } from "../model/town";
 import { ClientSession, Model } from "mongoose";
-import DBLayer, { PaginationRequestData, QueryData } from "./shared";
+import DBLayer, { PaginationRequestData, QueryData, QueryId } from "./shared";
 import { ITown } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class TownRepository {
   private townDBLayer: DBLayer<TownModel>;
@@ -27,22 +28,12 @@ class TownRepository {
     return paginatedTowns;
   }
 
-  async findTownById(request: QueryData) {
+  async findTownById(request: QueryId) {
     const Town = await this.townDBLayer.findDocById(request);
     return Town;
   }
 
-  async updateTown(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateTown(request: UpdateRequestData) {
     const updatedTown = await this.townDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

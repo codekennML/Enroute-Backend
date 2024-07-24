@@ -50,3 +50,14 @@ export const cancelPackageSchedule =  z.object({
 export const deletePackageSchedulesSchema  =  z.object({ 
     scheduleIds : z.array(z.string())
 })
+
+export const  getPackageScheduleStats= z.object({
+    dateFrom: z.date().optional(),
+    dateTo : z.date().optional(),
+    country: z.string().optional(),
+    state: z.string().optional(),
+    town : z.string().optional(),
+    minBudget : z.string().optional(),
+    maxBudget : z.number().optional(),
+    type  : z.union([z.literal("HTH"), z.literal("STS")]).optional()
+})

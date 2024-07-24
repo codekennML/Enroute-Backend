@@ -1,7 +1,7 @@
 import { IKnowledgeBaseCategory } from "./../model/interfaces/index";
 import KnowledgeBaseCategory from "../model/knowledgeBaseCategory";
 import { ClientSession, Model } from "mongoose";
-import DBLayer, { PaginationRequestData, QueryData } from "./shared";
+import DBLayer, { PaginationRequestData, QueryData, QueryId } from "./shared";
 import { UpdateRequestData } from "../../types/types";
 
 class KnowledgeBaseCategoryRepository {
@@ -32,7 +32,7 @@ class KnowledgeBaseCategoryRepository {
     return paginatedKnowledgeBaseCategorys;
   }
 
-  async findKnowledgeBaseCategoryById(request: QueryData) {
+  async findKnowledgeBaseCategoryById(request: QueryId) {
     const KnowledgeBaseCategory =
       await this.KnowledgeBaseCategoryDBLayer.findDocById(request);
     return KnowledgeBaseCategory;

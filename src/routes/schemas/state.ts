@@ -1,13 +1,15 @@
 import * as z from "zod"
 
-const stateDocs = z.object({
+export const stateDocs = z.object({
     name: z.string(),
-    options: z.array(z.string())
+    options : z.array(z.object({
+        type : z.enum(["text", "image"]), //format
+        format : z.string() //mp4, png
+    }))
 })
 
-const stateSchema = z.object({
+export const stateSchema = z.object({
     name: z.string(),
-
     country: z.string(),
     requiredDriverDocs: stateDocs,
     requiredRiderDocs: stateDocs
@@ -17,8 +19,7 @@ export const getStatesSchema = z.object({
     country: z.string().optional(),
     cursor: z.string().optional(),
     sort: z.string().optional(),
-  
-
+    name  : z.string().optional(),
 })
 
 
@@ -35,8 +36,5 @@ export const deleteStatesSchema = z.object({
     stateIds: z.array(z.string())
 })
 
-export const deleteStatesSchema = z.object({
-    countryIds: z.array(z.string())
-})
 
 

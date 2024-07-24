@@ -4,26 +4,31 @@ export const intializeSettlementPaymentSchema =  z.object({
     amount: z.number(),
     processor:  z.union([z.literal("Paystack"), z.literal("Stripe")]),
     driverId: z.string(),
-    driverEmail?: z.string().optional(),
+    driverEmail: z.string().optional(),
     driverPushId: z.string().optional(),
     data: z.record(z.unknown()).optional(),
     rides: z.array(z.string()).optional(),
     isPaymentInit: z.boolean(),
-    // failedCount: number
+    refunded : z.boolean(),
     workerCreated: z.boolean().optional(),
     settlements: z.array(z.object({ type: z.union([z.literal("commission"), z.literal("subscription")]),   amount : z.number()})).optional() ,
-
     type: z.union([z.literal("commission"), z.literal("subscription"), z.literal("both")])
-
-
 }) 
 
 export const getSettlementsforDriverSchema =  z.object({
     cursor : z.string().optional(),
     driverId : z.string(),
-    status : z.array(z.string()).optional()
+
 })
 
+const stringOrObjectSchema = z.union([z.string(), z.unknown()]);
+
+const objectWithStringKeysSchema = z.record(z.string(), stringOrObjectSchema);
+
+export const webhookSchema = z.object({
+    event : z.string(),
+    data : objectWithStringKeysSchema
+})
 
 export const getSingleSettlementSchema = z.object({
     id: z.string()

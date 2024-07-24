@@ -4,6 +4,7 @@ import DBLayer, {
     AggregateData,
     PaginationRequestData,
     QueryData,
+    QueryId,
     updateManyQuery,
 } from "./shared";
 import { ISOS } from "../model/interfaces";
@@ -38,7 +39,7 @@ class SOSRepository {
         return paginatedSOS;
     }
 
-    async findSOSById(request: QueryData) {
+    async findSOSById(request: QueryId) {
         const sos = await this.sosDBLayer.findDocById(request);
         return sos;
     }

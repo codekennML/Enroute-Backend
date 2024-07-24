@@ -1,5 +1,5 @@
 import { UserServiceLayer } from './../services/userService';
-import { Flutterwave, MatchQuery, Paystack, SortQuery } from "./../../types/types.d";
+import { Flutterwave, MatchQuery, SortQuery } from "./../../types/types.d";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import { ISettlements } from "../model/interfaces";
 import SettlementService, {
@@ -7,7 +7,7 @@ import SettlementService, {
 } from "../services/settlementService";
 import AppResponse from "../utils/helpers/AppResponse";
 import { Request, Response } from "express";
-import { FLW_SECRET_HASH, PAYSTACK_SECRET } from "../config/constants/payments";
+import { FLUTTERWAVE_WEBHOOK_IDENTIFIER, FLW_SECRET_HASH} from "../config/constants/payments";
 import { QueueLogger, webhooksLogger } from "../middlewares/logging/logger";
 
 import { retryTransaction } from "../utils/helpers/retryTransaction";
@@ -25,6 +25,8 @@ import { CommissionDebitSuccesssMail } from "../views/mails/commissionSuccessDeb
 import { CountryServiceLayer } from '../services/countryService';
 import { ROLES } from '../config/enums'
 import FlutterwavePay from '../services/3rdParty/payments/flutterwave';
+import { subMinutes } from 'date-fns';
+import { AxiosResponse } from 'axios';
 
 
 type SearchKeys = Partial<{ [K in keyof ISettlements]: ISettlements[K] }> & {
@@ -92,7 +94,7 @@ class SettlementController {
   }
 
  //worker
-  async handleQueueSettlements(driverId : string){ 
+handleQueueSettlements =    async (driverId : string) => { 
 
     const settleBillSession = async (args : { driverId : string}, session : ClientSession) => {
 
@@ -176,6 +178,50 @@ class SettlementController {
     await retryTransaction(settleBillSession, 2,  {driverId})
 
   }
+
+  handleUnprocessedSettlements = async() => {
+     
+    const settlements = await this.settlement.returnPopulatedSettlement({
+      query : { createdAt : {$lte : subMinutes(new Date(), 60)}, status : "created"}, 
+      select : "_id"
+    }) 
+  
+    if(!settlements || settlements.length === 0 ) return 
+
+
+    const processSettlement = async (response : AxiosResponse<Flutterwave.Verification>) => {
+          let result ;
+
+         if(response.data && response.data.data.status  === "successful") {
+          await retryTransaction(this.#handleSuccessfulSettlementWebhooks, 1, response.data)
+        }
+
+        if(response.data && response.data.data?.status === "failed"){
+          await retryTransaction(this.#handleFailedSettlementWebhooks,1 ,response.data)
+        }
+    
+    }
+       for (const settlement of settlements){
+
+        try {
+          const response = await FlutterwavePay.verifyTransactionByReference(settlement._id.toString());
+          await processSettlement(response);
+    
+          // Introduce a delay to control the rate of API calls and prevent rate limiting
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Adjust the delay as needed
+          break
+        } catch (error) {
+          webhooksLogger.error(`Error processing settlement ${settlement._id}:`, error);
+
+          break
+          // Handle or log the error accordingly
+        }
+   
+     
+      }
+    
+
+  }
 //worker
   async processSubscriptionQueue(driverId : string ){ 
 
@@ -226,69 +272,62 @@ class SettlementController {
   async settlementsWebhookHandler(req: Request, res: Response) {
      // If you specified a secret hash, check for the signature
      const secretHash = FLW_SECRET_HASH;
-     const signature = req.headers["verif-hash"];
+     const webhookIdentifier = FLUTTERWAVE_WEBHOOK_IDENTIFIER
+     const signature = req.headers[webhookIdentifier];
 
      if (!signature || (signature !== secretHash)) {
       throw new AppError(
         getReasonPhrase(StatusCodes.UNAUTHORIZED),
         StatusCodes.UNAUTHORIZED)
+
      }
 
-     const payload = req.body;
+     const payload:Flutterwave.WebhookVerification = req.body;
 
      // It's a good idea to log all received events.
-     webhooksLogger.info(payload);
+     webhooksLogger.info(`Flutterwave ${payload?.event} : ${payload}`);
      
-     const tx_ref  = payload?.data?.tx_ref 
+     const tx_ref  = payload?.data?.tx_ref as string
 
      if(!tx_ref) throw new AppError( getReasonPhrase(StatusCodes.NOT_FOUND),
      StatusCodes.NOT_FOUND)
 
-    const { data  } = await FlutterwavePay.verifyTransactionByReference(tx_ref)
+    const { data} = await FlutterwavePay.verifyTransactionByReference(tx_ref)
   
-    const { status } =  data
+    const { data:flwVerification } =  data
 
     const isProcessed = await this.settlement.getSettlementsById(
     tx_ref,
       "processed amount isPaymentInit _id"
     );
 
-    if (!isProcessed) return AppResponse(req, res, StatusCodes.NOT_FOUND, { message : "payment not found"})
+    if (!isProcessed) return AppResponse(req, res, StatusCodes.NOT_FOUND, { message : "Payment not found"})
 
     if (isProcessed.processed) return AppResponse(req, res, StatusCodes.OK, {message : "Webhook already processed"})
 
       if(!data) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND),
       StatusCodes.NOT_FOUND)
 
-    if (status === "successful" && payload?.event ===  "charge.completed")
+    if (flwVerification?.status === "successful" && payload?.event ===  "charge.completed")
       await retryTransaction(this.#handleFailedSettlementWebhooks, 1, data);
 
     if (
-       status === "failed" && payload?.event ===  "charge.completed"
+      flwVerification?.status === "failed" && payload?.event ===  "charge.completed"
     ) 
 
       await retryTransaction(
         this.#handleSuccessfulSettlementWebhooks,
         1,
-        result
+        data
       );
 
       if(isProcessed.isPaymentInit){
         //Refund  the driver if this was a card initialization
-        await FlutterwavePay.refundPayment(isProcessed._id.toString())
+      await FlutterwavePay.refundPayment(isProcessed._id.toString())
+      //If there is an error, this will throw an error anc clear out the next time the webhook is sent again, otherwise we will refund from the dashboard
+        
       }
 
-      if (
-        status === "success" && payload?.event ===  "refund.processed"
-     )  
- 
-       await retryTransaction(
-         this._handleRefundPayment()
-         1,
-         result
-       );
-
-   
 
   return AppResponse(req, res, StatusCodes.OK, { message : "Webhook processed successfully"})
   }
@@ -360,7 +399,7 @@ class SettlementController {
               }
             }
           },
-          options: { session }
+          options: { session, new : true, select : "firstName" }
         })
       }
 
@@ -368,7 +407,7 @@ class SettlementController {
       return settlement
     });
 
-    const mail = CommissionDebitSuccesssMail(result.amount)
+    const mail = CommissionDebitSuccesssMail(result.amount, new Date(), args.data.reference as string,  )
 
     if(result?.driverEmail){
 
@@ -405,12 +444,12 @@ class SettlementController {
       //set the status to failed , until the user adds a new payment method. once a new calc is added, then charge immediately after checking ig there is a failed settlement to be made 
 
       const settlementInfo =
-        await this.settlement.getSettlementsById(args.data.reference, " driverId")
+        await this.settlement.getSettlementsById(args.data.reference as string, " driverId")
 
-      if (!settlementInfo || !settlementInfo) {
+      if (!settlementInfo) {
 
-        logEvents(`Error retrieving settlement ${args.data.reference} for status update to failed`, "errLog.log")
-        throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+
+        throw new AppError(`Error retrieving settlement ${args.data.reference} for status update to failed`, StatusCodes.NOT_FOUND)
       }
 
 
@@ -441,7 +480,7 @@ class SettlementController {
           }
 
         },
-        options: { session, select : "email googleEmail deviceToken" }
+        options: { session, select : "email googleEmail deviceToken firstName" }
       })
     
     if (!userData || !userData?.deviceToken)
@@ -450,7 +489,7 @@ class SettlementController {
 
      if(userData?.email || userData?.googleEmail) {
 
-       const mail = CommissionDebitFailedMail(settlementData.amount)
+       const mail = CommissionDebitFailedMail(settlementData.amount, userData?.firstName!)
   
        emailQueue.add(`settlement_failed_user_${settlementData.driverId}_id${args.data.reference}`, {
          to: userData?.email ? userData.email! : userData.googleEmail! ,
@@ -482,20 +521,20 @@ class SettlementController {
     return result;
   }
 
-   _handleRefundPayment = async(settlementId : string ) => {
+  //  _handleRefundPayment = async(settlementId : string ) => {
 
-   const refundedSettlement  =  await this.settlement.updateSettlements({
-      docToUpdate : {_id : new Types.ObjectId(settlementId)}, 
-      updateData : { 
-        $set :{ refunded : true }
-      },
-      options : { new : true, select : "_id"}
-   }) 
+  //  const refundedSettlement  =  await this.settlement.updateSettlements({
+  //     docToUpdate : {_id : new Types.ObjectId(settlementId)}, 
+  //     updateData : { 
+  //       $set :{ refunded : true }
+  //     },
+  //     options : { new : true, select : "_id"}
+  //  }) 
 
-   if(!refundedSettlement) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+  //  if(!refundedSettlement) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
 
-  return 
-  }
+  // return 
+  // }
 //Cron job
   async cleanCreatedWorkerSettlements(){
     //Here we are going to clean settlements that were created by the billing queue workers but the payment api did not respond, usually this would happen if the call to  the api failed but the worker already created the settlement, this is a cron job and should run atleast four hours after the billing queue has been processed - Billing Queue - 12:30AM daily - clean Cron -  4:20AM
@@ -661,7 +700,7 @@ class SettlementController {
 
     const hasData = settlement.length === 0;
 
-  if(settlement.length > 0 && settlement[0].driverId !== req.user && req.role in [ROLES.DRIVER, ROLES.RIDER]) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+  if(settlement.length > 0 && settlement[0].driverId?.toString() !== req.user && req.role in [ROLES.DRIVER, ROLES.RIDER]) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
 
     return AppResponse(
       req,
@@ -675,7 +714,9 @@ class SettlementController {
       }
     );
   }
+  
   async updateSettlement(req: Request, res: Response) {
+    
     const { status, settlementId } = req.body;
 
     const updatedSettlement = await this.settlement.updateSettlements({

@@ -4,6 +4,7 @@ import DBLayer, {
   AggregateData,
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { ISettlements } from "../model/interfaces";
@@ -54,7 +55,7 @@ class SettlementRepository {
     return result;
   }
 
-  async findSettlementById(request: QueryData) {
+  async findSettlementById(request: QueryId) {
     const settlement = await this.settlementDBLayer.findDocById(request);
     return settlement;
   }

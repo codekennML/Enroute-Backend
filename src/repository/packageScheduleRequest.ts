@@ -3,9 +3,11 @@ import { ClientSession, FilterQuery, Model } from "mongoose";
 import DBLayer, {
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { IPackageScheduleRequest } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class PackageScheduleRequestRepository {
   private PackageScheduleRequestDBLayer: DBLayer<IPackageScheduleRequest>;
@@ -33,7 +35,7 @@ class PackageScheduleRequestRepository {
     return paginatedPackageScheduleRequests;
   }
 
-  async findPackageScheduleRequestById(request: QueryData) {
+  async findPackageScheduleRequestById(request: QueryId) {
     const PackageScheduleRequest =
       await this.PackageScheduleRequestDBLayer.findDocById(request);
     return PackageScheduleRequest;

@@ -36,8 +36,8 @@ class DocumentsService {
 
   async updateDocument(request: UpdateRequestData) {
     //This operation uses a transaction,  session is embedded within the UpdateRequestData options key
-    const updatedUser = await this.documents.updateDocuments(request);
-    return updatedUser;
+    const updatedDocument  = await this.documents.updateDocuments(request);
+    return updatedDocument
   }
 
   async findDocuments(request: PaginationRequestData) {

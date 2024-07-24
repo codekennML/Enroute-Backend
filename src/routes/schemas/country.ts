@@ -2,7 +2,10 @@ import  * as z from "zod"
 
 const countryDocs =  z.object({ 
     name : z.string(), 
-    options : z.array(z.string())
+    options : z.array(z.object({
+        type : z.enum(["text", "image"]), //format
+        format : z.string() //mp4, png
+    }))
 })
 
 export const countrySchema =  z.object({ 
@@ -10,6 +13,8 @@ export const countrySchema =  z.object({
     code : z.string(), 
     boundary : z.array(z.number()), 
     monthlySubscription : z.number(),
+    riderCommission : z.number(), 
+    driverPercentage : z.number(),
     paymentProcessorbillingPercentage : z.number(), 
     currency : z.string(),
     paymentProcessorbillingExtraAmount: z.number(),
@@ -31,10 +36,10 @@ export const getCountriesByIdSchema
     id : z.string()
  })
 
- export const updateCountrySchema = z.optional(CountrySchema.extend({ countryId : z.string()}))
+ export const updateCountrySchema = z.optional(countrySchema.extend({ countryId : z.string()}))
   
 
- export const deleteCountriesSChema =  z.object({ 
+ export const deleteCountriesSchema =  z.object({ 
     countryIds : z.array(z.string())
  })
 

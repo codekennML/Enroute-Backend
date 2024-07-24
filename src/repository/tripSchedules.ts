@@ -3,9 +3,11 @@ import { ClientSession, Model, PipelineStage } from "mongoose";
 import DBLayer, {
     PaginationRequestData,
     QueryData,
+    QueryId,
     updateManyQuery,
 } from "./shared";
 import { ITripSchedule } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class TripScheduleRepository {
     private tripScheduleDBLayer: DBLayer<ITripSchedule>;
@@ -35,22 +37,12 @@ class TripScheduleRepository {
         return paginatedTripSchedules;
     }
 
-    async findTripScheduleById(request: QueryData) {
+    async findTripScheduleById(request: QueryId) {
         const TripSchedule = await this.tripScheduleDBLayer.findDocById(request);
         return TripSchedule;
     }
 
-    async updateTripSchedule(request: {
-        docToUpdate: { [key: string]: Record<"$eq", string> };
-        updateData: { [k: string]: string | object | boolean };
-        options: {
-            new?: boolean;
-            session?: ClientSession;
-            select?: string;
-            upsert?: boolean;
-            includeResultMetadata?: boolean;
-        };
-    }) {
+    async updateTripSchedule(request: UpdateRequestData) {
         const updatedTripSchedule = await this.tripScheduleDBLayer.updateDoc({
             docToUpdate: request.docToUpdate,
             updateData: request.updateData,

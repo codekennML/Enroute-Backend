@@ -12,7 +12,7 @@ import { removeAccessTokens, setTokens } from '../middlewares/auth/setTokens';
 import { accessLogger, authLogger } from "../middlewares/logging/logger";
 import { IUser } from "../model/interfaces"
 import { ClientSession, Types } from "mongoose";
-import { ROLES, SUBROLES } from "../config/enums";
+import { excludeEnum, ROLES, SUBROLES } from "../config/enums";
 import { COMPANY_NAME } from "../config/constants/base";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 
@@ -37,8 +37,9 @@ class AuthController {
 
     
     if(user &&  user?.length > 0  &&  user[0]) {
+
       const errorMessage  = "This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number"
-      
+    console.log(req.role, user[0].roles, 'micc')
        if(req.role !== user[0].roles)
    //Trying to access the user profile for one app on the other app 
   //e.g a driver trying to use their driver mobile on the rider app
@@ -365,11 +366,15 @@ console.log(users, roles)
       otp: data.otp
     })
 
+
+console.log(otpData, "dhhdh")
+
+
     if (!otpData || !otpData?.otpData) throw new AppError(`Invalid or Expired token `, StatusCodes.BAD_REQUEST)
  
-    if(req.role !== otpData.otpData.user?.roles){
+    if(!req.role && !excludeEnum(ROLES,[ROLES.DRIVER, ROLES.RIDER]).includes(otpData.otpData.user?.roles) ||  req.role !== otpData.otpData.user?.roles  ){
         //This user is trying to sign 
-        throw new AppError("We are unable to process this request at this time. Please try again later ", StatusCodes.FORBIDDEN, "Potential intruder trying to access an account from the wrong interface")
+        throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN, "Potential intruder trying to access an account from the wrong interface")
       }
       
     const users = await UserServiceLayer.getUsers({
@@ -778,7 +783,7 @@ new : true, select : "_id"
   
    const user = req.user
 
-   console.log(req.user)
+
 
     if (!user)
       throw new AppError(

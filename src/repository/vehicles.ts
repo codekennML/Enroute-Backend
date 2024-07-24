@@ -3,6 +3,7 @@ import { ClientSession, Model } from "mongoose";
 import DBLayer, {
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { IVehicle } from "../model/interfaces";
@@ -11,7 +12,7 @@ import { UpdateRequestData } from "../../types/types";
 class VehicleRepository {
   private VehicleDBLayer: DBLayer<IVehicle>;
 
-  constructor(model: Model<IVehicleModel>) {
+  constructor(model: Model<IVehicle>) {
     this.VehicleDBLayer = new DBLayer<IVehicle>(model);
   }
 
@@ -26,7 +27,7 @@ class VehicleRepository {
     return createdVehicles;
   }
 
-  async getVehicleById(request: QueryData) {
+  async getVehicleById(request: QueryId) {
     const vehicle = await this.VehicleDBLayer.findDocById(request);
 
     return vehicle;

@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { IBusStation } from "../model/interfaces";
 import BusStationRepository, {
   busStationDataLayer,
@@ -38,7 +38,7 @@ class BusStationService {
     session?: ClientSession
   ) {
     const busStation = await this.busStation.findBusStationById({
-      query: { id: busStationId },
+      query: new Types.ObjectId(busStationId ),
       select,
       session,
     });

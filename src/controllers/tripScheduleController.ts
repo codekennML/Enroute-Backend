@@ -434,17 +434,17 @@ class TripScheduleController {
             matchQuery._id = { $eq: data?.driverId };
         }
 
-        if (data?.country) {
-            matchQuery.origin.country = { $eq: data.country };
-        }
+        // if (data?.country) {
+        //     matchQuery.origin.country = { $eq: data.country };
+        // }
 
-        if (data?.state) {
-            matchQuery.origin.state = { $eq: data.state };
-        }
+        // if (data?.state) {
+        //     matchQuery.origin.state = { $eq: data.state };
+        // }
 
-        if (data?.town) {
-            matchQuery.origin.town = { $eq: data.town };
-        }
+        // if (data?.town) {
+        //     matchQuery.origin.town = { $eq: data.town };
+        // }
 
         const sortQuery: SortQuery = sortRequest(data?.sort);
 
@@ -543,17 +543,17 @@ class TripScheduleController {
             matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
         }
 
-        if (data?.country) {
-            matchQuery.origin.country = { $eq: data.country };
-        }
+        // if (data?.country) {
+        //     matchQuery.origin.country = { $eq: data.country };
+        // }
 
-        if (data?.state) {
-            matchQuery.origin.state = { $eq: data.state };
-        }
+        // if (data?.state) {
+        //     matchQuery.origin.state = { $eq: data.state };
+        // }
 
-        if (data?.town) {
-            matchQuery.origin.town = { $eq: data.town };
-        }
+        // if (data?.town) {
+        //     matchQuery.origin.town = { $eq: data.town };
+        // }
 
 
         const query = [

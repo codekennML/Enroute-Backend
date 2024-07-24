@@ -9,7 +9,7 @@ export const knowledgeBaseSchema = z.object({
     country: z.string(),
     state : z.string().optional(), 
     town : z.string().optional(),
-    country : z.string().optional()
+    
 });
 
 export const getKnowledgeBaseSchema =  z.object({
@@ -25,10 +25,10 @@ export const getKnowledgeBaseByIdSchema =  z.object({
 })
 
 
-export const updateKnowledgeBase =  z.optional(knowledgeBaseSchema.extend({ 
+export const updateKnowledgeBaseSchema =  z.optional(knowledgeBaseSchema.extend({ 
     knowledgeBaseId : z.string()
 }))
 
-export const deleteKnowledgeBase =  z.object({
-knowledgeBaseIds : z.string()
+export const deleteKnowledgeBaseSchema =  z.object({
+knowledgeBaseIds : z.array(z.string())
 })

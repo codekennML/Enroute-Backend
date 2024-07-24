@@ -95,42 +95,6 @@ export const routeSchema = z.object({
 });
 
 
-
-export  const inspectionSchema = z.object({
-    provider: z.string(),
-    issueDate: z.date(),
-    expiryDate: z.date(),
-    image: z.object({
-        front: z.string(),
-        back: z.string().optional(),
-    }),
-});
-
-const insuranceSchema = z.object({
-    provider: z.date(),
-    issueDate: z.date(),
-    expiryDate: z.date(),
-    image: z.object({
-        front: z.string(),
-        back: z.string().optional(),
-    }),
-});
-
-export  const vehicleSchema = z.object({
-    vehicleModel: z.string(),
-    vehicleMake: z.string(),
-    inspection: inspectionSchema,
-    insurance: insuranceSchema,
-    licensePlate: z.string(),
-    year: z.number(),
-    hasAC: z.boolean(),
-    driverId: z.string(),
-    isVerified: z.boolean(),
-    isArchived: z.boolean(),
-    status: z.union([z.literal('pending'), z.literal('assessed')]),
-    approvedBy: z.string(),
-});
-
 export  const friendDataSchema = z.object({
     firstname: z.string(),
     lastname: z.string(),
@@ -155,21 +119,6 @@ export const settlementSchema = z.object({
 
 })
 
-export  const tripScheduleSchema = z.object({
-    driverId: z.string(),
-    origin: placeSchema,
-    originTown: z.string(),
-    originState: z.string(),
-    originCountry: z.string(),
-    destinationTown: z.string(),
-    destinationState: z.string(),
-    destination: placeSchema,
-    vehicleId: z.string(),
-    departureTime: z.date(),
-    seatAllocationsForTrip: z.number(),
-    route: z.string(),
-    status: z.union([z.literal('created'), z.literal('cancelled')]),
-});
 
 export const coordinatesSchema = z.object({
     coordinates: z.array(z.number()),

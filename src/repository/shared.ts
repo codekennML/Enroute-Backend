@@ -134,13 +134,13 @@ class DBLayer<T> {
     }
 
     if (!populatedQuery && lean) {
-      console.log("FG")
+  
       const data = await this.model.findById(query, select, { session }).lean();
       return data;
     }
 
     if (populatedQuery && lean) {
-      console.log("DFTy")
+   
       const data = await this.model
         .findById(query, select, { session })
         .populate(populatedQuery)
@@ -260,8 +260,8 @@ class DBLayer<T> {
   }
 
   //Use this when you want to perform an aggregation that is not linked to pagination of data
-  async aggregateDocs(request: PipelineStage[]) {
-    const result = await this.model.aggregate(request);
+  async aggregateDocs(request: PipelineStage[], session? : ClientSession) {
+    const result = await this.model.aggregate(request, {session});
     return result;
   }
 

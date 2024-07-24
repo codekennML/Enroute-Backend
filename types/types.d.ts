@@ -40,8 +40,8 @@ interface Request {
 }
 
 export interface UpdateRequestData {
-  docToUpdate: Record<string, string | object >
-  updateData: Record<string, string | boolean | object | number>;
+  docToUpdate: Record<string, string | object | boolean >
+  updateData: Record<string, string | boolean | object | number | undefined>;
   options: {
     session?: ClientSession;
     new?: boolean;
@@ -311,11 +311,35 @@ export type TransferData = {
 };
 
 export namespace Flutterwave {
+  export interface WebhookVerification {
+    event: string;
+    message: string;
+    data: Record<string, string | object>;
+  }
   export interface Verification {
     status: "error" | "success";
     message: string;
     data: Record<string, string | object>;
   }
+
+ export interface RefundInitiatedResponse  {
+    status: string;
+    message: string;
+    data: {
+      id: number;
+      account_id: number;
+      tx_id: number;
+      flw_ref: string;
+      wallet_id: number;
+      amount_refunded: number;
+      status: string;
+      destination: string;
+      meta: {
+        source: string;
+      };
+      created_at: string;
+    };
+  };
 }
 
 export namespace Paystack {

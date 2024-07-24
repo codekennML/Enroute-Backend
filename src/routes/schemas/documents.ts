@@ -15,6 +15,7 @@ export const documentsSchema = z.object({
     rejectionFeedback: z.optional(z.string()),
     status: z.optional(z.union([z.literal('pending'), z.literal('assessed'), z.literal('none')])),
     approvedBy: z.optional(z.string()),
+    country : z.string()
 });
 
 
@@ -37,22 +38,28 @@ export const getDocumentByIdSchema =  z.object({
     id :z.string()
 }) 
 
-export const markDocumentApproved =  z.object({ 
+export const markDocumentApprovedSchema =  z.object({ 
     documentId : z.string(), 
-    adminId : z.string()
+
 }) 
 
 export const getUserVerificationDocumentsSchema =  z.object({ 
     userId : z.string()
 })
 
-export const markDocumentRejected = z.object({
+export const markDocumentRejectedSchema = z.object({
     documentId: z.string(),
     adminId: z.string(), 
     rejectionFeedback : z.string()
 }) 
 
-
+export const getDocumentStatsSchema = z.object({ 
+    userId : z.string().optional(), 
+    dateFrom :z.date().optional(), 
+    dateTo : z.date().optional(), 
+    status : z.enum(['pending', 'assessed']).optional(), 
+    country : z.string().optional()
+})
 
 
 

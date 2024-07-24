@@ -228,7 +228,10 @@ export interface IVehicle {
    provider : string, 
    issueDate : Date
    expiryDate : Date
-   image : Record<string, string>
+   image : { 
+    front : string, 
+    back?: string
+   } 
   },
     insurance: {
       provider: Date,
@@ -239,7 +242,7 @@ export interface IVehicle {
         back?: string
       } 
   },
-  
+  images : Record<string, string>,
   licensePlate: string
   year: number;
   hasAC: boolean;
@@ -248,7 +251,8 @@ export interface IVehicle {
   isArchived: boolean;
   status: "pending" | "assessed";
   approvedBy: Types.ObjectId;
- 
+ country : Types.ObjectId,
+ state : Types.ObjectId
 }
 
 export interface IRating{ 

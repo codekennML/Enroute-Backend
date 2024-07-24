@@ -215,30 +215,13 @@ class OTPService {
   }
 
   async verifyOTP(request: { otpId: string; otp: number }, session? : ClientSession) {
+  
     const { otpId, otp} = request;
     
 
     const hashedOtp = this.hashOTP(otp);
 
-    // const updatedDocument = await this.otpDataLayer.updateOtp(
-    // { 
-    //   docToUpdate :   {
-    //     _id: new Types.ObjectId(otpId),
-    //     hash: hashedOtp,
-    //     expiry: { $gte: new Date() },
-    //     active: true,
-    //   },
-    //  updateData :    {
-    //     $set: {
-    //       active: false,
-    //     },
-    //   },
-    //   options : {
-    //     session: session,
-    //     new : true 
-    //   }
-    // }
-    // );
+   
 
     const otpData = await this.otpDataLayer.aggregateOtp({
       pipeline: [
@@ -250,10 +233,7 @@ class OTPService {
             active: true,
           }
         },  
-        {
-          $set : { active : false }
-        },
-  
+       
         {
           $lookup : {
             from : "users",
@@ -285,15 +265,37 @@ class OTPService {
     session})
 
  
+   const isValidOtp =  await this.otpDataLayer.updateOtp(
+      { 
+        docToUpdate :   {
+          _id: new Types.ObjectId(otpId),
+          hash: hashedOtp,
+          expiry: { $gte: new Date()},
+          active: true,
+        },
+       updateData :    {
+          $set: {
+            active: false,
+          },
+        },
+        options : {
+          session: session,
+          new : true 
+        }
+      }
+      );
 
+    let otpInfo = isValidOtp
+     
 
-    return { otpData : otpData[0], otp };
+ 
+    return { otpData : otpInfo ? otpData[0] : otpInfo, otp };
   }
 
-  // async updateOtp(request: UpdateRequestData) {
-  //   const updatedOtp = await this.otpDataLayer.updateOtp(request);
-  //   return updatedOtp;
-  // }
+  async updateOtp(request: UpdateRequestData) {
+    const updatedOtp = await this.otpDataLayer.updateOtp(request);
+    return updatedOtp;
+  }
 }
 
 export const OtpServiceLayer = new OTPService(otpDataLayer);

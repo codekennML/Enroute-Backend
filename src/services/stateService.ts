@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { IState } from "../model/interfaces";
 import StateRepository, { StateDataLayer } from "../repository/state";
 import { UpdateRequestData } from "../../types/types";
@@ -27,12 +27,12 @@ class StateService {
   }
 
   async getStateById(
-    StateId: string,
+    stateId: string,
     select?: string,
     session?: ClientSession
   ) {
     const State = await this.State.findStateById({
-      query: { id: StateId },
+      query: new Types.ObjectId(stateId),
       select,
       session,
     });

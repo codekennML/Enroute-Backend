@@ -3755,3 +3755,211 @@
     at asyncGeneratorStep (/home/kennaya/codes/route/src/controllers/rideController.ts:40:28)
     at _next (/home/kennaya/codes/route/src/controllers/rideController.ts:58:17)
     at processTicksAndRejections (node:internal/process/task_queues:95:5)
+20240710	09:36:56	e9a80ee9-321b-4b64-b141-132f5e7a6b2e	MongoServerError: $merge can only be the final stage in the pipeline	POST	/api/auth/authenticate_with_mobile	undefined	MongoServerError: $merge can only be the final stage in the pipeline
+    at Connection.sendCommand (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cmap/connection.ts:525:17)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Connection.command (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cmap/connection.ts:608:22)
+    at async Server.command (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/sdam/server.ts:326:16)
+    at async AggregateOperation.executeCommand (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/command.ts:155:12)
+    at async AggregateOperation.execute (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/aggregate.ts:137:33)
+    at async executeOperation (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/execute_operation.ts:196:12)
+    at async AggregationCursor._initialize (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/aggregation_cursor.ts:71:22)
+    at async AggregationCursor.[kInit] (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/abstract_cursor.ts:657:21)
+    at async next (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/abstract_cursor.ts:763:7)
+20240710	09:38:41	e98198ec-7777-4bb1-a95e-b22df34c1319	MongoServerError: $merge can only be the final stage in the pipeline	POST	/api/auth/authenticate_with_mobile	undefined	MongoServerError: $merge can only be the final stage in the pipeline
+    at Connection.sendCommand (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cmap/connection.ts:525:17)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Connection.command (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cmap/connection.ts:608:22)
+    at async Server.command (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/sdam/server.ts:326:16)
+    at async AggregateOperation.executeCommand (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/command.ts:155:12)
+    at async AggregateOperation.execute (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/aggregate.ts:137:33)
+    at async executeOperation (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/execute_operation.ts:196:12)
+    at async AggregationCursor._initialize (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/aggregation_cursor.ts:71:22)
+    at async AggregationCursor.[kInit] (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/abstract_cursor.ts:657:21)
+    at async next (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/abstract_cursor.ts:763:7)
+20240710	09:40:22	77ae5390-636f-4894-b335-42217f3e7c1c	MongoServerError: $merge can only be the final stage in the pipeline	POST	/api/auth/authenticate_with_mobile	undefined	MongoServerError: $merge can only be the final stage in the pipeline
+    at Connection.sendCommand (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cmap/connection.ts:525:17)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Connection.command (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cmap/connection.ts:608:22)
+    at async Server.command (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/sdam/server.ts:326:16)
+    at async AggregateOperation.executeCommand (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/command.ts:155:12)
+    at async AggregateOperation.execute (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/aggregate.ts:137:33)
+    at async executeOperation (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/operations/execute_operation.ts:196:12)
+    at async AggregationCursor._initialize (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/aggregation_cursor.ts:71:22)
+    at async AggregationCursor.[kInit] (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/abstract_cursor.ts:657:21)
+    at async next (/home/kennaya/codes/route/node_modules/mongoose/node_modules/mongodb/src/cursor/abstract_cursor.ts:763:7)
+20240710	09:42:17	192aaca8-a4f0-4585-8ebc-8bd38f07028e	Error: Invalid or Expired token 	POST	/api/auth/authenticate_with_mobile	undefined	Error: Invalid or Expired token 
+    at /home/kennaya/codes/route/src/controllers/authController.ts:369:46
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	09:43:06	e81cf63a-f239-48f9-8362-466fbeefcf09	Error: Invalid or Expired token 	POST	/api/auth/authenticate_with_mobile	undefined	Error: Invalid or Expired token 
+    at /home/kennaya/codes/route/src/controllers/authController.ts:369:46
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	09:45:15	f98a1095-975b-4b45-bf77-3590ce855087	Error: Invalid or Expired token 	POST	/api/auth/authenticate_with_mobile	undefined	Error: Invalid or Expired token 
+    at /home/kennaya/codes/route/src/controllers/authController.ts:369:46
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	09:48:25	3de7f359-7255-422a-ac4a-a10956fe55c1	Error: Invalid or Expired token 	POST	/api/auth/authenticate_with_mobile	undefined	Error: Invalid or Expired token 
+    at /home/kennaya/codes/route/src/controllers/authController.ts:369:46
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	09:49:16	af44c2f3-527f-4b0d-97bd-32c1f152d347	Error: Invalid or Expired token 	POST	/api/auth/authenticate_with_mobile	undefined	Error: Invalid or Expired token 
+    at /home/kennaya/codes/route/src/controllers/authController.ts:369:46
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	09:52:25	1b857c01-c651-4092-9c01-8d55bac9943a	Error: Invalid or Expired token 	POST	/api/auth/authenticate_with_mobile	undefined	Error: Invalid or Expired token 
+    at /home/kennaya/codes/route/src/controllers/authController.ts:369:46
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	09:56:29	dc6655e5-200f-40b4-9877-3a6a5587b558	Error: Invalid or Expired token 	POST	/api/auth/authenticate_with_mobile	undefined	Error: Invalid or Expired token 
+    at /home/kennaya/codes/route/src/controllers/authController.ts:369:46
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:33:58	269be168-df12-4824-af2d-809822cdf0b8	Error: Forbidden	POST	/api/auth/authenticate_with_mobile	undefined	Error: Forbidden
+    at /home/kennaya/codes/route/src/controllers/authController.ts:373:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	Potential intruder trying to access an account from the wrong interface
+20240710	10:53:16	730ee8cf-5d67-4d3a-885e-5ab109e28ff0	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:54:59	e7116c49-dd24-41ce-a536-2ae0646e8865	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:55:39	adc52aa6-a01a-48f4-b01c-501b7c071bea	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:55:59	7cf69c04-7a5a-4f50-9e0d-239b48c77f86	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:56:30	be10386a-0361-4c0d-9833-aa9a682d7a7f	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:56:52	fcf5d2d9-207a-4f6a-82fa-73c60afe2247	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:58:51	a82c2b77-e87a-4e89-b1c0-b7edbd81cd42	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	10:59:56	dd4c718a-5b04-4f60-b3dd-e0018fe17a73	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:00:59	5e523ef3-3af1-4b99-b380-116547fb5bfd	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:05:40	356c19d4-e264-4301-91e3-6426b9724202	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:06:42	2d7c561a-2508-4a29-9b09-3b8ba75254b7	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:06:56	00dfbe32-358f-4477-8389-fee3c97bcb4e	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:08:22	fce6dcbd-9ad2-4f68-95f0-6192c6e8c50c	Error: Bad Request	POST	/api/auth/mobile	undefined	Error: Bad Request
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:25:22
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:8:71
+    at new Promise (<anonymous>)
+    at __awaiter (/home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:4:12)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:10:60
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:12:13
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:8:71
+    at new Promise (<anonymous>)	App_id not recognized
+20240710	11:12:16	9b3d276b-7c27-46da-a420-273145f8d6f2	Error: Bad Request	POST	/api/auth/mobile	undefined	Error: Bad Request
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:26:22
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:8:71
+    at new Promise (<anonymous>)
+    at __awaiter (/home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:4:12)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:10:60
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:12:13
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:8:71
+    at new Promise (<anonymous>)	App_id not recognized
+20240710	11:13:09	ea0a47c4-5f66-4cdb-a3a1-32fa1d14408a	Error: Bad Request	POST	/api/auth/mobile	undefined	Error: Bad Request
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:26:22
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:8:71
+    at new Promise (<anonymous>)
+    at __awaiter (/home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:4:12)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:10:60
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:12:13
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:8:71
+    at new Promise (<anonymous>)	App_id not recognized
+20240710	11:13:21	c3a44b96-27fd-4d2a-935b-1ce899bbd9ec	Error: Bad Request	POST	/api/auth/mobile	undefined	Error: Bad Request
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:26:22
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:8:71
+    at new Promise (<anonymous>)
+    at __awaiter (/home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:4:12)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:10:60
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:12:13
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:8:71
+    at new Promise (<anonymous>)	App_id not recognized
+20240710	11:14:52	e3736eb5-5258-4dc7-9355-b8c99390ea2d	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:15:32	ee0c8ddb-ca8f-423a-9b4b-8f90461dda3a	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:16:24	cbdc33af-0fe8-4f8a-9a0a-7320d889795c	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:16:39	d241aa78-9e36-4a5b-942a-031d282b790e	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number	POST	/api/auth/mobile	undefined	Error: This mobile number is associated with another account.If this is your account :  <br/> Please ensure you are on the appropriate application interface. <br /> otherwise : </br> Register using a different mobile number
+    at /home/kennaya/codes/route/src/controllers/authController.ts:46:15
+    at Generator.next (<anonymous>)
+    at fulfilled (/home/kennaya/codes/route/src/controllers/authController.ts:5:58)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)	undefined
+20240710	11:18:04	c0ce3a2c-4069-4551-8862-fac31e555756	Error: Bad Request	POST	/api/auth/authenticate_with_mobile	undefined	Error: Bad Request
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:16:13
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:8:71
+    at new Promise (<anonymous>)
+    at __awaiter (/home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:4:12)
+    at /home/kennaya/codes/route/src/middlewares/auth/assignRole.ts:10:60
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:12:13
+    at Generator.next (<anonymous>)
+    at /home/kennaya/codes/route/src/middlewares/errors/tryCatch.ts:8:71
+    at new Promise (<anonymous>)	undefined

@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { IRating } from "../model/interfaces";
 import RatingRepository, {
   ratingDataLayer,
@@ -39,7 +39,7 @@ class ratingService {
     session?: ClientSession
   ) {
     const rating = await this.rating.findRatingById({
-      query: { id: ratingId },
+      query: new Types.ObjectId(ratingId),
       select,
       session,
     });

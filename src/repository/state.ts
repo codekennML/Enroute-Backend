@@ -3,6 +3,7 @@ import { ClientSession, Model } from "mongoose";
 import DBLayer, {
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { IState } from "../model/interfaces";
@@ -32,7 +33,7 @@ class StateRepository {
     return paginatedStates;
   }
 
-  async findStateById(request: QueryData) {
+  async findStateById(request: QueryId) {
     const State = await this.stateDBLayer.findDocById(request);
     return State;
   }

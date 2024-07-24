@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { IKnowledgeBaseCategory } from "../model/interfaces";
 import KnowledgeBaseCategoryRepository, {
   KnowledgeBaseCategoryDataLayer,
@@ -39,7 +39,7 @@ class KnowledgeBaseCategoryService {
   ) {
     const KnowledgeBaseCategory =
       await this.KnowledgeBaseCategory.findKnowledgeBaseCategoryById({
-        query: { id: KnowledgeBaseCategoryId },
+        query: new Types.ObjectId(KnowledgeBaseCategoryId),
         select,
         session,
       });
@@ -49,7 +49,7 @@ class KnowledgeBaseCategoryService {
 
   async deleteKnowledgeBaseCategories(request: string[]) {
     const deletedKnowledgeBaseCategorys =
-      await this.KnowledgeBaseCategory.deleteKnowledgeBaseCategories (request);
+      await this.KnowledgeBaseCategory.deleteKnowledgeBaseCategories(request);
 
     return deletedKnowledgeBaseCategorys;
   }

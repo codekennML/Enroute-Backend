@@ -8,29 +8,29 @@ import AuthGuard from "../middlewares/auth/verifyTokens";
 import { verifyPermissions } from "../middlewares/auth/permissionGuard";
 import { ROLES, SUBROLES, excludeEnum } from "../config/enums";
 
-const userRouter = express.Router();
+const router = express.Router();
 
-userRouter.use(AuthGuard)
+router.use(AuthGuard)
 
-userRouter.get("/", verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER])), validateRequest(getUsersSchema),  tryCatch(UserController.getUsers))
+router.get("/", verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER])), validateRequest(getUsersSchema), tryCatch(UserController.getUsers))
 
-userRouter.post("/create", 
-    verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), 
-    validateRequest(createUserSchema), 
+router.post("/create",
+    verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]),
+    validateRequest(createUserSchema),
     tryCatch(UserController.createUser))
 
-userRouter.get("/:id", verifyPermissions(Object.values(ROLES), Object.values(SUBROLES)), validateRequest(getUserBasicInfo), tryCatch(UserController.getUserBasicInfo))
+router.get("/:id", verifyPermissions(Object.values(ROLES), Object.values(SUBROLES)), validateRequest(getUserBasicInfo), tryCatch(UserController.getUserBasicInfo))
 
-userRouter.post("/limit", verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER]), [SUBROLES.MANAGER, SUBROLES.STAFF]), validateRequest(limitUserAccount), tryCatch(UserController.createUser))
+router.post("/limit", verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER]), [SUBROLES.MANAGER, SUBROLES.STAFF]), validateRequest(limitUserAccount), tryCatch(UserController.createUser))
 
-userRouter.patch("/verify", verifyPermissions([ROLES.CX, ROLES.ACCOUNT, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.STAFF, SUBROLES.MANAGER]) ,validateRequest(markUserVerifiedSchema), tryCatch(UserController.markUserAsVerified))
+router.patch("/verify", verifyPermissions([ROLES.CX, ROLES.ACCOUNT, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.STAFF, SUBROLES.MANAGER]), validateRequest(markUserVerifiedSchema), tryCatch(UserController.markUserAsVerified))
 
-userRouter.patch("/update", verifyPermissions(Object.values(ROLES), [SUBROLES.MANAGER, SUBROLES.STAFF]), validateRequest(updateUserPeripheralDataSchema), tryCatch(UserController.updateUserPeripheralData))
+router.patch("/update", verifyPermissions(Object.values(ROLES), [SUBROLES.MANAGER, SUBROLES.STAFF]), validateRequest(updateUserPeripheralDataSchema), tryCatch(UserController.updateUserPeripheralData))
 
-userRouter.get("/stats/calculate",
+router.get("/stats/calculate",
     verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER])),
     validateRequest(getUsersStatsSchema),
-    tryCatch(UserController.getUserStats) )
+    tryCatch(UserController.getUserStats))
 
 
-export default userRouter;
+export default router;

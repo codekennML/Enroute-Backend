@@ -18,10 +18,11 @@ export const assignRoleOnSignup = tryCatch(
         StatusCodes.BAD_REQUEST
       );
     }
-   
+   console.log("appididiid", appId)
   if (appId === DRIVER_APP_ID) req.role = ROLES.DRIVER  
 
-    if (appId === RIDER_APP_ID) req.role = ROLES.RIDER ;
+  if (appId === RIDER_APP_ID) req.role = ROLES.RIDER ;
+
  if(!req.role) throw new AppError(getReasonPhrase(StatusCodes.BAD_REQUEST), StatusCodes.BAD_REQUEST, 'App_id not recognized')
   
 

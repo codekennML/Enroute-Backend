@@ -43,7 +43,7 @@ class PackageScheduleRequestController {
     return AppResponse(req, res, StatusCodes.CREATED, {
       message: "Package Schedule  request created successfully",
       data: response[0],
-    });
+    })
   }
 
   async _createPackageRequestSession(
@@ -125,6 +125,7 @@ class PackageScheduleRequestController {
   }
 
   async approvePackageScheduleRequest(req: Request, res: Response) {
+
     //Once a package request is approved, it becomes a ride request of type package, assignable to a trip
 
     const { packageRequestId, packageScheduleId } = req.body;
@@ -146,7 +147,6 @@ class PackageScheduleRequestController {
         StatusCodes.FORBIDDEN,
         `Illegal attempt to approve scheduleRequest by user ${user}`
       );
-
 
 
       const hasAnAssignedRequest  = await this.packageScheduleRequest.findPackageScheduleRequests({ 
@@ -281,6 +281,7 @@ class PackageScheduleRequestController {
   }
 
   async cancelScheduleRequest(req: Request, res: Response) {
+
     const { scheduleRequestId } = req.body;
 
     const user = req.user;
@@ -331,15 +332,15 @@ class PackageScheduleRequestController {
         StatusCodes.BAD_REQUEST
       );
 
-    const deletedScheduleRequests =
+    const deletedPackageScheduleRequests =
       await this.packageScheduleRequest.deletePackageScheduleRequests(
         scheduleRequestIds
       );
 
-      if(!deletedPackageScheduleRequests) throw new AppError(getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR), StatusCodes.INTERNAL_SERVER_ERROR)
+    if(!deletedPackageScheduleRequests) throw new AppError(getReasonPhrase(StatusCodes.INTERNAL_SERVER_ERROR), StatusCodes.INTERNAL_SERVER_ERROR)
 
     return AppResponse(req, res, StatusCodes.OK, {
-      message: `${deletedScheduleRequests.deletedCount} schedule requests deleted.`,
+      message: `${deletedPackageScheduleRequests.deletedCount} schedule requests deleted.`,
     });
   }
 
@@ -356,9 +357,10 @@ class PackageScheduleRequestController {
 
     return;
   }
+  
 }
 
-const PackageScheduleRequest = new PackageScheduleRequestController(
+export const PackageScheduleRequest = new PackageScheduleRequestController(
   PackageScheduleRequestServiceLayer
 );
 

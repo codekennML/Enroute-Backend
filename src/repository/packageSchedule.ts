@@ -4,9 +4,11 @@ import DBLayer, {
   AggregateData,
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { IPackageSchedule } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class PackageScheduleRepository {
   private packageScheduleDBLayer: DBLayer<IPackageSchedule>;
@@ -35,7 +37,7 @@ class PackageScheduleRepository {
     return paginatedPackageSchedules;
   }
 
-  async findPackageScheduleById(request: QueryData) {
+  async findPackageScheduleById(request: QueryId) {
     const PackageSchedule = await this.packageScheduleDBLayer.findDocById(
       request
     );

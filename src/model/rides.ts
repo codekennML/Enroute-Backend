@@ -57,12 +57,20 @@ const rideSchema = new Schema<IRide>(
     },
 
     origin: {
-      type: {
+      name: String,
+      
+      state: String,
+      town: String,
+      country : String,
+      placeId: String,
+     location : { 
+        type: {
         type : String,
         enum: ["Point"],
       },
       coordinates: [Number],
-    },
+    }}
+    ,
 
     pickupStation: {
       name: String,

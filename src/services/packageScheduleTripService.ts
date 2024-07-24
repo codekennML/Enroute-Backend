@@ -1,5 +1,5 @@
 import { AggregateData, PaginationRequestData } from "../repository/shared";
-import { ClientSession, FilterQuery } from "mongoose";
+import { ClientSession, FilterQuery, Types } from "mongoose";
 import { IPackageSchedule } from "../model/interfaces";
 import PackageScheduleRepository, {
   PackageScheduleDataLayer,
@@ -37,7 +37,7 @@ class PackageScheduleService {
     session?: ClientSession
   ) {
     const PackageSchedule = await this.PackageSchedule.findPackageScheduleById({
-      query: { id: packageScheduleId },
+      query: new Types.ObjectId(packageScheduleId),
       select,
       session,
     });

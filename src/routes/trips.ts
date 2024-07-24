@@ -5,7 +5,7 @@ import { tryCatch } from "../middlewares/errors/tryCatch"
 import { verifyPermissions } from "../middlewares/auth/permissionGuard"
 import { ROLES, SUBROLES, excludeEnum } from "../config/enums"
 import validateRequest from "../middlewares/validation/base"
-import { canStartTripSchema, getTripByIdSchema, getTripsSchema, updateTripSchema, deleteTripsSchema, endTripSchema, statsSchema, tripSchema, getDriverTripsSchema, createTripFromSchedule, createTripFromScheduleSchema } from "./schemas/trips"
+import { canStartTripSchema, getTripByIdSchema, getTripsSchema, updateTripSchema, deleteTripsSchema, endTripSchema, statsSchema, tripSchema, getDriverTripsSchema, createTripFromScheduleSchema } from "./schemas/trips"
 import AuthGuard from "../middlewares/auth/verifyTokens"
 
 const router = express.Router()
@@ -27,7 +27,7 @@ router.get("/:id", validateRequest(getTripByIdSchema), verifyPermissions(Object.
 router.patch("/update_trip", validateRequest(updateTripSchema), verifyPermissions([ROLES.CX, ROLES.ADMIN, ROLES.DRIVER, ROLES.SUPERADMIN], [ SUBROLES.STAFF, SUBROLES.MANAGER]), tryCatch(Controller.updateTrip))
 
 router.patch("/end", validateRequest(endTripSchema), 
-//  verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.ADMIN, ROLES.CX], [SUBROLES.MANAGER, SUBROLES.STAFF]),
+ verifyPermissions([ROLES.DRIVER, ROLES.ADMIN, ROLES.ADMIN, ROLES.CX], [SUBROLES.MANAGER, SUBROLES.STAFF]),
 
  tryCatch(Controller.endTrip))
 

@@ -23,17 +23,20 @@ export const rideRequestSchema = z.object({
     friendData: z.array(friendDataSchema).optional(),
 })
 
-export const getRideSCheduleSchema= z.object({ 
-    tripScheduleId : z.string(),
-    cursor : z.string(), 
+export const getRideRequestByTripScheduleSchema= z.object({ 
+    tripScheduleId : z.string().optional(),
+    cursor : z.string().optional(), 
     driverId : z.string()
+}) 
+
+export const getRideRequestByIdSchema= z.object({ 
+    tripRequestId : z.string().optional(),
 }) 
 
 export const acceptRideScheduleRequestDriverSchema = z.object({ 
     rideRequestId : z.string(), 
     driverId : z.string()
 })
-
 
 export const rejectRideScheduleRequestDriverSchema = acceptRideScheduleRequestDriverSchema 
 
@@ -57,11 +60,31 @@ export const getRideRequestsSchema =  z.object({
     cursor: z.string().optional(),
     status: z.string().optional(),
     tripScheduleId: z.string().optional(),
+    rideRequestId: z.string().optional(),
     driverId: z.string().optional(),
     sort: z.string().optional(),
     type: z.string().optional(),
     forThirdParty: z.boolean().optional(),
+
+})
+
+export const getRideRequestStatsSchema =  z.object({ 
     dateFrom: z.date().optional(),
     dateTo: z.date().optional(),
+    status: z.union([z.literal("created"), z.literal("cancelled"), z.literal("closed")]),
+    type: z.union([z.literal("package"), z.literal("selfride" ), z.literal("thirdParty")]) ,
+    country: z.string().optional(),
+    state: z.string().optional(),
+    town: z.string().optional(),
+    riderId: z.string().optional(),
+    driverId: z.string().optional()
+
+})
+
+
+
+export const deleteRequestSchema = z.object({
+    rideRequestIds: z.array(z.string()),
+
 })
 

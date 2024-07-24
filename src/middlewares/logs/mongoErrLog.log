@@ -50,3 +50,6 @@
 20240628	12:30:11	0dfdff15-4f3b-457e-981d-a37e052b5280	undefined : ETIMEOUT	querySrv	_mongodb._tcp.cluster0.zrpxuqx.mongodb.net 
 20240628	12:30:38	27f2f2e1-bd80-4bf8-aece-f36f96cf38b9	undefined : ETIMEOUT	querySrv	_mongodb._tcp.cluster0.zrpxuqx.mongodb.net 
 20240628	12:31:04	46d81df5-d468-4307-ad87-6cec01f99783	undefined : ETIMEOUT	querySrv	_mongodb._tcp.cluster0.zrpxuqx.mongodb.net 
+20240710	09:25:55	954fa2a1-621e-4061-95e5-26f7c8402c2c	undefined : ESERVFAIL	querySrv	_mongodb._tcp.cluster0.zrpxuqx.mongodb.net 
+20240710	09:25:56	9a9eabf3-3565-4264-9af2-15bb9711a5c0	undefined : ESERVFAIL	querySrv	_mongodb._tcp.cluster0.zrpxuqx.mongodb.net 
+20240710	09:25:58	037033fa-9267-49c9-ac02-4c91b8e39525	undefined : ESERVFAIL	querySrv	_mongodb._tcp.cluster0.zrpxuqx.mongodb.net 

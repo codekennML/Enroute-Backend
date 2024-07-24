@@ -1,6 +1,6 @@
 import UserRepository, { UserDataLayer } from "../repository/user";
 
-import { ClientSession} from "mongoose";
+import { ClientSession, Types} from "mongoose";
 import { UpdateRequestData } from "../../types/types";
 import { AggregateData, PaginationRequestData, QueryData } from "../repository/shared";
 import { IUser } from "../model/interfaces";
@@ -61,7 +61,7 @@ class User {
     // }
 
     const user = await this.user.getUserById({
-      query: { _id: userId },
+      query: new Types.ObjectId(userId),
       select,
       session,
       

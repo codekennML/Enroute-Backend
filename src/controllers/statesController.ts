@@ -57,16 +57,17 @@ class StateController {
 
     const result = await this.state.findStates(query);
 
-    const hasData = result?.data?.length > 0;
+    const hasData = result?.data?.length === 0;
 
     return AppResponse(
       req,
       res,
-      hasData ? StatusCodes.OK : StatusCodes.NOT_FOUND,
+      hasData ? StatusCodes.NOT_FOUND :  StatusCodes.OK ,
       {
         message: hasData
-          ? `States retrieved succesfully`
-          : `No States were found for this request `,
+          ? `No States were found for this request `
+          : `States retrieved succesfully`
+        ,
         data: result,
       }
     );
@@ -95,7 +96,7 @@ class StateController {
     const { stateId, ...rest } = data;
 
     const updatedstate = await this.state.updateState({
-      docToUpdate: stateId,
+      docToUpdate: {_id : {$eq : stateId } },
       updateData: {
         $set: {
           ...rest,

@@ -12,7 +12,7 @@ import AppError from "../middlewares/errors/BaseError";
 import { emailQueue } from '../services/bullmq/queue';
 import { COMPANY_NAME, COMPANY_SLUG } from '../config/constants/base';
 import { AdminInviteMail } from '../views/mails/AdminInvite';
-import { refreshToken } from 'firebase-admin/app';
+
 
 
 
@@ -51,7 +51,7 @@ class User {
 
      if(!createdUser) throw new AppError("An Error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
 
-      const mail =  AdminInviteMail(data.firstName, data.lastName)
+      const mail =  AdminInviteMail(data.firstName)
 
       emailQueue.add(`New User Invite-${createdUser}`,{
         to : data.email,

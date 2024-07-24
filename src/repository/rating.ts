@@ -4,9 +4,11 @@ import DBLayer, {
     AggregateData,
     PaginationRequestData,
     QueryData,
+    QueryId,
     updateManyQuery,
 } from "./shared";
 import { IRating } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class RatingRepository {
     private ratingDBLayer: DBLayer<IRating>;
@@ -37,7 +39,7 @@ class RatingRepository {
         return paginatedratings;
     }
 
-    async findRatingById(request: QueryData) {
+    async findRatingById(request: QueryId) {
         const rating = await this.ratingDBLayer.findDocById(request);
         return rating;
     }

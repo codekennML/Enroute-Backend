@@ -42,6 +42,10 @@ export const updateTripSchema = z.object({
     status : z.union([z.literal("crashed"), z.literal("completed"), z.literal("paused"), z.literal("completed"), z.literal("ongoing")]).optional()
 })
 
+export const createTripFromScheduleSchema = z.object({
+    tripScheduleId : z.string()
+})
+
 export const endTripSchema = z.object({
     tripId : z.string() ,
     driverId : z.string()

@@ -16,16 +16,25 @@ const smsClient = createAxiosInstance({
 });
 
 
-type Receiver = { recipient: string } | { mobile: string };
 
 // Define the base SMS data type
 type BaseSMSData = {
-  message: string;
+
   channel: "dnd" | "whatsapp";
+  message: string;
+  mobile: string 
 };
 
+export type WhatsAppDATA =  { 
+  recipient: string ,
+  channel: "dnd" | "whatsapp";
+  message: string;
+}
+
 // Combine Receiver with BaseSMSData to define SMSDATA
-export type SMSDATA = (Receiver & BaseSMSData)
+export type SMSDATA = BaseSMSData
+
+
 
 
 type SMSRESPONSE = {
@@ -71,7 +80,8 @@ class Termii {
   }
 
   
-  async sendWhatsApp(request: SMSDATA) {
+  async sendWhatsApp(request: WhatsAppDATA
+  ) {
 
     const { recipient, message, channel, } = request;
 

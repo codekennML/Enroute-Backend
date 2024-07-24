@@ -324,7 +324,7 @@ class RideRequestController {
         return acceptedRide
       });
 
-      return response._id
+      return response._id as string
     };
 
     const response = await retryTransaction(acceptRideSession, 1, data);

@@ -1,7 +1,7 @@
 import { IKnowledgeBase } from "./../model/interfaces/index";
 import KnowledgeBase from "../model/knowledgeBase";
 import { ClientSession, Model } from "mongoose";
-import DBLayer, { AggregateData, PaginationRequestData, QueryData } from "./shared";
+import DBLayer, { AggregateData, PaginationRequestData, QueryData, QueryId } from "./shared";
 import { UpdateRequestData } from "../../types/types";
 
 class KnowledgeBaseRepository {
@@ -32,7 +32,7 @@ class KnowledgeBaseRepository {
     return paginatedKnowledgeBases;
   }
 
-  async findKnowledgeBaseById(request: QueryData) {
+  async findKnowledgeBaseById(request: QueryId) {
     const KnowledgeBase = await this.KnowledgeBaseDBLayer.findDocById(request);
     return KnowledgeBase;
   }

@@ -1,5 +1,5 @@
 import { AggregateData, PaginationRequestData, QueryData } from "./../repository/shared";
-import { ClientSession, FilterQuery } from "mongoose";
+import { ClientSession, FilterQuery, Types } from "mongoose";
 import { ISettlements } from "../model/interfaces";
 import SettlementsRepository, {
   settlementDataLayer,
@@ -41,7 +41,7 @@ class SettlementService {
     session?: ClientSession
   ) {
     const settlements = await this.settlements.findSettlementById({
-      query: { _id: settlementId },
+      query: new Types.ObjectId(settlementId),
       select,
       session,
     });

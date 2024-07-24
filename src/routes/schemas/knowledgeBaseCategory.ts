@@ -24,7 +24,7 @@ export const updateKnowledgeBaseCategorySchema = z.optional(knowledgeBaseCategor
     knowledgeBaseCategoryId: z.string()
 }))
 
-export const deleteKnowledgeBaseCategories = z.object({
+export const deleteKnowledgeBaseCategoriesSchema = z.object({
     knowledgeBaseIds: z.string()
 })
 

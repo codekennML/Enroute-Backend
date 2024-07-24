@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { IKnowledgeBase } from "../model/interfaces";
 import KnowledgeBaseRepository, {
   KnowledgeBaseDataLayer,
@@ -36,7 +36,7 @@ class KnowledgeBaseService {
     session?: ClientSession
   ) {
     const KnowledgeBase = await this.KnowledgeBase.findKnowledgeBaseById({
-      query: { id: KnowledgeBaseId },
+      query:  new Types.ObjectId(KnowledgeBaseId ),
       select,
       session,
     });

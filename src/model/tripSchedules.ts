@@ -27,22 +27,12 @@ const tripSchema = new Schema<ITripSchedule>({
 
             coordinates: [Number, Number],
         },
+        town : String,
+        State : String,
+        country : String, 
+        
     },
 
-    originTown: {
-        type: SchemaTypes.ObjectId,
-        ref: "Town",
-    },
-
-    originState: {
-        type: SchemaTypes.ObjectId,
-        ref: "State",
-    },
-
-    originCountry: {
-        type: SchemaTypes.ObjectId,
-        ref: "Country",
-    },
 
     destination: {
         name: String,
@@ -55,27 +45,21 @@ const tripSchema = new Schema<ITripSchedule>({
 
             coordinates: [Number, Number],
         },
+        town : String,
+        State : String,
+        country : String, 
     },
 
-    destinationTown: {
-        type: SchemaTypes.ObjectId,
-        ref: "Town",
-    },
-
-    destinationState: {
-        type: SchemaTypes.ObjectId,
-        ref: "State",
-    },
-
+  
     status: {
         type: String,
         enum: ["created", "cancelled"],
     },
 
-    vehicleId: {
-        type: SchemaTypes.ObjectId,
-        required: true,
-    },
+    // vehicleId: {
+    //     type: SchemaTypes.ObjectId,
+    //     required: true,
+    // },
 });
 
 tripSchema.index({

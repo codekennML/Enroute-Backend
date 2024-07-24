@@ -11,8 +11,8 @@ class TripsService {
     this.trips = service;
   }
 
-  async createTrip(request: ITrip) {
-    const Trips = await this.trips.createTrip(request);
+  async createTrip(request: ITrip, session? : ClientSession) {
+    const Trips = await this.trips.createTrip(request, session);
 
     return Trips; //tThis should return an array of one Trips only
   }

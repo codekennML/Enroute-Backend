@@ -16,7 +16,7 @@ export const redisOptions: RedisOptions = {
     maxRetriesPerRequest: null
 };
 
-let redisClient: Redis |  undefined 
+let redisClient: Redis 
 
 try{
     redisClient = new Redis(redisOptions)

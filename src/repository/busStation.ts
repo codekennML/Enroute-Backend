@@ -4,9 +4,11 @@ import DBLayer, {
   AggregateData,
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { IBusStation } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class BusStationRepository {
   private busStationDBLayer: DBLayer<IBusStation>;
@@ -37,22 +39,12 @@ class BusStationRepository {
     return paginatedbusStations;
   }
 
-  async findBusStationById(request: QueryData) {
+  async findBusStationById(request: QueryId) {
     const busStation = await this.busStationDBLayer.findDocById(request);
     return busStation;
   }
 
-  async updateBusStation(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateBusStation(request:UpdateRequestData) {
     const updatedbusStation = await this.busStationDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

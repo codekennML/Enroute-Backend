@@ -1,0 +1,20 @@
+To signup with mobile only 
+
+1. Enter mobile on login interfaces
+2 Call signInMobile auth api, this creates an account, and sends a mobile verrifiedAt flag for verification, and sends otp to the mobile
+3 Enter otp otp screen 
+4 Get access and refresh token 
+
+
+Signup email or google
+
+enter email o clivk cntinue with google 
+an account is created wif none and otp sent to the mobile for verf on next screen , then take firstname and lastname 
+if an account exists , send otp to the mobile and log user in after that
+
+
+Rsest Mobile for emaail on signup 
+
+enter email, otp is sent to aassociated mobile, 
+On next screen, select , my number has changed, this will prompt an otp to email, after which is verified, the user is taken to the mobile login,  there they can enter a mobile number
+if it is a duplicate, auth the number and then ask the user to select one of the accounts provided it has the role of the current app, otherwaie an error will be thrown,

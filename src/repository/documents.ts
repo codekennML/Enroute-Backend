@@ -4,9 +4,11 @@ import DBLayer, {
   AggregateData,
   PaginationRequestData,
   QueryData,
+  QueryId,
   updateManyQuery,
 } from "./shared";
 import { IDocuments } from "../model/interfaces";
+import { UpdateRequestData } from "../../types/types";
 
 class DocumentsRepository {
   private documentsDBLayer: DBLayer<IDocumentsModel>;
@@ -29,7 +31,7 @@ class DocumentsRepository {
     return createdDocumentss;
   }
 
-  async findDocumentById(request: QueryData) {
+  async findDocumentById(request: QueryId) {
     const document = await this.documentsDBLayer.findDocById(request);
     return document;
   }
@@ -47,17 +49,7 @@ class DocumentsRepository {
     return paginatedDocumentss;
   }
 
-  async updateDocuments(request: {
-    docToUpdate: { [key: string]: Record<"$eq", string> };
-    updateData: { [k: string]: string | object | boolean };
-    options: {
-      new?: boolean;
-      session?: ClientSession;
-      select?: string;
-      upsert?: boolean;
-      includeResultMetadata?: boolean;
-    };
-  }) {
+  async updateDocuments(request:UpdateRequestData) {
     const updatedDocuments = await this.documentsDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

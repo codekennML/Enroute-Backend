@@ -481,17 +481,17 @@ class RideController {
             matchQuery.tripId = { $eq: data?.tripId };
         }
 
-        if (data?.country) {
-            matchQuery.pickupStation.country = { $eq: data?.country };
-        }
+        // if (data?.country) {
+        //     matchQuery.pickupStation.country = { $eq: data?.country };
+        // }
 
-        if (data?.state) {
-            matchQuery.pickupStation.state = { $eq: data?.state };
-        }
+        // if (data?.state) {
+        //     matchQuery.pickupStation.state = { $eq: data?.state };
+        // }
 
-        if (data?.town) {
-            matchQuery.pickupStation.town = { $eq: data?.town };
-        }
+        // if (data?.town) {
+        //     matchQuery.pickupStation.town = { $eq: data?.town };
+        // }
 
         if(data.status){
             matchQuery.status = {$eq :data.status }
@@ -510,7 +510,10 @@ class RideController {
 
         const query = {
             query: matchQuery,
-            aggregatePipeline: [{ $limit: 101 }, sortQuery, { 
+            aggregatePipeline: [
+                { $limit: 101 }, 
+                sortQuery, 
+                { 
                 $lookup : { 
                     from :  "users", 
                     foreignField : "_id",
@@ -524,9 +527,14 @@ class RideController {
                                 dateOfBirth : 1     
                             }
                         }
-                    ]
+                    ],
+                    as : "riderData"
                 }
-            }],
+            }, 
+                {
+                    $unwind : "$riderData"
+                }
+            ],
             pagination: { pageSize: 100 },
         };
         console.log(query)
@@ -676,22 +684,22 @@ class RideController {
         const matchQuery: MatchQuery = {
             createdAt: {  $lte: data?.dateTo ?? new Date(Date.now()) }
         };
-        if(data?.dateFrom){
-            matchQuery.createdAt["$gte"] =   new Date(data.dateFrom)
-        }
+        // if(data?.dateFrom){
+        //     matchQuery.createdAt["$gte"] =   new Date(data.dateFrom)
+        // }
 
 
-        if (data?.country) {
-            matchQuery.pickupStation.country = { $eq: data?.country };
-        }
+        // if (data?.country) {
+        //     matchQuery.pickupStation.country = { $eq: data?.country };
+        // }
 
-        if (data?.state) {
-            matchQuery.pickupStation.state = { $eq: data?.state };
-        }
+        // if (data?.state) {
+        //     matchQuery.pickupStation.state = { $eq: data?.state };
+        // }
 
-        if (data?.town) {
-            matchQuery.pickupStation.town = { $eq: data?.town };
-        }
+        // if (data?.town) {
+        //     matchQuery.pickupStation.town = { $eq: data?.town };
+        // }
 
 
         if (data.type) {

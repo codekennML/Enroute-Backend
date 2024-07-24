@@ -7,14 +7,14 @@ import resend from "./3rdParty/resend";
 import { buildSendRequest } from "../utils/helpers/formatNotifications";
 import { EmailData, PushData } from "../../types/types";
 import { AxiosError } from "axios";
-import termii, { SMSDATA } from "./3rdParty/termii";
+import termii, { SMSDATA, WhatsAppDATA } from "./3rdParty/termii";
 
 
 
 class CommunicationService {
 
 
-  async sendOTPMobile(data : SMSDATA ) {
+  async sendOTPMobile(data : SMSDATA | WhatsAppDATA ) {
  
      console.log("processing OTP")
 
@@ -33,11 +33,11 @@ class CommunicationService {
       }
 
     } catch (e: unknown) {
- 
+      
+      // error_status : ${(e as Error)?.status}
       notificationsLogger.error(`SMS to ${'recipient' in data ?  data?.recipient : data?.mobile } failed with error ${e},  - ${(e as Error | AxiosError)?.message} , {
         extra: {
-          error: ${e?.message},
-          error_status : ${e.status}
+          error: ${(e as Error).message},
           channel: ${'recipient' in data ? "WhatsApp" : "SMS"}
          
         }

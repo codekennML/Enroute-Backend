@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession, PipelineStage } from "mongoose";
+import { ClientSession, PipelineStage, Types } from "mongoose";
 import { IRideRequest } from "../model/interfaces";
 import RideRequestRepository, {
   RideRequestDataLayer,
@@ -39,7 +39,7 @@ class RideRequestService {
     session?: ClientSession
   ) {
     const RideRequest = await this.rideRequest.getRideRequestById({
-      query: { id: RideRequestId },
+      query:  new Types.ObjectId(RideRequestId) ,
       select,
       session,
     });
@@ -47,8 +47,8 @@ class RideRequestService {
     return RideRequest;
   }
 
-  async aggregateRideRequests(request: PipelineStage[]) {
-    return await this.rideRequest.aggregateRideRequests(request);
+  async aggregateRideRequests(request: PipelineStage[], session? : ClientSession) {
+    return await this.rideRequest.aggregateRideRequests(request, session);
   }
 
   async deleteRideRequests(request: string[]) {

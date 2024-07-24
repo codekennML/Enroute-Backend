@@ -1,4 +1,4 @@
-import { PopulateOptions, ClientSession } from "mongoose";
+import { PopulateOptions, ClientSession, Types } from "mongoose";
 import { IVehicle } from "../model/interfaces";
 import VehicleRepository, { VehicleDataLayer } from "../repository/vehicles";
 import { UpdateRequestData } from "../../types/types";
@@ -58,7 +58,7 @@ class VehicleService {
     ];
 
     const vehicle = await this.vehicle.getVehicleById({
-      query: { id: vehicleId },
+      query: new Types.ObjectId(vehicleId),
       session,
       populatedQuery: populateQuery,
       select,

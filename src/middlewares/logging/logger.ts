@@ -22,7 +22,9 @@ const loggerProvider = new LoggerProvider();
 loggerProvider.addLogRecordProcessor(
     new SimpleLogRecordProcessor(new ConsoleLogRecordExporter())
 );
-logsAPI.logs.setGlobalLoggerProvider(loggerProvider);
+
+//@ts0expect-error ts cannot recognize this 
+//logsAPI.logs.setGlobalLoggerProvider(loggerProvider)
 
 registerInstrumentations({
     instrumentations: [
@@ -79,7 +81,7 @@ const format = winston.format.combine(
 
   winston.format.printf(info => {
 
-    const { timestamp, level, message, trace_id, span_id, trace_flags, duration,requestId, method, url ipAddress } = info;
+    const { timestamp, level, message, trace_id, span_id, trace_flags, duration,requestId, method, url, ipAddress } = info;
 
     return JSON.stringify({
       timestamp,

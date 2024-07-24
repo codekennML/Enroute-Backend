@@ -1,6 +1,6 @@
 import User from "../model/user";
 import { ClientSession, Model } from "mongoose";
-import DBLayer, { QueryData, PaginationRequestData, AggregateData } from "./shared";
+import DBLayer, { QueryData, PaginationRequestData, AggregateData, QueryId } from "./shared";
 import { SignupData, UpdateRequestData } from "../../types/types";
 import { IUser } from "../model/interfaces";
 
@@ -25,7 +25,7 @@ class UserRepository {
     return users;
   }
 
-  async getUserById(request: QueryData) {
+  async getUserById(request: QueryId) {
     const user = await this.userDBLayer.findDocById(request);
 
     return user;

@@ -256,9 +256,7 @@ class DocumentsController {
   async findDocumentsById(req: Request, res: Response) {
     const documentId: string = req.params.id;
 
-    const document = await this.documents.getDocumentById({
-      query: { _id: documentId },
-    });
+    const document = await this.documents.getDocumentById(documentId);
 
     if (!document) return AppResponse(req, res, StatusCodes.NOT_FOUND, {});
 

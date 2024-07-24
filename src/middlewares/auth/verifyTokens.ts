@@ -17,7 +17,6 @@ interface DecodedToken extends JwtPayload {
   subRole : number
 }
 
-
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET as string;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET as string;
 const driver_app_id =  process.env.DRIVER_APP_ID as string
@@ -30,11 +29,10 @@ const AuthGuard =
 
   const mobileId = req.headers["mobile-device-id"] as string |  undefined
   const app_id  =  req.headers["app_id"]
-
-
   const accessToken = req.headers["x_a_t"] as string
   const refreshToken  =  req.headers["x_r_t"] as string
 
+  console.log(app_id)
 
   try {
 
@@ -45,9 +43,8 @@ const AuthGuard =
       StatusCodes.UNAUTHORIZED
     );
 
-    console.log("here", app_id,  rider_app_id, driver_app_id)
-
-  await jwt.verify(accessToken, ACCESS_TOKEN_SECRET, async(err,  decoded)=> {
+   
+   jwt.verify(accessToken, ACCESS_TOKEN_SECRET, async(err,  decoded)=> {
    console.log(decoded, err)
     if (err) {
     console.log("Missi", err)
@@ -58,7 +55,7 @@ const AuthGuard =
               mobileId
             );
 
-        return  next()
+        return next()
 
           }
   
@@ -70,19 +67,17 @@ const {mobileId  : userMobileId, user,  role, subRole } =  decoded as DecodedTok
 if (mobileId &&  mobileId !== userMobileId) 
   {
 
-
     throw new AppError(
       getReasonPhrase(StatusCodes.UNAUTHORIZED),
       StatusCodes.UNAUTHORIZED
     );
   }
- console.log(app_id, app_id===driver_app_id, role)
 
   if(app_id === rider_app_id && role !== ROLES.RIDER) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
 
   if(app_id === driver_app_id && role !== ROLES.DRIVER) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
 
-    if(!app_id && role in [ROLES.DRIVER, ROLES.RIDER])throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED) 
+  if(!app_id && [ROLES.DRIVER, ROLES.RIDER].includes(req.role))throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED) 
  
 req.user = user
 req.role = role
@@ -102,19 +97,19 @@ const refreshUserToken = async (
   mobileId?: string,
 ) => {
 
-  await jwt.verify(refreshToken,REFRESH_TOKEN_SECRET, async (err, decoded) => {
+    jwt.verify(refreshToken,REFRESH_TOKEN_SECRET, async (err, decoded) => {
     if (err)
       throw new AppError(
         getReasonPhrase(StatusCodes.UNAUTHORIZED),
         StatusCodes.UNAUTHORIZED
       );
       
-    console.log(decoded)
+    
     const { user,role }  = decoded as DecodedToken
 
     const app_id = req.headers["app_id"]
     
-    console.log(app_id === rider_app_id, role, user) 
+  
 
     if(app_id === rider_app_id && role !== ROLES.RIDER) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
 

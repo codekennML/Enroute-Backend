@@ -250,7 +250,7 @@ closeWithGrace(
     if (err) {
       console.error(signal, err, manual);
     }
-    await server.close();
+   
   }
 );
 

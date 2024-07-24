@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession, PopulateOptions } from "mongoose";
+import { ClientSession, PopulateOptions, Types } from "mongoose";
 import { ITown } from "../model/interfaces";
 import TownRepository, { TownDataLayer } from "../repository/town";
 import { UpdateRequestData } from "../../types/types";
@@ -26,9 +26,9 @@ class TownService {
     return updatedTown;
   }
 
-  async getTownById(TownId: string, select?: string, session?: ClientSession, populatedQuery?: PopulateOptions[]) {
+  async getTownById(townId: string, select?: string, session?: ClientSession, populatedQuery?: PopulateOptions[]) {
     const Town = await this.Town.findTownById({
-      query: { id: TownId },
+      query: new Types.ObjectId(townId),
       select,
       session,
       populatedQuery

@@ -22,7 +22,7 @@ const vehicleSchema = new Schema<IVehicle>(
       required: true,
     },
 
-    image : [ 
+    images : [ 
       { 
         type : String, 
           
@@ -57,6 +57,20 @@ const vehicleSchema = new Schema<IVehicle>(
         front: String,
         back: String
       }
+    },
+
+    country  : {
+      type: SchemaTypes.ObjectId,
+      required: false,
+      ref: "Country",
+      index: true,
+    } ,
+
+    state : {
+      type: SchemaTypes.ObjectId,
+      required: false,
+      ref: "State",
+      index: true,
     },
 
     hasAC: {

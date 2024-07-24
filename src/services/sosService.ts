@@ -1,5 +1,5 @@
 import { AggregateData, PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { ISOS } from "../model/interfaces";
 import SOSRepository, { sosDataLayer } from "../repository/sos";
 import { UpdateRequestData } from "../../types/types";
@@ -17,7 +17,7 @@ class SOSService {
     return SOS; //tThis should return an array of one SOS only
   }
 
-  async findSOSs(request: PaginationRequestData) {
+  async findSOS(request: PaginationRequestData) {
     return this.SOS.returnPaginatedSOS(request);
   }
 
@@ -26,9 +26,9 @@ class SOSService {
     return updatedSOS;
   }
 
-  async getSOSById(SOSId: string, select?: string, session?: ClientSession) {
+  async getSOSById(sosId: string, select?: string, session?: ClientSession) {
     const SOS = await this.SOS.findSOSById({
-      query: { id: SOSId },
+      query: new Types.ObjectId(sosId),
       select,
       session,
     });

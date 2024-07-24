@@ -1,5 +1,5 @@
 import { PaginationRequestData } from "./../repository/shared";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { ITripSchedule } from "../model/interfaces";
 import tripScheduleRepository, {
 } from "../repository/tripSchedules";
@@ -37,7 +37,7 @@ class TripScheduleService {
         session?: ClientSession
     ) {
         const tripSchedule = await this.tripSchedule.findTripScheduleById({
-            query: { id: tripScheduleId },
+            query: new Types.ObjectId (tripScheduleId) ,
             select,
             session,
         });

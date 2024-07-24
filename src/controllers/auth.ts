@@ -247,11 +247,12 @@ class AuthController {
         } = req.body  
 
 
-        const otpData  =  await OtpServiceLayer.verifyOTPs({
+        const otpData  =  await OtpServiceLayer.verifyOTP({
             otpId : data.otpId, 
             otp : data.otp
         })
 
+        console.log(otpData)
         if(!otpData ||  !otpData?.otpData) throw new AppError(`Something went wrong. Please try again`, StatusCodes.INTERNAL_SERVER_ERROR) 
 
         const users = await UserServiceLayer.getUsers({

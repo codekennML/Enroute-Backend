@@ -663,15 +663,15 @@ rideinTripsCount : [{
         }
 
         if (data?.country) {
-            matchQuery.origin["country"]= { $eq: data?.country };
+            // matchQuery.origin["country"]= { $eq: data?.country };
         }
 
         if (data?.state) {
-            matchQuery.origin["state"] = { $eq: data?.state };
+            // matchQuery.origin["state"] = { $eq: data?.state };
         }
 
         if (data?.town) {
-            matchQuery.origin["town"] = { $eq: data?.town };
+            // matchQuery.origin["town"] = { $eq: data?.town };
         }
 
 
@@ -876,7 +876,7 @@ rideinTripsCount : [{
             ],
 
         };
-console.log(JSON.stringify(query))
+
         const result = await this.trips.aggregateTrips(query)
         console.log(result)
 
@@ -886,9 +886,6 @@ console.log(JSON.stringify(query))
         })
         //trips count, trip count by status,trip ratio 
     }
-
-
-
 
 
 }

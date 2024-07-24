@@ -1,4 +1,4 @@
-import { StatusCodes} from "http-status-codes";
+import { StatusCodes, getReasonPhrase} from "http-status-codes";
 import AppError from "../middlewares/errors/BaseError";
 import RatingService, {
     ratingServiceLayer,
@@ -8,6 +8,9 @@ import { IRating } from "../model/interfaces";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
+import { RideServiceLayer } from "../services/rideService";
+import { Types } from "mongoose";
+import { ROLES } from "../config/enums";
 
 class RatingController {
     private ratings: RatingService;
@@ -16,20 +19,28 @@ class RatingController {
         this.ratings = service;
     }
 
-    async createRating(req: Request, res: Response) {
-        const data: IRating = req.body;
+    createRating = async(req: Request, res: Response) => {
 
-        const createdRating = await this.ratings.createRating(data);
+        const data: Omit<IRating, "rideId"> & { rideId  : string} = req.body;
+
+        const rideData =  await RideServiceLayer.getRideById(data.rideId,  "createdBy") 
+
+            if(!rideData) throw new AppError(getReasonPhrase(StatusCodes.BAD_REQUEST), StatusCodes.BAD_REQUEST)
+
+            if(rideData?.riderId?.toString() !== req.user && req.role in [ROLES.DRIVER, ROLES.RIDER]) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+
+        
+        const createdRating = await this.ratings.createRating({...data,  rideId : new Types.ObjectId(data.rideId)});
+
 
         return AppResponse(req, res, StatusCodes.CREATED, {
-            message: "rating created successfully",
+            message: "Rating created successfully",
             data: createdRating,
         });
     }
 
-  
 
-    async getRatings(req: Request, res: Response) {
+    getRatings = async(req: Request, res: Response) => {
         const data: {
             ratingId: string,
             dateFrom?: Date,
@@ -83,7 +94,7 @@ class RatingController {
     }
 }
 
-    async getRatingById(req: Request, res: Response) {
+    getRatingById = async(req: Request, res: Response) => {
 
         const ratingId: string = req.params.id;
 
@@ -103,7 +114,7 @@ class RatingController {
         });
     }
 
-    async updateRating(req: Request, res: Response) {
+    updateRating = async (req: Request, res: Response) =>  {
 
         const data: IRating & { ratingId: string } = req.body;
 
@@ -139,7 +150,7 @@ class RatingController {
     }
 
    
-    async getUserRatingStats(req: Request, res: Response) {
+    getUserRatingStats= async(req: Request, res: Response) =>  {
 
         const data: {
             userId?: string,
@@ -204,6 +215,26 @@ class RatingController {
 
 
     }
+
+    deleteRatings = async (req: Request, res: Response) =>  {
+        const data: { ratingIds: string[] } = req.body;
+    
+        const { ratingIds } = data;
+    
+        if (ratingIds.length === 0)
+          throw new AppError(
+            getReasonPhrase(StatusCodes.BAD_REQUEST),
+            StatusCodes.BAD_REQUEST
+          );
+    
+        const deletedratings = await this.ratings.deleteRatings(
+          ratingIds
+        );
+    
+        return AppResponse(req, res, StatusCodes.OK, {
+          message: `${deletedratings.deletedCount} bus stations deleted.`,
+        });
+      }
 
 }
 

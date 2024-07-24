@@ -1,7 +1,7 @@
 import { Worker, Queue, Job } from "bullmq";
 import { QueueLogger } from "../../middlewares/logging/logger";
 import  {RedisOptions } from "ioredis"
-import   redisOptions  from "../redis";
+import  redisClient, { redisOptions}  from "../redis";
 
 
 const WorkersMap = new Map<string, Worker[]>()

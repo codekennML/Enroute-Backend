@@ -36,7 +36,7 @@ const settlementsSchema = new Schema<ISettlements>(
       type : Boolean,  
       required : true,  
       default : false,
-    }
+    },
     
     workerCreated : { 
       type : Boolean , 

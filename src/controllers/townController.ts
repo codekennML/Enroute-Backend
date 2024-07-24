@@ -102,8 +102,8 @@ class TownController {
 
     //This will overwrite the data 
 
-    const updatedtown = await this.town.updateCountry({
-      docToUpdate: townId,
+    const updatedtown = await this.town.updateTown ({
+      docToUpdate: {  _id : {  $eq : townId}},
       updateData: {
         $set: {
           ...rest,
