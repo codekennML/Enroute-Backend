@@ -19,7 +19,7 @@ export interface QueryData {
   lean?: boolean;
 }
 export type QueryId = Omit<QueryData, "query"> & {
-  query : Types.ObjectId
+  query: Types.ObjectId
 }
 
 type commonKeys = Pick<QueryData, "query" | "session">;
@@ -33,7 +33,7 @@ export interface PaginationRequestData extends commonKeys {
 
 export interface AggregateData {
   pipeline: PipelineStage[],
-  session? : ClientSession
+  session?: ClientSession
 }
 
 interface PaginationMeta {
@@ -123,9 +123,9 @@ class DBLayer<T> {
   async findDocById(queryData: QueryId) {
 
     const { query, select, populatedQuery, session, lean } = queryData;
-      
+
     console.log(query, "GHU")
-  
+
     if (!populatedQuery && !lean) {
       console.log(queryData, "TYue")
       const data = await this.model.findById(query, select, { session });
@@ -134,13 +134,13 @@ class DBLayer<T> {
     }
 
     if (!populatedQuery && lean) {
-  
+
       const data = await this.model.findById(query, select, { session }).lean();
       return data;
     }
 
     if (populatedQuery && lean) {
-   
+
       const data = await this.model
         .findById(query, select, { session })
         .populate(populatedQuery)
@@ -154,7 +154,9 @@ class DBLayer<T> {
 
   async aggregateData(request: AggregateData) {
 
-    if(request?.session){
+    console.log(request.pipeline)
+    if (request?.session) {
+
 
       return this.model.aggregate(request.pipeline).session(request.session)
     }
@@ -163,7 +165,7 @@ class DBLayer<T> {
 
       request.pipeline
     )
-  
+    console.log(data)
     return data
 
   }
@@ -229,7 +231,7 @@ class DBLayer<T> {
     const update = request.updateData;
     const options = request.options;
     const filter: FilterQuery<T> = request.docToUpdate;
-    const data = await this.model.findOneAndUpdate(filter, update, options);
+    const data = await this.model.findOneAndUpdate(filter, update, options).lean()
 
     return data;
   }
@@ -260,8 +262,8 @@ class DBLayer<T> {
   }
 
   //Use this when you want to perform an aggregation that is not linked to pagination of data
-  async aggregateDocs(request: PipelineStage[], session? : ClientSession) {
-    const result = await this.model.aggregate(request, {session});
+  async aggregateDocs(request: PipelineStage[], session?: ClientSession) {
+    const result = await this.model.aggregate(request, { session });
     return result;
   }
 

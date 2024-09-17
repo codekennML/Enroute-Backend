@@ -1,6 +1,6 @@
 import { Response, Request } from "express";
 import jwt from "jsonwebtoken";
-import  { UserServiceLayer } from "../../services/userService";
+import { UserServiceLayer } from "../../services/userService";
 import { OtpServiceLayer } from "../../services/otpService";
 import { StatusCodes, getReasonPhrase } from "http-status-codes";
 import AppError from "../errors/BaseError";
@@ -14,9 +14,9 @@ export const setTokens = async (
   req: Request,
   res: Response,
   user: string,
-  role : number,
-  subRole? : number
- 
+  role: number,
+  subRole?: number
+
 ) => {
 
   // const REFRESH_TOKEN_ID = process.env.REFRESH_TOKEN_ID as string;
@@ -25,63 +25,62 @@ export const setTokens = async (
   const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET as string;
   const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET as string;
 
- 
+
   const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN as string;
 
   const REFRESH_TOKEN_EXPIRES_IN = process.env
     .REFRESH_TOKEN_EXPIRES_IN as string;
 
-  
+
 
   const mobileId = req.headers["mobile-device-id"] as string | undefined
 
   console.log(user, mobileId, role, subRole)
-  const authInfo : Record<string, string | number >  = {
-    user : user.toString(), 
+  const authInfo: Record<string, string | number> = {
+    user: user.toString(),
     role,
-   
+
   }
 
-  if(subRole) authInfo["subRole"] =  subRole 
-  if(mobileId) authInfo["mobileId"] =  mobileId
+  if (subRole) authInfo["subRole"] = subRole
+  if (mobileId) authInfo["mobileId"] = mobileId
 
   const accessToken = jwt.sign(authInfo, ACCESS_TOKEN_SECRET, {
     expiresIn: ACCESS_TOKEN_EXPIRES_IN,
   });
 
 
-
   const refreshToken = jwt.sign(authInfo, REFRESH_TOKEN_SECRET, {
     expiresIn: REFRESH_TOKEN_EXPIRES_IN,
-   
+
   });
 
-  const updateData : Record<string, Record<string, string | Date>> =  { 
+  const updateData: Record<string, Record<string, string | Date>> = {
     $set: {
       refreshToken: OtpServiceLayer.hashOTP(refreshToken),
-      accessTokenExpiresAt :new Date(Date.now() + 16 * 60 * 1000)
+      accessTokenExpiresAt: new Date(Date.now() + 16 * 60 * 1000)
 
     }
   }
-  if(mobileId) updateData["$set"]["mobileAuthId"] = mobileId
+  if (mobileId) updateData["$set"]["mobileAuthId"] = mobileId
 
   //Store the refresh token in the db
- const userInfo =  await UserServiceLayer.updateUser({
+  const userInfo = await UserServiceLayer.updateUser({
     docToUpdate: {
       _id: user,
     },
     updateData,
-    options: { new: true, select : "roles _id" },
+    options: { new: true, select: "roles _id" },
   });
 
-  if(!userInfo) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
+  if (!userInfo) throw new AppError(getReasonPhrase(StatusCodes.UNAUTHORIZED), StatusCodes.UNAUTHORIZED)
   //Set the token in the header
-  req.headers[ACCESS_TOKEN_ID] =  accessToken
+  req.headers[ACCESS_TOKEN_ID] = accessToken
   req.headers[REFRESH_TOKEN_ID] = refreshToken
 
 
-  req.user =  userInfo._id.toString()
-  req.role =  userInfo.roles
+  req.user = userInfo._id.toString()
+  req.role = userInfo.roles
   req.subRole = userInfo.subRole
 
 
@@ -118,42 +117,41 @@ export const setTokens = async (
 
 }
 
-export const setAccessToken = async (req : Request,  res : Response, user : string, role : number ,  subRole? : number) => {
+export const setAccessToken = async (req: Request, res: Response, user: string, role: number, subRole?: number) => {
 
-  const mobileId = req.headers["mobile-device-id"] as string | undefined
+  // const mobileId = req.headers["mobile-device-id"] as string | undefined
 
-  const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET as string; 
+  const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET as string;
 
   const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN as string;
 
   console.log(ACCESS_TOKEN_EXPIRES_IN)
 
-  const tokenData : Record<string,string|number> =  { 
-    user, 
-    role, 
+  const tokenData: Record<string, string | number> = {
+    user,
+    role,
   }
 
-  if(subRole) tokenData["subRole"] =  subRole 
-  if(mobileId) tokenData["mobileId"] = mobileId
+  if (subRole) tokenData["subRole"] = subRole
+  // if (mobileId) tokenData["mobileId"] = mobileId
 
   const accessToken = jwt.sign(tokenData, ACCESS_TOKEN_SECRET, {
     expiresIn: ACCESS_TOKEN_EXPIRES_IN
-  
-  } )
+  })
 
-  console.log(accessToken)
-  
+  // console.log(accessToken)
 
-  req.user =  user
-  req.role =  role
-  if(subRole) req.subRole  =  subRole
 
+  req.user = user
+  req.role = role
+  if (subRole) req.subRole = subRole
+
+  console.log(req.role, "ROLEEEEE")
   req.headers[ACCESS_TOKEN_ID] = accessToken
-
-  return 
+  return
 }
 
-export const removeAccessTokens = async (req : Request) => {
-  req.headers[ACCESS_TOKEN_ID]  =  "" 
-  req.headers[REFRESH_TOKEN_ID] =  ""
+export const removeAccessTokens = async (req: Request) => {
+  req.headers[ACCESS_TOKEN_ID] = ""
+  req.headers[REFRESH_TOKEN_ID] = ""
 }

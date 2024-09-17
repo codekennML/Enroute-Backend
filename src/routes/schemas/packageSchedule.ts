@@ -17,20 +17,20 @@ export const packageScheduleSchema = z.object({
     }),
     dueAt: z.date(),
     expiresAt: z.date(),
-    status: z.union([z.literal("filled"),  z.literal("created"), z.literal("expired")]),
+    status: z.union([z.literal("filled"), z.literal("created"), z.literal("expired")]),
     totalDistance: z.number(),
     destinationAddress: placeSchema,
-    pickupAddress : placeSchema
+    pickupAddress: placeSchema
 })
 
-export const getPackageSchedules = z.object({ 
+export const getPackageSchedules = z.object({
     packageScheduleId: z.string().optional(),
     cursor: z.string().optional(),
     pickupTown: z.string().optional(),
     destinationTown: z.string().optional(),
     sort: z.string().optional(),
     expiresAt: z.date().optional(),
-    budget : z.optional(z.object({
+    budget: z.optional(z.object({
         max: z.number(),
         min: z.number()
     })),
@@ -39,25 +39,25 @@ export const getPackageSchedules = z.object({
     dateTo: z.date().optional()
 })
 
-export const getPackageByIdSchema =  z.object({ 
-    id : z.string()
+export const getPackageByIdSchema = z.object({
+    id: z.string()
 })
 
-export const cancelPackageSchedule =  z.object({ 
-    scheduleId : z.string()
-}) 
-
-export const deletePackageSchedulesSchema  =  z.object({ 
-    scheduleIds : z.array(z.string())
+export const cancelPackageSchedule = z.object({
+    scheduleId: z.string()
 })
 
-export const  getPackageScheduleStats= z.object({
+export const deletePackageSchedulesSchema = z.object({
+    scheduleIds: z.array(z.string())
+})
+
+export const getPackageScheduleStats = z.object({
     dateFrom: z.date().optional(),
-    dateTo : z.date().optional(),
+    dateTo: z.date().optional(),
     country: z.string().optional(),
     state: z.string().optional(),
-    town : z.string().optional(),
-    minBudget : z.string().optional(),
-    maxBudget : z.number().optional(),
-    type  : z.union([z.literal("HTH"), z.literal("STS")]).optional()
+    town: z.string().optional(),
+    minBudget: z.string().optional(),
+    maxBudget: z.number().optional(),
+    type: z.union([z.literal("HTH"), z.literal("STS")]).optional()
 })

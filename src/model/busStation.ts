@@ -8,11 +8,9 @@ const busStationSchema = new Schema<IBusStation>(
       required: true,
     },
 
-
-
     placeId: {
       type: String,
-      required: true,
+      required: false,
     },
 
     location: {
@@ -28,7 +26,6 @@ const busStationSchema = new Schema<IBusStation>(
       required: true,
       ref: "Town",
     },
-
     state: {
       type: SchemaTypes.ObjectId,
       required: true,
@@ -39,23 +36,30 @@ const busStationSchema = new Schema<IBusStation>(
       type: SchemaTypes.ObjectId,
       required: true,
       ref: "Country",
+      index: 1
     },
 
     status: {
       type: String,
       enum: ['active', 'suggested', 'rejected'],
-      required: true, 
-      default: "active"
-    },  
-
-    suggestedBy : { 
-      type : SchemaTypes.ObjectId, 
-      ref : "User"
+      required: true,
+      default: "active",
+      index: 1,
     },
 
-     approvedBy: {
+    suggestedBy: {
       type: SchemaTypes.ObjectId,
       ref: "User"
+    },
+
+    approvedBy: {
+      type: SchemaTypes.ObjectId,
+      ref: "User"
+    },
+
+    isPopular: {
+      type: Boolean,
+      index: 1
     }
   },
   {
@@ -70,6 +74,9 @@ busStationSchema.index({
 
 busStationSchema.index({
   placeId: 1,
+  town: 1,
+  state: 1,
+  country: 1,
   name: 1,
 });
 

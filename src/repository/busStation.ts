@@ -21,9 +21,9 @@ class BusStationRepository {
     request: IBusStation,
     session?: ClientSession
   ): Promise<IBusStation[]> {
- 
 
-   const createdBusStations = await this.busStationDBLayer.createDocs(
+
+    const createdBusStations = await this.busStationDBLayer.createDocs(
       [request],
       session
     );
@@ -44,7 +44,7 @@ class BusStationRepository {
     return busStation;
   }
 
-  async updateBusStation(request:UpdateRequestData) {
+  async updateBusStation(request: UpdateRequestData) {
     const updatedbusStation = await this.busStationDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,
@@ -66,6 +66,7 @@ class BusStationRepository {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     options: any;
   }) {
+    console.log(request)
     const result = await this.busStationDBLayer.bulkWriteDocs(request);
 
     return result;

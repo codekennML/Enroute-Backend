@@ -19,13 +19,14 @@ router.post("/create",
     validateRequest(createUserSchema),
     tryCatch(UserController.createUser))
 
+
 router.get("/:id", verifyPermissions(Object.values(ROLES), Object.values(SUBROLES)), validateRequest(getUserBasicInfo), tryCatch(UserController.getUserBasicInfo))
+
+router.patch("/update", verifyPermissions(Object.values(ROLES), [SUBROLES.MANAGER, SUBROLES.STAFF]), validateRequest(updateUserPeripheralDataSchema), tryCatch(UserController.updateUserPeripheralData))
 
 router.post("/limit", verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER]), [SUBROLES.MANAGER, SUBROLES.STAFF]), validateRequest(limitUserAccount), tryCatch(UserController.createUser))
 
 router.patch("/verify", verifyPermissions([ROLES.CX, ROLES.ACCOUNT, ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.STAFF, SUBROLES.MANAGER]), validateRequest(markUserVerifiedSchema), tryCatch(UserController.markUserAsVerified))
-
-router.patch("/update", verifyPermissions(Object.values(ROLES), [SUBROLES.MANAGER, SUBROLES.STAFF]), validateRequest(updateUserPeripheralDataSchema), tryCatch(UserController.updateUserPeripheralData))
 
 router.get("/stats/calculate",
     verifyPermissions(excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER])),

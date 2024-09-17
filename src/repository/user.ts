@@ -37,7 +37,7 @@ class UserRepository {
     return paginatedUsers;
   }
 
-  async updateUser(request: UpdateRequestData) {
+  updateUser = async (request: UpdateRequestData) => {
     const updatedUser = await this.userDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,

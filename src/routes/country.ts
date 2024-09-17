@@ -1,4 +1,4 @@
-import express from "express" 
+import express from "express"
 
 import { verifyPermissions } from "../middlewares/auth/permissionGuard"
 import { ROLES, SUBROLES, excludeEnum } from "../config/enums"
@@ -8,27 +8,26 @@ import { tryCatch } from "../middlewares/errors/tryCatch"
 import AuthGuard from "../middlewares/auth/verifyTokens"
 import { countrySchema, deleteCountriesSchema, getCountriesByIdSchema, getCountriesSchema, updateCountrySchema } from "./schemas/country"
 
-const acceptableRoles =  excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER])
-const acceptableSubRoles  =  Object.values(SUBROLES)
+const acceptableRoles = excludeEnum(ROLES, [ROLES.DRIVER, ROLES.RIDER])
+const acceptableSubRoles = Object.values(SUBROLES)
 
 
 
-const router =  express.Router() 
+const router = express.Router()
+
+router.get("/", validateRequest(getCountriesSchema), tryCatch(Controller.getCountries))
 
 router.use(AuthGuard)
 
-router.post("/create",  validateRequest(countrySchema) , verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), tryCatch(Controller.createCountry) ) 
- 
+router.post("/create", validateRequest(countrySchema), verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), tryCatch(Controller.createCountry))
 
 
-router.get("/", validateRequest(getCountriesSchema), verifyPermissions(acceptableRoles,  acceptableSubRoles) , tryCatch(Controller.getCountries) )
+router.get("/:id", validateRequest(getCountriesByIdSchema), verifyPermissions(acceptableRoles, acceptableSubRoles), tryCatch(Controller.getCountryById))
 
-router.get("/:id", validateRequest(getCountriesByIdSchema),  verifyPermissions(acceptableRoles,  acceptableSubRoles), tryCatch(Controller.getCountryById)) 
- 
 
-router.patch('/update', validateRequest(updateCountrySchema),  verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), tryCatch(Controller.updateCountry)) 
+router.patch('/update', validateRequest(updateCountrySchema), verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), tryCatch(Controller.updateCountry))
 
-router.delete("/delete",  validateRequest(deleteCountriesSchema),  verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), tryCatch(Controller.deleteCountries))
+router.delete("/delete", validateRequest(deleteCountriesSchema), verifyPermissions([ROLES.ADMIN, ROLES.SUPERADMIN], [SUBROLES.MANAGER]), tryCatch(Controller.deleteCountries))
 
 
 export default router

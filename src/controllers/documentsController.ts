@@ -31,7 +31,7 @@ class DocumentsController {
       issued,
       fieldData,
       vehicleId,
-      country 
+      country
     } = req.body;
     //Field data contains the data we need to push into the user or vehicle model when the document is approved
 
@@ -45,8 +45,8 @@ class DocumentsController {
       issued,
       fieldData,
       status: "pending",
-      archived : false ,
-      isRejected : false,
+      archived: false,
+      isRejected: false,
       country
     });
 
@@ -156,12 +156,12 @@ class DocumentsController {
 
   //Get a users pending documents
   async getPendingDocumentsByUser(req: Request, res: Response) {
-   
-    const data: { cursor?: string, user? : string } = req.params;
 
-   //The validator will catch the error if a user is ommitted
+    const data: { cursor?: string, user?: string } = req.params;
 
-    const matchQuery: MatchQuery = { userId : { $eq : data.user}, status: { $eq: "pending" } };
+    //The validator will catch the error if a user is ommitted
+
+    const matchQuery: MatchQuery = { userId: { $eq: data.user }, status: { $eq: "pending" } };
 
     if (data?.cursor) matchQuery._id = { $lt: data.cursor };
 
@@ -256,7 +256,7 @@ class DocumentsController {
   async findDocumentsById(req: Request, res: Response) {
     const documentId: string = req.params.id;
 
-    const document = await this.documents.getDocumentById(documentId);
+    const document = await this.documents.getDocumentById(documentId)
 
     if (!document) return AppResponse(req, res, StatusCodes.NOT_FOUND, {});
 
@@ -270,8 +270,8 @@ class DocumentsController {
   async markDocumentApproved(req: Request, res: Response) {
 
     const data: { documentId: string } = req.body;
-    
-   if(!([ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX].includes(req.role))) throw new AppError("Insufficient permissions to approve document", StatusCodes.FORBIDDEN);
+
+    if (!([ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX].includes(req.role))) throw new AppError("Insufficient permissions to approve document", StatusCodes.FORBIDDEN);
 
 
     const approveDocumentSessionFn = async (
@@ -299,18 +299,18 @@ class DocumentsController {
           );
 
         //Lastly check if there is any document with the same name and and a status of assessed and not rejected and not archived and archive that document so this becomes the only active document for that result
-         await this.documents.updateDocument({
-          docToUpdate: { userId : approvedDocument.userId,  status : "assessed", archived : false, isRejected : false, isVerified : true  , _id : { $ne : approvedDocument._id}, name : { $eq : approvedDocument.name}},
+        await this.documents.updateDocument({
+          docToUpdate: { userId: approvedDocument.userId, status: "assessed", archived: false, isRejected: false, isVerified: true, _id: { $ne: approvedDocument._id }, name: { $eq: approvedDocument.name } },
           updateData: {
             $set: {
-             
-             archived : true
+
+              archived: true
             },
           },
           options: { session, new: true, select: "fieldData _id name userId" },
         });
-         //This can  be null and its okay 
-   
+        //This can  be null and its okay 
+
         return args.documentId;
       });
     };
@@ -323,8 +323,8 @@ class DocumentsController {
   }
 
   //This fetches all documents by a user that have not been archived, meaning they are active -either rejected, verified or undergoing verification
-  getUserVerificationDocuments = async(req: Request, res: Response) =>  {
-    
+  getUserVerificationDocuments = async (req: Request, res: Response) => {
+
     const userId = req.params.id;
 
     const results = await this.documents.getDocumentsWithPopulate({
@@ -355,10 +355,10 @@ class DocumentsController {
     );
   }
 
-  markDocumentRejected =  async (req: Request, res: Response)=>  {
+  markDocumentRejected = async (req: Request, res: Response) => {
     const data: { documentId: string; rejectionFeedback: string } = req.body;
 
-    if(!( [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX].includes(req.role ))) throw new AppError("Insufficient permissions to approve document", StatusCodes.FORBIDDEN);
+    if (!([ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.CX].includes(req.role))) throw new AppError("Insufficient permissions to approve document", StatusCodes.FORBIDDEN);
 
 
     const rejectDocumentSessionFn = async (
@@ -378,7 +378,7 @@ class DocumentsController {
           },
           options: { session, new: true, select: "_id" },
         });
-    //TODO : May make sense to send a rejection feedback email here 
+        //TODO : May make sense to send a rejection feedback email here 
         if (!rejectedDocument)
           throw new AppError(
             getReasonPhrase(StatusCodes.NOT_FOUND),
@@ -394,65 +394,65 @@ class DocumentsController {
       message: `Document with id ${data.documentId} rejected successfully`,
     });
   }
-  
-  getDocumentsStats = async (req : Request, res : Response ) => { 
+
+  getDocumentsStats = async (req: Request, res: Response) => {
     const data: {
       dateFrom?: Date,
       dateTo?: Date,
-      status?: "assessed" | "pending" 
+      status?: "assessed" | "pending"
       country?: string,
       userId?: string
-  } = req.body
+    } = req.body
 
-  const matchQuery: MatchQuery = {
+    const matchQuery: MatchQuery = {
 
-  };
+    };
 
-  if (data?.dateFrom) {
+    if (data?.dateFrom) {
       matchQuery.createdAt = { $gte: new Date(data.dateFrom), $lte: data?.dateTo ?? new Date(Date.now()) };
-  }
+    }
 
-  if (data?.userId) {
+    if (data?.userId) {
       matchQuery.userId = { $eq: data.userId };
-  }
+    }
 
-  const query = {
+    const query = {
 
       pipeline: [
-          {
-              $match: matchQuery
-          },
-          {
-              $facet: {
-                  count: [{ $count: "total" }],
+        {
+          $match: matchQuery
+        },
+        {
+          $facet: {
+            count: [{ $count: "total" }],
 
-                  status: [
-                      {
-                          $group: {
-                              _id: "$status",
-                              count: { $sum: 1 }
-                          }
-                      }
-                  ],
-                 
+            status: [
+              {
+                $group: {
+                  _id: "$status",
+                  count: { $sum: 1 }
+                }
               }
+            ],
 
           }
+
+        }
       ],
 
-  };
+    };
 
-  const result = await this.documents.aggregateDocuments(query)
+    const result = await this.documents.aggregateDocuments(query)
 
 
-  return AppResponse(req, res, StatusCodes.OK, {
-      message : "Documents statistics retrieved successfully", 
-      data : result
-  })
-
-}
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "Documents statistics retrieved successfully",
+      data: result
+    })
 
   }
+
+}
 
 
 

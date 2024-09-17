@@ -4,7 +4,7 @@ import KnowledgeBaseCategoryService, {
     KnowledgeBaseCategoryServiceLayer,
 } from "../services/knowledgeBaseCategoryService";
 import { Request, Response } from "express";
-import {  IKnowledgeBaseCategory } from "../model/interfaces";
+import { IKnowledgeBaseCategory } from "../model/interfaces";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
@@ -32,10 +32,10 @@ class KnowledgeBaseCategoryController {
     async getKnowledgeBaseCategories(req: Request, res: Response) {
         const data: {
             categoryId?: string;
-            parentId? : string,
-            isParent? : boolean
+            parentId?: string,
+            isParent?: boolean
             cursor: string;
-           
+
             sort?: string;
         } = req.body;
 
@@ -45,15 +45,15 @@ class KnowledgeBaseCategoryController {
             matchQuery._id = { $eq: data?.categoryId };
         }
 
-        if(data?.isParent){ 
-            matchQuery.isParent =  { $eq :data.isParent}
+        if (data?.isParent) {
+            matchQuery.isParent = { $eq: data.isParent }
         }
 
-        if(data?.parentId){ 
+        if (data?.parentId) {
             matchQuery.parentId = { $eq: new Types.ObjectId(data.parentId) };
         }
 
-    
+
         const sortQuery: SortQuery = sortRequest(data?.sort);
 
         if (data?.cursor) {
@@ -69,8 +69,8 @@ class KnowledgeBaseCategoryController {
             query: matchQuery,
             aggregatePipeline: [
                 { $limit: 101 },
-              
-                 sortQuery],
+
+                sortQuery],
             pagination: { pageSize: 100 },
         };
 
@@ -94,7 +94,7 @@ class KnowledgeBaseCategoryController {
     async getCategoryById(req: Request, res: Response) {
         const stationId: string = req.params.id;
 
-        const result = await this.knowledgeBaseCategory.getKnowledgeBaseCategoryById (stationId);
+        const result = await this.knowledgeBaseCategory.getKnowledgeBaseCategoryById(stationId);
 
         if (!result)
             throw new AppError(
@@ -116,8 +116,8 @@ class KnowledgeBaseCategoryController {
 
 
 
-        const updatedCategory = await this.knowledgeBaseCategory.updateKnowledgeBaseCategory ({
-            docToUpdate: categoryId,
+        const updatedCategory = await this.knowledgeBaseCategory.updateKnowledgeBaseCategory({
+            docToUpdate: { $eq: categoryId },
             updateData: {
                 $set: {
                     ...rest,
@@ -155,7 +155,7 @@ class KnowledgeBaseCategoryController {
                 StatusCodes.BAD_REQUEST
             );
 
-        const deletedBusStations = await this.knowledgeBaseCategory.deleteKnowledgeBaseCategories (
+        const deletedBusStations = await this.knowledgeBaseCategory.deleteKnowledgeBaseCategories(
             knowledgeBaseCategoryIds
         )
 

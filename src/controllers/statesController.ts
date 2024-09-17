@@ -6,6 +6,8 @@ import { IState } from "../model/interfaces";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
+import { PipelineStage, Types } from "mongoose";
+import { ROLES } from "../config/enums";
 
 class StateController {
   private state: StateService;
@@ -14,7 +16,7 @@ class StateController {
     this.state = service;
   }
 
-  async createState(req: Request, res: Response) {
+  createState = async (req: Request, res: Response) => {
     const data: IState = req.body;
 
     const createdState = await this.state.createState(data);
@@ -25,7 +27,102 @@ class StateController {
     });
   }
 
-  async getStates(req: Request, res: Response) {
+  autoCompleteStateName = async (req: Request, res: Response): Promise<void> => {
+
+    const { countryId, stateName } = req.query;
+
+    console.log(countryId, stateName, "Mertte")
+    // Input validation
+    if (!countryId || !stateName) {
+      throw new AppError("No results matching this request was found.Please try again", StatusCodes.NOT_FOUND)
+    }
+
+    const text = new Types.ObjectId(countryId as string)
+    console.log(text)
+    const states = await this.state.aggregateStates(
+      {
+        pipeline: [
+          {
+            $search: {
+              index: "states",
+              compound: {
+                must: [
+                  {
+                    autocomplete: {
+                      query: stateName,
+                      tokenOrder: "sequential",
+                      path: "name",
+                      fuzzy: {
+                        maxEdits: 1,
+                        prefixLength: 1
+                      }
+                    }
+                  }
+                ],
+                filter: [
+                  {
+                    equals: {
+                      path: "country",
+                      value: text
+                    }
+                  }
+                ]
+              }
+            }
+          },
+
+          {
+            $limit: 5
+          },
+          {
+            $lookup: {
+              from: "countries",
+              localField: "country",
+              foreignField: "_id",
+              pipeline: [
+                {
+                  $project: {
+                    _id: 1,
+                    name: 1
+                  }
+                }
+              ],
+              as: "country"
+            }
+          },
+          {
+            $unwind: "$country"
+          },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              coordinates: "$location.coordinates",
+              country: "$country",
+              state: {
+                _id: "$_id",
+                name: "$name"
+              }
+            }
+          }
+        ]
+      }
+    );
+
+    if (states.length === 0) {
+      res.status(404).json({ message: 'No matching states found' });
+      return;
+    }
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: 'States retrieved successfully',
+      data: states
+    })
+
+
+  }
+
+  getStates = async (req: Request, res: Response) => {
     const data: {
       cursor: string;
       country: string;
@@ -62,7 +159,7 @@ class StateController {
     return AppResponse(
       req,
       res,
-      hasData ? StatusCodes.NOT_FOUND :  StatusCodes.OK ,
+      hasData ? StatusCodes.NOT_FOUND : StatusCodes.OK,
       {
         message: hasData
           ? `No States were found for this request `
@@ -73,7 +170,128 @@ class StateController {
     );
   }
 
-  async getStateById(req: Request, res: Response) {
+  getStateRequiredDocs = async (req: Request, res: Response) => {
+
+    const { id: stateId, serviceType, userRole } = req.query
+
+
+    const role = req.role || parseInt(userRole as string)
+
+    console.log(role)
+
+    if (!stateId || (role === ROLES.DRIVER && !serviceType)) throw new AppError(getReasonPhrase(StatusCodes.BAD_REQUEST), StatusCodes.BAD_REQUEST)
+
+    console.log(stateId, "stateId")
+    const query = { _id: new Types.ObjectId(stateId as string) }
+
+
+    const projection: PipelineStage = {
+      $project: {
+        _id: 1,
+
+      }
+    }
+
+    const finalProjection: PipelineStage = {
+      $project: {
+        _id: 1,
+      }
+    }
+
+
+    if (role === ROLES.DRIVER) {
+
+      let vehicleType = "car"
+
+      if (serviceType === "haulage") {
+        vehicleType = "truck"
+      }
+
+      if (serviceType === "dispatch") {
+        vehicleType = "bike"
+      }
+
+      projection.$project["requiredDriverDocs"] = 1
+
+      //This takes the vehicle required docs from the country docs 
+      projection.$project["vehicleRequiredDocs"] = `$vehicleRequiredDocs.${vehicleType}`
+
+      projection.$project["serviceDocs"] = `$serviceRequiredDocs.${serviceType}`
+
+      //Final projection 
+      finalProjection.$project["areaRequiredDocs"] = "$country.requiredDriverDocs"
+      //We do not want to limit our selves to a state or country so we request the minimal data and provide services anonymously with the basic requirements needed for verification
+      // { $concatArrays: ["$country.requiredDriverDocs", "$requiredDriverDocs"] }
+
+      finalProjection.$project["vehicleDocs"] = "$country.vehicleRequiredDocs"
+
+      // {
+      //   $concatArrays: ["$country.vehicleRequiredDocs", `$vehicleRequiredDocs.${vehicleType}`]
+      // }
+
+      finalProjection.$project["serviceDocs"] = "$country.serviceDocs"
+      // { $concatArrays: ["$country.serviceDocs", `$serviceRequiredDocs.${serviceType}`] }
+    }
+
+    if (role === ROLES.RIDER) {
+      projection.$project["requiredRiderDocs"] = 1
+      // projection.$project["stateRequiredDocs"] = 1
+
+      //Final projection 
+      finalProjection.$project["areaRequiredDocs"] = {
+        $concatArrays: [
+          { $ifNull: ["$country.requiredRiderDocs", []] }, // If undefined, fallback to an empty array
+          { $ifNull: ["$requiredRiderDocs", []] } // If undefined, fallback to an empty array
+        ]
+      }
+
+    }
+
+    const docsQuery = [
+      {
+        $match: query
+      },
+
+      {
+        $lookup: {
+          from: "countries",
+          localField: 'country',
+          foreignField: "_id",
+          pipeline: [
+            projection
+          ],
+          as: "country"
+        }
+      },
+      {
+        $unwind: "$country"
+      },
+      finalProjection
+
+    ]
+
+    console.log(JSON.stringify(docsQuery), "qiery")
+
+
+    const result = await this.state.aggregateStates({
+      pipeline: docsQuery
+    })
+
+    console.log(result, "Data")
+    if (!result)
+      throw new AppError(
+        "No State was found for this request",
+        StatusCodes.NOT_FOUND
+      );
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "State required docs retrieved successfully",
+      data: result
+    });
+  }
+
+  getStateById = async (req: Request, res: Response) => {
+
     const stateId: string = req.params.id;
 
     const result = await this.state.getStateById(stateId);
@@ -90,13 +308,13 @@ class StateController {
     });
   }
 
-  async updateState(req: Request, res: Response) {
+  updateState = async (req: Request, res: Response) => {
     const data: IState & { stateId: string } = req.body;
 
     const { stateId, ...rest } = data;
 
     const updatedstate = await this.state.updateState({
-      docToUpdate: {_id : {$eq : stateId } },
+      docToUpdate: { _id: { $eq: stateId } },
       updateData: {
         $set: {
           ...rest,
@@ -120,7 +338,7 @@ class StateController {
     });
   }
 
-  async deleteStates(req: Request, res: Response) {
+  deleteStates = async (req: Request, res: Response) => {
     const data: { stateIds: string[] } = req.body;
 
     const { stateIds } = data;

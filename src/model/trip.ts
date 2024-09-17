@@ -1,4 +1,4 @@
-import { Schema, Model, model} from "mongoose";
+import { Schema, Model, model } from "mongoose";
 import { ITrip } from "./interfaces";
 
 const tripSchema = new Schema<ITrip>({
@@ -26,10 +26,10 @@ const tripSchema = new Schema<ITrip>({
 
       coordinates: [Number],
     },
-    town : String, 
-    state : String,
-    country : String, 
-    
+    town: String,
+    state: String,
+    country: String,
+
   },
 
   initialStatus: {
@@ -39,10 +39,10 @@ const tripSchema = new Schema<ITrip>({
     default: "none"
   },
 
-  distance : { 
-    type : Number, 
-    default : 0
-  } ,
+  distance: {
+    type: Number,
+    default: 0
+  },
 
   destination: {
     name: String,
@@ -55,9 +55,15 @@ const tripSchema = new Schema<ITrip>({
 
       coordinates: [Number],
     },
-    town : String, 
-    state : String,
-    country : String, 
+    town: String,
+    state: {
+      type: String,
+      index: true
+    },
+    country: {
+      type: String,
+      index: true
+    }
   },
 
 
@@ -69,13 +75,14 @@ const tripSchema = new Schema<ITrip>({
 
 
 }, {
-  timestamps : true, 
-  versionKey : false
+  timestamps: true,
+  versionKey: false
 });
 
 tripSchema.index({
   driverId: 1,
   status: 1,
+
 });
 
 const Trips: Model<ITrip> = model<ITrip>("Trip", tripSchema);

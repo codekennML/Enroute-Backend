@@ -1,4 +1,4 @@
-import { PaginationRequestData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData } from "./../repository/shared";
 import { ClientSession, Types } from "mongoose";
 import { IState } from "../model/interfaces";
 import StateRepository, { StateDataLayer } from "../repository/state";
@@ -43,6 +43,10 @@ class StateService {
   async deleteStates(request: string[]) {
     const deletedStates = await this.State.deleteStates(request);
     return deletedStates;
+  }
+
+  async aggregateStates(request: AggregateData) {
+    return await this.State.aggregateStates(request)
   }
 }
 

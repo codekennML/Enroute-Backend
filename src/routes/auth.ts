@@ -2,11 +2,18 @@ import express from "express";
 import { authController } from "../controllers/authController";
 import assignRoleOnSignup from "../middlewares/auth/assignRole";
 import validateRequest from "../middlewares/validation/base";
-import { changeAuthDataSchema, checkDuplicateSchema, checkLoginUpdateSchema, handleDuplicateAccountSchema, signInEmailSchema, signInGoogleSchema, signInMobileSchema, verifyAccountViaMobileSchema, verifyUserEmailSchema } from "./schemas/auth";
+import { changeAuthDataSchema, checkDuplicateSchema, checkLoginUpdateSchema, handleDuplicateAccountSchema, isExistingMobileSchema, logoutSchema, signInEmailSchema, signInGoogleSchema, signInMobileSchema, verifyAccountViaMobileSchema, verifyUserEmailSchema } from "./schemas/auth";
 import { tryCatch } from "../middlewares/errors/tryCatch";
 import AuthGuard from "../middlewares/auth/verifyTokens";
 
 const authRouter = express.Router();
+
+
+authRouter.get(
+  "/existingMobile",
+  validateRequest(isExistingMobileSchema),
+  tryCatch(authController.isExistingMobile)
+);
 
 authRouter.post(
   "/mobile",
@@ -31,13 +38,6 @@ authRouter.post(
 
 
 authRouter.post(
-  "/verify_duplicate/account_roles",
-  assignRoleOnSignup,
-  validateRequest(checkDuplicateSchema),
-  tryCatch(authController.checkDuplicateAccountOfAnotherRole)
-);
-
-authRouter.post(
   "/authenticate_duplicate",
   assignRoleOnSignup,
   validateRequest(handleDuplicateAccountSchema),
@@ -54,8 +54,9 @@ authRouter.post(
 authRouter.post("/login/google", assignRoleOnSignup,
   validateRequest(signInGoogleSchema), tryCatch(authController.signInGoogle));
 
-authRouter.post("/login/facebook");
 
+
+authRouter.use(AuthGuard)
 
 authRouter.post("/verify_duplicate_auth_data", AuthGuard, validateRequest(checkLoginUpdateSchema), tryCatch(authController.handleUserCanUpdateLoginData));
 
@@ -63,7 +64,7 @@ authRouter.patch("/update_user/email", AuthGuard, validateRequest(changeAuthData
 
 authRouter.patch("/update_user/mobile", AuthGuard, validateRequest(changeAuthDataSchema), tryCatch(authController.changeUserMobileWithinAccount));
 
-authRouter.post("/logout", AuthGuard, tryCatch(authController.logout));
+authRouter.post("/logout", validateRequest(logoutSchema), AuthGuard, tryCatch(authController.logout));
 
 authRouter.post("/revoke/tokens", AuthGuard, tryCatch(authController.revokeTokens))
 

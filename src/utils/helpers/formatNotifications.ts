@@ -1,8 +1,8 @@
 import { Message, TopicMessage } from "firebase-admin/messaging";
-import { MailData} from "../../../types/types"
+import { MailData } from "../../../types/types"
 
 
-export const buildSendRequest = (tokens: string | string[], messageInfo: { [k: string]: string }, callToAction?: string,  topic?: string) => {
+export const buildSendRequest = (tokens: string | string[], messageInfo: { [k: string]: string }, callToAction?: string, topic?: string) => {
 
 
 
@@ -10,7 +10,11 @@ export const buildSendRequest = (tokens: string | string[], messageInfo: { [k: s
     {
 
         data: {
-            ...messageInfo,
+            notifee: JSON.stringify({
+                ...messageInfo,
+                active: true,
+                imageUrl: process.env.COMPANY_LOGO as string
+            })
 
         },
 
@@ -33,15 +37,15 @@ export const buildSendRequest = (tokens: string | string[], messageInfo: { [k: s
         }
     }
 
-    
-  message.android = {
-            notification: {
-                ...message.android?.notification,
-                imageUrl: process.env.COMPANY_LOGO as string
-            }
-        }
 
-    
+    message.android = {
+        notification: {
+            ...message.android?.notification,
+            imageUrl: process.env.COMPANY_LOGO as string
+        }
+    }
+
+
 
     return message
 

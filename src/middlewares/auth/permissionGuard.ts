@@ -7,7 +7,8 @@ export const verifyPermissions = (allowedRoles: number[], allowedSubRoles: numbe
 
   return (req: Request, res: Response, next: NextFunction) => {
 
-console.log(req.role, allowedRoles)
+// console.log(req.role, allowedRoles, "allowsRoles")
+
       if (!req.role || !allowedRoles.includes(req.role)) {
           throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN);
       }

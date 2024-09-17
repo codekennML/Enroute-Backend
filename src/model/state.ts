@@ -1,18 +1,32 @@
 import { Schema, Model, model, SchemaTypes } from "mongoose";
 import { IState } from "./interfaces";
+import { DocsSchema, serviceRequiredSchema } from "./country";
 
 const StateSchema = new Schema<IState>(
   {
     name: {
       type: String,
       required: true,
-      index : 1
+      index: 1
     },
 
     boundary: {
-      type: [Number],
-      required: true,
-      default: [0.0, 0.0, 0.0, 0.0],
+      type: [
+        {
+          lat: Number,
+          lng: Number
+
+        }
+      ],
+      default: [{ lat: 0, lng: 0 }]
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        required: true
+      },
+      coordinates: [Number],
     },
 
     country: {
@@ -20,19 +34,13 @@ const StateSchema = new Schema<IState>(
       required: true,
       ref: "Country",
     },
-    requiredDriverDocs: [
-      {
-        name: String,
-        options: [String]
-      }
-    ],
-    requiredRiderDocs: [
-      {
-        name: String,
-        options: [String]
-      }
-    ],
+    requiredDriverDocs: [DocsSchema],
+    requiredRiderDocs: [DocsSchema],
+    serviceRequiredDocs: serviceRequiredSchema,
+    vehicleRequiredDocs: serviceRequiredSchema
+
   },
+
   {
     timestamps: true,
     versionKey: false,
@@ -40,7 +48,12 @@ const StateSchema = new Schema<IState>(
 );
 
 StateSchema.index({
+  "location.coordinates": "2dsphere",
+});
+
+StateSchema.index({
   country: 1,
+
 });
 
 const State: Model<IState> = model<IState>("State", StateSchema);

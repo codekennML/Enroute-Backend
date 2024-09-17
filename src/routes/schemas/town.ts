@@ -2,16 +2,16 @@ import * as z from "zod"
 
 const townDocs = z.object({
     name: z.string(),
-    options : z.array(z.object({
-        type : z.enum(["text", "image"]), //format
-        format : z.string() //mp4, png
+    options: z.array(z.object({
+        type: z.enum(["text", "image"]), //format
+        format: z.string() //mp4, png
     }))
 })
 
 export const townSchema = z.object({
     name: z.string(),
     state: z.string(),
-    country : z.string(),
+    country: z.string(),
     requiredDriverDocs: townDocs,
     requiredRiderDocs: townDocs
 })
@@ -31,12 +31,18 @@ export const getTownByIdSchema
         id: z.string()
     })
 
+export const autoCompleteTownSchema
+    = z.object({
+        townName: z.string()
+    })
+
+
 export const updateTownSchema = z.optional(townSchema.extend({
     townId: z.string()
 }))
 
-export const deleteTownsSchema =  z.object({ 
-    townIds : z.array(z.string())
+export const deleteTownsSchema = z.object({
+    townIds: z.array(z.string())
 })
 
 

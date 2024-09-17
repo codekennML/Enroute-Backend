@@ -1,40 +1,30 @@
-export enum DOMAINURL {
-  baseUrl_user = "api/v1/",
-  BASEURL_USER = "/api/v1/users",
+
+
+export const ROLES = {
+  DRIVER: 4536,
+  RIDER: 2435,
+  SUPERADMIN: 96370,
+  ADMIN: 86774,
+  ACCOUNT: 76230,
+  MARKETING: 7049,
+  SALES: 6430,
+  DEV: 4325,
+  CX: 34564
 }
 
-export enum PAYSTACKCHANNELS {
-  USSD = "ussd",
-  CARD = "card",
-  BANK = "bank",
+export const SUBROLES = {
+  MANAGER: 987231,
+  STAFF: 123230,
+  INTERN: 12090,
 }
 
+export function excludeEnum(obj: { [key: string]: number; }, valuesToRemove: number[]): number[] {
+  const result: number[] = []
 
-export const ROLES =  {
-  DRIVER :  4536,
-  RIDER : 2435,
-  SUPERADMIN : 96370,
-  ADMIN : 86774,
-  ACCOUNT : 76230,
-  MARKETING : 7049,
-  SALES : 6430,
-  DEV : 4325,
-  CX : 34564
-}
-
-export const SUBROLES =  {
-  MANAGER : 987231,
-  STAFF :  123230,
-  INTERN  :12090,
-}
-
-export function excludeEnum(obj: { [key: string]: number;} , valuesToRemove: number[]): number[] {
-  const result: number[] =  []
- 
   Object.keys(obj).forEach(key => {
-      if (!valuesToRemove.includes(obj[key])) {
-          result.push(obj[key])
-      }
+    if (!valuesToRemove.includes(obj[key])) {
+      result.push(obj[key])
+    }
   });
 
   return result;

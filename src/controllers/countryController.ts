@@ -29,23 +29,40 @@ class CountryController {
     });
   }
 
-  async getCountries(req: Request, res: Response) {
-    const data: {
+
+  getCountries = async (req: Request, res: Response) => {
+
+    interface QueryParams {
+      callingCode?: string,
+      shortCode?: string
       countryId: string;
       cursor?: string;
       sort?: string;
-      name? : string
-    } = req.body;
+      name?: string
+      limit?: number
+    }
+
+    const data = req.query as unknown as QueryParams
 
     const matchQuery: MatchQuery = {};
 
+    const limit = data?.limit
+
     const sortQuery: SortQuery = sortRequest(data?.sort);
-    if(data?.countryId) {
-      matchQuery._id  =  { _$eq : data.countryId }
+    if (data?.countryId) {
+      matchQuery._id = { $eq: data.countryId }
     }
 
-    if(data?.name) {
-      matchQuery.name  =  { _$eq : data.name }
+    if (data?.shortCode) {
+      matchQuery.isoCode = { $eq: data.shortCode }
+    }
+
+    if (data?.callingCode) {
+      matchQuery.code = { $eq: parseInt(data.callingCode) }
+    }
+
+    if (data?.name) {
+      matchQuery.name = { $eq: data.name }
     }
 
     if (data?.cursor) {
@@ -57,12 +74,32 @@ class CountryController {
       matchQuery._id = order;
     }
 
+
+    const aggregatePipeline = [
+      sortQuery,
+      { $limit: limit || 101 },
+      {
+        $project: {
+          requiredDriverDocs: 0,
+          requiredRiderDocs: 0
+        }
+      }
+    ]
+
+    if (limit) {
+      aggregatePipeline.splice(1, 1)
+    }
+
     const query = {
       query: matchQuery,
-      aggregatePipeline: [sortQuery, { $limit: 101 }],
-      pagination: { pageSize: 100 },
+      aggregatePipeline,
+      pagination: { pageSize: limit ? limit : 100 }
+
+
     };
 
+
+    console.log(query)
     const result = await this.country.findCountries(query);
 
     const hasData = result?.data?.length === 0;
@@ -70,18 +107,73 @@ class CountryController {
     return AppResponse(
       req,
       res,
-      hasData ? StatusCodes.NOT_FOUND :  StatusCodes.OK ,
+      hasData ? StatusCodes.NOT_FOUND : StatusCodes.OK,
       {
         message: hasData
-        ? `No countries were found for this request `
-          : `Countries retrieved retrieved succesfully`
-           ,
-        data: result,
+          ? `No countries were found for this request `
+          : `Countries retrieved succesfully`
+        ,
+        ...result
       }
     );
   }
 
-  
+
+  autoCompleteCountries = async (req: Request, res: Response) => {
+    const { countryName } = req.query
+
+    // Input validation
+    if (!countryName) {
+      throw new AppError("No results matching this request was found.Please try again", StatusCodes.NOT_FOUND)
+    }
+
+    const countries = await this.country.aggregateCountries(
+      {
+        pipeline: [
+          {
+            $search: {
+              index: "countryAutocomplete", // Replace with your actual index name
+              compound: {
+                must: [
+                  {
+                    autocomplete: {
+                      query: countryName,
+                      path: "name",
+                      fuzzy: {
+                        maxEdits: 1,
+                        prefixLength: 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            $limit: 5
+          },
+
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              coordinates: 1,
+            }
+          }
+        ]
+      }
+    );
+
+    if (countries.length === 0) {
+      res.status(404).json({ message: 'No matching country found' });
+      return;
+    }
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: 'Countries retrieved successfully',
+      data: countries
+    })
+  }
 
   async getCountryById(req: Request, res: Response) {
 
@@ -104,15 +196,15 @@ class CountryController {
   async updateCountry(req: Request, res: Response) {
     const data: ICountry & { countryId: string } = req.body;
 
-    const { countryId, requiredDriverDocs, requiredRiderDocs,  ...rest } = data; 
+    const { countryId, requiredDriverDocs, requiredRiderDocs, ...rest } = data;
 
     const updatedcountry = await this.country.updateCountry({
-      docToUpdate: { _id : { $eq : new Types.ObjectId(countryId)}},
+      docToUpdate: { _id: { $eq: new Types.ObjectId(countryId) } },
       updateData: {
         $set: {
-       ...rest,
+          ...rest,
         },
-        $addToSet : { requiredDriverDocs,  requiredRiderDocs}
+        $addToSet: { requiredDriverDocs, requiredRiderDocs }
       },
       options: {
         new: true,

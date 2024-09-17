@@ -2,7 +2,7 @@ import { COMPANY_NAME, COMPANY_ADDRESS } from "../../config/constants/base";
 
 export const WelcomeMail = (firstname: string) => {
 
-  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+    return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="https://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 
 <head>
@@ -260,7 +260,7 @@ export const WelcomeMail = (firstname: string) => {
                    <div class="pc-font-alt" style="line-height: 140%; letter-spacing: -0.2px; font-family: 'Inter', Comic Sans MS, Textile, Cursive, sans-serif; font-size: 15px; font-weight: normal; font-variant-ligatures: normal; color: #333333; text-align: left; text-align-last: left;">
                     <div><span style="color: rgb(79, 79, 79);">We understand the importance of your privacy and security. Rest assured, all information provided is kept confidential and for verification purposes only.</span>
                     </div>
-                    <div><span style="color: rgb(79, 79, 79);">If you have any questions or need assistance at any step of the way, our support team is available to assist you. Feel free to reach out to us by using the support option on the mobile application. Your journey with ${COMPANY_NAME } is important to us, and we&#39;re here to ensure it&#39;s as seamless as possible.</span>
+                    <div><span style="color: rgb(79, 79, 79);">If you have any questions or need assistance at any step of the way, our support team is available to assist you. Feel free to reach out to us by using the support option on the mobile application. Your journey with ${COMPANY_NAME} is important to us, and we&#39;re here to ensure it&#39;s as seamless as possible.</span>
                     </div>
                    
                     <div><span style="color: rgb(63, 61, 61);">Looking forward to being a part of your journey</span>
@@ -298,6 +298,8 @@ export const WelcomeMail = (firstname: string) => {
                        </div>
                        <div><span style="font-size: 16px;">${COMPANY_ADDRESS}</span>
                        </div>
+                        <div><span style="font-size: 16px;">All rights reserved.</span>
+                       </div>
                       </div>
                      </td>
                     </tr>
@@ -327,22 +329,22 @@ export const WelcomeMail = (firstname: string) => {
 
 
 //     <tr>
-  //        <td>
-  //         <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation">
-  //          <tr>
-  //           <td align="center" valign="top" style="padding-top: 20px; padding-bottom: 20px; vertical-align: top;">
-  //            <a href="https://designmodo.com/postcards?uid=MjUyMTA2&type=footer" target="_blank" style="text-decoration: none; overflow: hidden; border-radius: 2px; display: inline-block;">
-  //             <img src="https://cloudfilesdm.com/postcards/promo-footer-dark.jpg" width="198" height="46" alt="Made with (o -) postcards" style="width: 198px; height: auto; margin: 0 auto; border: 0; outline: 0; line-height: 100%; -ms-interpolation-mode: bicubic; vertical-align: top;">
-  //            </a>
-  //            <img src="https://api-postcards.designmodo.com/tracking/mail/promo?uid=MjUyMTA2" width="1" height="1" alt="" style="display:none; width: 1px; height: 1px;">
-  //           </td>
-  //          </tr>
-  //         </table>
-  //        </td>
-  //       </tr>
-  //      </table>
-  //     </td>
-  //    </tr>
-  //   </table>
-  //  </td>
-  // </tr>
+//        <td>
+//         <table width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation">
+//          <tr>
+//           <td align="center" valign="top" style="padding-top: 20px; padding-bottom: 20px; vertical-align: top;">
+//            <a href="https://designmodo.com/postcards?uid=MjUyMTA2&type=footer" target="_blank" style="text-decoration: none; overflow: hidden; border-radius: 2px; display: inline-block;">
+//             <img src="https://cloudfilesdm.com/postcards/promo-footer-dark.jpg" width="198" height="46" alt="Made with (o -) postcards" style="width: 198px; height: auto; margin: 0 auto; border: 0; outline: 0; line-height: 100%; -ms-interpolation-mode: bicubic; vertical-align: top;">
+//            </a>
+//            <img src="https://api-postcards.designmodo.com/tracking/mail/promo?uid=MjUyMTA2" width="1" height="1" alt="" style="display:none; width: 1px; height: 1px;">
+//           </td>
+//          </tr>
+//         </table>
+//        </td>
+//       </tr>
+//      </table>
+//     </td>
+//    </tr>
+//   </table>
+//  </td>
+// </tr>

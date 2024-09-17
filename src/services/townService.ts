@@ -1,4 +1,4 @@
-import { PaginationRequestData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData } from "./../repository/shared";
 import { ClientSession, PopulateOptions, Types } from "mongoose";
 import { ITown } from "../model/interfaces";
 import TownRepository, { TownDataLayer } from "../repository/town";
@@ -40,6 +40,10 @@ class TownService {
   async deleteTowns(request: string[]) {
     const deletedTowns = await this.Town.deleteTowns(request);
     return deletedTowns;
+  }
+
+  async aggregateTowns(request: AggregateData) {
+    return await this.Town.aggregateTowns(request)
   }
 }
 

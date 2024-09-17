@@ -1,3 +1,4 @@
+import { getUserBasicInfo } from './../routes/schemas/user';
 import { Types } from 'mongoose';
 import { ROLES } from './../config/enums';
 
@@ -12,6 +13,7 @@ import AppError from "../middlewares/errors/BaseError";
 import { emailQueue } from '../services/bullmq/queue';
 import { COMPANY_NAME, COMPANY_SLUG } from '../config/constants/base';
 import { AdminInviteMail } from '../views/mails/AdminInvite';
+import { checkUserCanAuthenticate } from '../utils/helpers/canLogin';
 
 
 
@@ -23,51 +25,110 @@ class User {
     this.user = userService;
   }
 
- createUser = async(req: Request, res: Response) =>  {
+  createUser = async (req: Request, res: Response) => {
     const data: Required<
-      Pick<IUser, "firstName" | "lastName" | "email" | "roles" | "subRole" >
+      Pick<IUser, "firstName" | "lastName" | "email" | "roles" | "subRole">
     > = req.body;
 
     const newUser = {
       ...data,
       verified: true,
       active: true,
-      status : "verified",
-      invitedBy : new Types.ObjectId(req.user)
+      status: "verified",
+      invitedBy: new Types.ObjectId(req.user)
     };
 
     //Chck if email exists in the db
 
     const isExistingUser = await UserServiceLayer.getUsers({
-      query : {email : data.email},
-      select : "_id"
+      query: { email: data.email },
+      select: "_id"
     })
 
-    if(!isExistingUser) throw new AppError("An Error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+    if (!isExistingUser) throw new AppError("An Error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
 
-    if(isExistingUser.length > 0) throw new AppError("A user exists with the same account data", StatusCodes.CONFLICT)
+    if (isExistingUser.length > 0) throw new AppError("A user exists with the same account data", StatusCodes.CONFLICT)
 
     const createdUser = await this.user.createUser(newUser);
 
-     if(!createdUser) throw new AppError("An Error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+    if (!createdUser) throw new AppError("An Error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
 
-      const mail =  AdminInviteMail(data.firstName)
+    const mail = AdminInviteMail(data.firstName)
 
-      emailQueue.add(`New User Invite-${createdUser}`,{
-        to : data.email,
-        subject : `${COMPANY_NAME} Account Invitation`, 
-        template : mail, 
-        from : `info@${COMPANY_SLUG}`
-      }, {
-        priority : 6
-      } )
+    emailQueue.add(`New User Invite-${createdUser}`, {
+      to: data.email,
+      subject: `${COMPANY_NAME} Account Invitation`,
+      template: mail,
+      from: `info@${COMPANY_SLUG}`
+    }, {
+      priority: 6
+    })
 
     return AppResponse(req, res, StatusCodes.CREATED, {
       message: `User ${createdUser[0]._id} successfully created`,
     });
   }
 
- getUsers = async(req: Request, res: Response) => {
+  getUserBasicInfo = async (req: Request, res: Response) => {
+    //the route validator will handle the error if it does not exist
+
+    const userId: string = req.params.id
+
+    const select =
+      "avatar firstName roles lastName mobile countryCode email subRole verified suspended banned _id email googleEmail  ";
+
+    console.log(req.user, userId)
+
+    if (userId !== req.user && (req.role === ROLES.RIDER || req.role === ROLES.DRIVER)) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+
+
+
+    const userData = await this.user.getUserById(userId, select);
+
+    if (!userData)
+      throw new AppError(
+        getReasonPhrase(StatusCodes.NOT_FOUND),
+        StatusCodes.NOT_FOUND
+      );
+
+    checkUserCanAuthenticate(userData)
+
+    const {
+      avatar,
+      firstName,
+      lastName,
+      roles,
+      mobile,
+      countryCode,
+      banned,
+      suspended,
+      _id,
+      deviceToken,
+      email,
+      googleEmail,
+      verified
+    } = userData;
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "User info validated successfully",
+      data: {
+        avatar,
+        firstName,
+        roles,
+        lastName,
+        banned,
+        suspended,
+        countryCode,
+        mobile,
+        _id,
+        email: email || googleEmail,
+        deviceToken,
+        verified
+      },
+    });
+  }
+
+  getUsers = async (req: Request, res: Response) => {
     const {
       userId,
       cursor,
@@ -84,11 +145,11 @@ class User {
     } = req.query;
 
     const matchQuery: MatchQuery = {
-      
+
     };
-if(userId) {
-    matchQuery._id = { $eq  : userId }
-}
+    if (userId) {
+      matchQuery._id = { $eq: userId }
+    }
 
 
     if (cursor) {
@@ -154,7 +215,7 @@ if(userId) {
         $limit: 101, //The extra one is to check for another page
       },
       {
-        $project : {refreshToken  : 0}
+        $project: { refreshToken: 0 }
       },
       sortQuery,
     ];
@@ -182,61 +243,61 @@ if(userId) {
     );
   }
 
-  getUserBasicInfo = async (req: Request, res: Response) =>  {
-    //the route validator will handle the error if it does not exist
+  // getUserBasicInfo = async (req: Request, res: Response) => {
+  //   //the route validator will handle the error if it does not exist
 
-    const userId: string = req.params.id;
+  //   const userId: string = req.params.id;
 
-    const select =
-      "avatar firstName roles lastName about rating mobile countryCode address email";
-      
-      if(userId !== req.user && (req.role === ROLES.RIDER || req.role === ROLES.DRIVER)) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+  //   const select =
+  //     "avatar firstName roles lastName about rating mobile countryCode address email roles subRole verified ";
+
+  //   //The only users that shold be able to access other users data should be admins 
+  //   if (userId !== req.user && (req.role === ROLES.RIDER || req.role === ROLES.DRIVER)) throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
 
 
-    const userData = await this.user.getUserById(userId, select);
+  //   const userData = await this.user.getUserById(userId, select);
+  //   if (!userData)
+  //     throw new AppError(
+  //       getReasonPhrase(StatusCodes.NOT_FOUND),
+  //       StatusCodes.NOT_FOUND
+  //     );
 
-    if (!userData)
-      throw new AppError(
-        getReasonPhrase(StatusCodes.NOT_FOUND),
-        StatusCodes.NOT_FOUND
-      );
+  //   const {
+  //     avatar,
+  //     firstName,
+  //     lastName,
+  //     roles,
+  //     rating,
+  //     about,
+  //     mobile,
+  //     countryCode,
 
-    const {
-      avatar,
-      firstName,
-      lastName,
-      roles,
-      rating,
-      about,
-      mobile,
-      countryCode,
+  //   } = userData;
 
-    } = userData;
+  //   return AppResponse(req, res, StatusCodes.OK, {
+  //     message: "User Basic info retrieved successfully",
+  //     data: {
+  //       avatar,
+  //       firstName,
+  //       roles,
+  //       lastName,
+  //       about,
+  //       rating,
+  //       countryCode,
+  //       mobile,
 
-    return AppResponse(req, res, StatusCodes.OK, {
-      message: "User Basic info retrieved successfully",
-      data: {
-        avatar,
-        firstName,
-        roles,
-        lastName,
-        about,
-        rating,
-        countryCode,
-        mobile,
-
-      },
-    });
-  }
+  //     },
+  //   });
+  // }
 
   //This should be in the admin route
   async limitUserAccount(req: Request, res: Response) {
     const data: {
       limitType: string;
       user: string;
-      limitReason : string, 
-    
-  
+      limitReason: string,
+
+
     } = req.body;
 
     const update: Partial<Pick<IUser, "banned" | "suspended">> & { _id: string } = {
@@ -260,19 +321,19 @@ if(userId) {
       StatusCodes.FORBIDDEN
     );
 
-    if (!(user.roles in [ROLES.ADMIN, ROLES.SUPERADMIN]) && req.role in [ROLES.DEV, ROLES.CX, ROLES.ACCOUNT, ROLES.MARKETING, ROLES.SALES])  throw new AppError(
+    if (!(user.roles in [ROLES.ADMIN, ROLES.SUPERADMIN]) && req.role in [ROLES.DEV, ROLES.CX, ROLES.ACCOUNT, ROLES.MARKETING, ROLES.SALES]) throw new AppError(
       "Insufficient permissions to limit user",
       StatusCodes.FORBIDDEN
     );
 
-    if (user.roles === req.role && (user?.subRole && user.subRole > req?.subRole )) {
+    if (user.roles === req.role && (user?.subRole && user.subRole > req?.subRole)) {
       throw new AppError(
         "Insufficient permissions to limit user",
         StatusCodes.FORBIDDEN
       );
     }
 
- 
+
     if (req.role !== ROLES.SUPERADMIN && req.role !== ROLES.ADMIN && req.role !== ROLES.CX && req.role !== ROLES.DEV && (user.roles === ROLES.DRIVER || user.roles === ROLES.RIDER)) throw new AppError(
       "Insufficient permissions to perform this action",
       StatusCodes.FORBIDDEN
@@ -286,7 +347,7 @@ if(userId) {
 
     const limitedUser = await this.user.updateUser({
       docToUpdate: { _id: data.user },
-      updateData: { $set: { ...update, limitReason : data.limitReason , limitedBy : req.user } },
+      updateData: { $set: { ...update, limitReason: data.limitReason, limitedBy: req.user } },
       options: { new: true, select: "_id" },
     });
 
@@ -311,8 +372,8 @@ if(userId) {
 
     if (!verifiedUser)
       throw new AppError(
-      "An Error occurred. Pleas try again",
-       StatusCodes.INTERNAL_SERVER_ERROR
+        "An Error occurred. Pleas try again",
+        StatusCodes.INTERNAL_SERVER_ERROR
       );
     //if this errors out somehow , the global tryCatch will pick it up
 
@@ -330,7 +391,7 @@ if(userId) {
   //   } = req.body;
 
 
-  
+
   //   if (data.roles < data.adminRole)
   //     throw new AppError(
   //       getReasonPhrase(StatusCodes.FORBIDDEN),
@@ -355,26 +416,39 @@ if(userId) {
   //   });
   // }
 
- updateUserPeripheralData =  async (req: Request, res: Response) =>  {
+  updateUserPeripheralData = async (req: Request, res: Response) => {
     //update the about,emergency contacts, address and image
 
     type RequestDataType = Partial<Pick<
       IUser,
-       "about" | "emergencyContacts" | "firstName" | "lastName" | "birthDate" | "deviceToken" | "country" | "state" | "town" | "serviceType" | "dispatchType"
+      "about" | "emergencyContacts" | "firstName" | "lastName" | "birthDate" | "deviceToken" | "country" | "state" | "town" | "serviceType" | "dispatchType"
     >>
-
-
 
     const data: RequestDataType & {
       image?: string;
+      _id: string
     } = req.body;
 
-  
-    const updateData: Record<string, Record<string,  RequestDataType[keyof RequestDataType]>>  = {$set : {}}
+    const currentUser = await this.user.getUserById(req.user!, "roles subRole")
+
+    if (!currentUser) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+
+    const userToUpdate = await this.user.getUserById(req.user!, "roles subRole")
+
+    if (!userToUpdate) throw new AppError(getReasonPhrase(StatusCodes.NOT_FOUND), StatusCodes.NOT_FOUND)
+
+
+
+    if (data._id !== req.user || userToUpdate.roles > currentUser.roles || userToUpdate?.subRole || 0 > (currentUser?.subRole || 0)) {
+      throw new AppError(getReasonPhrase(StatusCodes.FORBIDDEN), StatusCodes.FORBIDDEN)
+    }
+
+
+    const updateData: Record<string, Record<string, RequestDataType[keyof RequestDataType]>> = { $set: {} }
 
     console.log(updateData)
     if (data?.about) {
-      updateData['$set'] = { ...updateData.$set,  about : data.about}
+      updateData['$set'] = { ...updateData.$set, about: data.about }
     }
     console.log(updateData)
     if (data?.country) {
@@ -393,10 +467,10 @@ if(userId) {
       updateData['$set']["dispatchType"] = data.dispatchType;
     }
 
-    if (data?.deviceToken) { updateData['$set']["deviceToken"] =  data.deviceToken } 
+    if (data?.deviceToken) { updateData['$set']["deviceToken"] = data.deviceToken }
 
-    if(data?.firstName){ 
-      updateData['$set']['firstName'] =  data.firstName
+    if (data?.firstName) {
+      updateData['$set']['firstName'] = data.firstName
     }
 
     if (data?.lastName) {
@@ -413,6 +487,8 @@ if(userId) {
       updateData["$push"]['emergencyContacts'] = data.emergencyContacts
     }
 
+
+
     if (data?.image) {
       updateData['$set']['avatar'] = data.image;
     }
@@ -420,20 +496,18 @@ if(userId) {
 
     const updatedUser = await this.user.updateUser({
       docToUpdate: {
-        _id: { $eq : req.user}
+        _id: { $eq: data._id }
       },
       updateData,
       options: { new: true, select: "_id" },
     });
 
 
-    if(!updatedUser) throw new AppError("An error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
+    if (!updatedUser) throw new AppError("An error occurred. Please try again", StatusCodes.INTERNAL_SERVER_ERROR)
 
     let message = "";
 
     Object.keys(data).forEach((key) => {
-  
-  
       message += ` & ${key}`;
     });
 
@@ -445,9 +519,9 @@ if(userId) {
     });
   }
 
-  
-getUserStats = async(req: Request, res: Response)  => {
-  console.log("Errere")
+
+  getUserStats = async (req: Request, res: Response) => {
+    console.log("Errere")
 
     const data: {
       dateFrom?: Date,
@@ -756,9 +830,9 @@ getUserStats = async(req: Request, res: Response)  => {
     const result = await this.user.aggregateUsers(query)
     console.log("result", JSON.stringify(result))
 
-    return AppResponse(req, res, StatusCodes.OK, { 
-      message : "User statistics retrieved successfully",
-      data : result
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: "User statistics retrieved successfully",
+      data: result
     })
     //Trip count, trip count by status,trip ratio 
   }

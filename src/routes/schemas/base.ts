@@ -1,7 +1,7 @@
 import * as z from 'zod';
 
 
-type LatLngCoordinates  =  [number,  number]
+type LatLngCoordinates = [number, number]
 
 export const placeSchema = z.object({
     name: z.string(),
@@ -15,9 +15,9 @@ export const placeSchema = z.object({
     placeId: z.string(),
 });
 
-export const dateSeekSchema =  z.object({ 
-  dateFrom :z.optional(z.date())  ,
- dateTo: z.optional(z.date())
+export const dateSeekSchema = z.object({
+    dateFrom: z.optional(z.date()),
+    dateTo: z.optional(z.date())
 }
 )
 
@@ -74,8 +74,6 @@ export const paymentMethodSchema = z.object({
 });
 
 
-
-
 export const cancellationDataSchema = z.object({
     cancellationReason: z.string().optional(),
     driverDistanceFromPickup: z.number().optional(),
@@ -95,7 +93,7 @@ export const routeSchema = z.object({
 });
 
 
-export  const friendDataSchema = z.object({
+export const friendDataSchema = z.object({
     firstname: z.string(),
     lastname: z.string(),
     countryCode: z.string(),

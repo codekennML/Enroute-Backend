@@ -1,11 +1,11 @@
 import UserRepository, { UserDataLayer } from "../repository/user";
-
-import { ClientSession, Types} from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { UpdateRequestData } from "../../types/types";
 import { AggregateData, PaginationRequestData, QueryData } from "../repository/shared";
 import { IUser } from "../model/interfaces";
 
 class User {
+
   private user: UserRepository;
 
   constructor(dataLayer: UserRepository) {
@@ -64,15 +64,19 @@ class User {
       query: new Types.ObjectId(userId),
       select,
       session,
-      
+
     });
 
     return user;
   }
 
-  async updateUser(request: UpdateRequestData) {
+  updateUser = async (request: UpdateRequestData) => {
+    console.log("RUNNINGGGNG", request)
+    console.log(this.user)
     const updatedUser = await this.user.updateUser(request);
+    console.log("VAMOS")
     return updatedUser;
+
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

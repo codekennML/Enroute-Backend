@@ -24,8 +24,6 @@ class RideService {
 
 
 
-
-
   async updateRide(request: UpdateRequestData) {
     const updatedRide = await this.Ride.updateRides(request);
     return updatedRide;
@@ -50,7 +48,7 @@ class RideService {
 
     return deletedRides;
   }
-//This runs any aggregate pipeline 
+  //This runs any aggregate pipeline 
   async aggregateRides(request: AggregateData) {
     return await this.Ride.aggregateData(request)
   }

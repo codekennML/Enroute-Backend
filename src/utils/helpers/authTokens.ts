@@ -3,16 +3,25 @@ import crypto from "node:crypto";
 import otpGenerator from "otp-generator";
 import AppError from "../../middlewares/errors/BaseError";
 
-export const createJWTAuthToken = (
+export const createJWTAuthToken = async (
   data: object,
   signer: string,
   expiry: string
 ) => {
-  const token = jwt.sign(data, signer, {
+  const token = await jwt.sign(data, signer, {
     expiresIn: expiry,
   });
   return token;
 };
+
+export const decodeJWTToken = async (token: string, signer: string) => {
+
+  const response = await jwt.verify(token, signer)
+
+  return response
+
+}
+
 
 export const createCryptoHashToken = (
   stringToAppend?: string

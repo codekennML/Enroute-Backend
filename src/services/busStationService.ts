@@ -1,4 +1,4 @@
-import { PaginationRequestData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData } from "./../repository/shared";
 import { ClientSession, Types } from "mongoose";
 import { IBusStation } from "../model/interfaces";
 import BusStationRepository, {
@@ -38,7 +38,7 @@ class BusStationService {
     session?: ClientSession
   ) {
     const busStation = await this.busStation.findBusStationById({
-      query: new Types.ObjectId(busStationId ),
+      query: new Types.ObjectId(busStationId),
       select,
       session,
     });
@@ -53,7 +53,7 @@ class BusStationService {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async bulkWriteBusStations(request: any, session: ClientSession) {
+  async bulkWriteBusStations(request: any, session?: ClientSession) {
     const { operations } = request;
     const result = await this.busStation.bulkUpdateBusStation({
       operations,
@@ -63,6 +63,9 @@ class BusStationService {
     return result;
   }
 
+  async aggregateStations(request: AggregateData) {
+    return await this.busStation.aggregateData(request)
+  }
   async bulkAddBusStation(request: IBusStation[]) {
     //@ts-expect-error //This is a bulkwrite
     //TODO Set the correct type here

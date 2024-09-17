@@ -1,16 +1,18 @@
-import { ZodIssue} from "zod"
+import { ZodIssue } from "zod"
 
 class AppError extends Error {
 
   public loggerMessage?: string;
   public statusCode: number;
-  public reason?: ZodIssue[]
+  public reason?: Record<string, string>
+  // ZodIssue[]
 
   constructor(
     message: string,
     statusCode: number,
     loggerMessage?: string,
-    reason?: ZodIssue[]
+    reason?: Record<string, string>
+    // ZodIssue[]
   ) {
     super(message);
     this.loggerMessage = loggerMessage;

@@ -1,4 +1,4 @@
-import { PaginationRequestData, QueryData } from "./../repository/shared";
+import { AggregateData, PaginationRequestData, QueryData } from "./../repository/shared";
 import { ClientSession, Types } from "mongoose";
 import { ICountry } from "../model/interfaces";
 import CountryRepository, { CountryDataLayer } from "../repository/country";
@@ -17,12 +17,16 @@ class CountryService {
     return Country; //tThis should return an array of one Country only
   }
 
+  async aggregateCountries(request: AggregateData) {
+    return await this.country.aggregateData(request)
+  }
+
   async findCountries(request: PaginationRequestData) {
     return this.country.returnPaginatedCountries(request);
   }
 
-  async getCountries(request : QueryData) {
-    const result =  await this.country.getCountries(request)
+  async getCountries(request: QueryData) {
+    const result = await this.country.getCountries(request)
 
     return result
   }

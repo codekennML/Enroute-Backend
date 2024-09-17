@@ -9,18 +9,18 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
       max: 100,
-      immutable : true
+      immutable: true
     },
 
     email: {
       type: String,
       max: 255,
-      required:  function(){
+      required: function () {
         return !this.mobile && !this.googleEmail
       },
       index: true,
-      unique : true, 
-      sparse : true,
+      unique: true,
+      sparse: true,
       trim: true
     },
 
@@ -28,12 +28,12 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
       max: 100,
-      immutable : true
+      immutable: true
     },
 
     birthDate: {
       type: Date,
-      immutable : true
+      immutable: true
     },
 
     roles: {
@@ -41,7 +41,10 @@ const userSchema = new Schema<IUser>(
       required: true,
     },
 
-    countryCode: Number,
+    countryCode: {
+      type: Number,
+      index: true
+    },
 
     subRole: {
       type: Number,
@@ -56,14 +59,14 @@ const userSchema = new Schema<IUser>(
     mobile: {
       type: Number,
       unique: true,
-      sparse : true,
+      sparse: true,
       index: true
     },
 
     avatar: {
       type: String,
       default: ".......a...s..s.",
-      required: true 
+      required: true
     },
 
     gender: {
@@ -71,10 +74,10 @@ const userSchema = new Schema<IUser>(
       enum: ["male", "female", "other"],
     },
 
-    archived : {
-      type : Boolean, 
-      required : true ,
-      default : false
+    archived: {
+      type: Boolean,
+      required: true,
+      default: false
     },
 
     googleId: {
@@ -137,12 +140,9 @@ const userSchema = new Schema<IUser>(
       required: true,
     },
 
-    mobileAuthId : String, 
+    mobileAuthId: String,
 
-    accessTokenExpiresAt : Date,
-
-
-  
+    accessTokenExpiresAt: Date,
     emailVerifiedAt: Date,
     mobileVerifiedAt: Date,
 
@@ -161,11 +161,11 @@ const userSchema = new Schema<IUser>(
       customer: Object,
 
       //This is for ensuring e capture a users payment accurately at all times
-      isValid : {
-        type : Boolean,
-        required : true ,
-        default : false
-      }, 
+      isValid: {
+        type: Boolean,
+        required: true,
+        default: false
+      },
 
       defaults: [
         {
@@ -185,13 +185,13 @@ const userSchema = new Schema<IUser>(
 
     serviceType: {
       type: [String],
-      enum: ["dispatch", "ride"],
+      enum: ["dispatch", "ride", "trucking", "rideDispatch"],
     },
-    
-    status : { 
-      type : String, 
-      enum :['new', 'verified'],
-      default : 'new'
+
+    status: {
+      type: String,
+      enum: ['new', 'verified'],
+      default: 'new'
     },
 
     dispatchType: {
@@ -230,17 +230,17 @@ const userSchema = new Schema<IUser>(
       max: 640,
     },
 
-    devices : [{
-      
-      type : String
-    }, 
+    devices: [{
+
+      type: String
+    },
 
 
-    ], 
-    invitedBy : {
-      type : SchemaTypes.ObjectId, 
-      ref : "User", 
-      required : false
+    ],
+    invitedBy: {
+      type: SchemaTypes.ObjectId,
+      ref: "User",
+      required: false
     }
   },
 
@@ -253,7 +253,7 @@ const userSchema = new Schema<IUser>(
 
 userSchema.index({
   town: 1,
-  archived : 1,
+  archived: 1,
   country: 1,
   state: 1,
   gender: 1,
@@ -262,8 +262,8 @@ userSchema.index({
   suspended: 1,
   verified: 1,
   status: 1,
-  accessTokenExpiresAt : 1,
-  mobileAuthId : 1
+  accessTokenExpiresAt: 1,
+  mobileAuthId: 1
 });
 // userSchema.pre("save", async function (next) {
 //   if (this.password && this.isModified(this.password)) {

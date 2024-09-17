@@ -1,6 +1,7 @@
 import State from "../model/state";
 import { ClientSession, Model } from "mongoose";
 import DBLayer, {
+  AggregateData,
   PaginationRequestData,
   QueryData,
   QueryId,
@@ -38,8 +39,7 @@ class StateRepository {
     return State;
   }
 
-  async updateState(request: UpdateRequestData)
-   {
+  async updateState(request: UpdateRequestData) {
     const updatedState = await this.stateDBLayer.updateDoc({
       docToUpdate: request.docToUpdate,
       updateData: request.updateData,
@@ -68,6 +68,10 @@ class StateRepository {
 
   async deleteStates(request: string[]) {
     return this.stateDBLayer.deleteDocs(request);
+  }
+
+  async aggregateStates(request: AggregateData) {
+    return await this.stateDBLayer.aggregateData(request)
   }
 }
 

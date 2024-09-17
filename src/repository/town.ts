@@ -1,6 +1,6 @@
 import Town, { TownModel } from "../model/town";
 import { ClientSession, Model } from "mongoose";
-import DBLayer, { PaginationRequestData, QueryData, QueryId } from "./shared";
+import DBLayer, { AggregateData, PaginationRequestData, QueryData, QueryId } from "./shared";
 import { ITown } from "../model/interfaces";
 import { UpdateRequestData } from "../../types/types";
 
@@ -46,6 +46,11 @@ class TownRepository {
   async deleteTowns(request: string[]) {
     return this.townDBLayer.deleteDocs(request);
   }
+
+  async aggregateTowns(request: AggregateData) {
+    return await this.townDBLayer.aggregateData(request)
+  }
+
 }
 
 export const TownDataLayer = new TownRepository(Town);

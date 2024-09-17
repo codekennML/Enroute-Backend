@@ -1,7 +1,8 @@
 import { Schema, Model, model, Document, SchemaTypes } from "mongoose";
 import { ITown } from "./interfaces";
+import { DocsSchema } from "./country";
 
-export interface TownModel extends ITown, Document {}
+export interface TownModel extends ITown, Document { }
 
 const TownSchema = new Schema<TownModel>(
   {
@@ -23,18 +24,8 @@ const TownSchema = new Schema<TownModel>(
       ref: "Country",
     },
 
-       requiredDriverDocs: [
-      {
-        name: String,
-        options: [String]
-      }
-    ],
-    requiredRiderDocs: [
-      {
-        name: String,
-        options: [String]
-      }
-    ],
+    requiredDriverDocs: [DocsSchema],
+    requiredRiderDocs: [DocsSchema]
   },
   {
     timestamps: true,

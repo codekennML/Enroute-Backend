@@ -4,7 +4,7 @@ import VehicleService, {
   VehicleServiceLayer,
 } from "../services/vehicleService";
 import { Request, Response } from "express";
-import { ClientSession } from "mongoose";
+import { ClientSession, Types } from "mongoose";
 import { IVehicle } from "../model/interfaces";
 import { retryTransaction } from "../utils/helpers/retryTransaction";
 import AppResponse from "../utils/helpers/AppResponse";
@@ -13,6 +13,8 @@ import { sortRequest } from "../utils/helpers/sortQuery";
 import { emailQueue } from "../services/bullmq/queue";
 import { COMPANY_NAME, COMPANY_SLUG } from "../config/constants/base";
 import { VehicleRejectedMail } from "../views/mails/vehicleRejected";
+import { isNotAuthorizedToPerformAction } from "../utils/helpers/isAuthorizedForAction";
+import { ROLES } from "../config/enums";
 
 class VehicleController {
   private vehicle: VehicleService;
@@ -28,32 +30,36 @@ class VehicleController {
       "isVerified" | "isRejected" | "status" | "isArchived"
     > & { prevVehicleId?: string } = req.body;
 
-    const {
-      driverId: user,
-      vehicleMake,
-      vehicleModel,
-      year,
-      insurance,
-      inspection,
-      hasAC,
-      prevVehicleId,
- 
-    } = data;
+    // const {
+    //   driverId: user,
+    //   vehicleMake,
+    //   vehicleModel,
+    //   year,
+    //   insurance,
+    //   inspection,
+    //   hasAC,
+    //   prevVehicleId,
+    //   images,
+    //   country,
+    //   state
+
+
+    // } = data;
 
     const changeVehicleSessionFn = async (
       args: typeof data,
       session: ClientSession
     ) => {
       const result = await session.withTransaction(async () => {
-        if (prevVehicleId) {
+        if (args?.prevVehicleId) {
           const existingVerifiedVehicle = await this.vehicle.getVehicleById(
-            prevVehicleId,
+            args.prevVehicleId,
             "driverId isVerified"
           );
 
           if (
             !existingVerifiedVehicle ||
-            existingVerifiedVehicle.driverId !== user
+            existingVerifiedVehicle.driverId !== args.driverId
           )
             throw new AppError(
               getReasonPhrase(StatusCodes.NOT_FOUND),
@@ -66,26 +72,26 @@ class VehicleController {
           {
             insertOne: {
               document: {
-                driverId: user,
-                vehicleMake,
-                vehicleModel,
-                year: year,
-                insurance,
-                hasAC,
-                inspection,
+                driverId: args.driverId,
+                vehicleMake: args.vehicleMake,
+                vehicleModel: args.vehicleModel,
+                year: args.year,
+                insurance: args.insurance,
+                hasAC: args.hasAC,
+                inspection: args.inspection,
                 isVerified: false,
                 status: "pending",
                 isRejected: false,
-          
+
               },
             },
           },
         ];
 
-        if (prevVehicleId) {
+        if (args.prevVehicleId) {
           operations.push({
             updateOne: {
-              filter: { _id: prevVehicleId },
+              filter: { _id: args.prevVehicleId },
               update: {
                 isArchived: true,
               },
@@ -111,14 +117,17 @@ class VehicleController {
   }
 
   async approveVehicleChange(req: Request, res: Response) {
-    const { vehicleId, adminId } = req.body;
+
+    const { vehicleId, } = req.body;
+
+    if ([ROLES.DRIVER, ROLES.RIDER].includes(req.role) || isNotAuthorizedToPerformAction(req)) throw new AppError("Insufficient permissions", StatusCodes.FORBIDDEN);
 
     const approvedVehicle = await this.vehicle.updateVehicle({
       docToUpdate: { _id: vehicleId },
       updateData: {
         $set: {
           isVerified: true,
-          approvedBy: adminId,
+          approvedBy: new Types.ObjectId(req.user),
           status: "assessed",
         },
       },
@@ -144,6 +153,9 @@ class VehicleController {
       // userEmail
     } = data;
 
+    if ([ROLES.DRIVER, ROLES.RIDER].includes(req.role) || isNotAuthorizedToPerformAction(req)) throw new AppError("Insufficient permissions", StatusCodes.FORBIDDEN);
+
+
     const rejectedVehicle = await this.vehicle.updateVehicle({
       docToUpdate: { _id: data.vehicleId },
       updateData: {
@@ -162,17 +174,17 @@ class VehicleController {
         StatusCodes.BAD_REQUEST
       );
 
-      const template =  VehicleRejectedMail(rejectedVehicle)
+    const template = VehicleRejectedMail(rejectedVehicle)
     //TODO Send an email to the driver here using the userEmail
-    emailQueue.add(`Vehicle_Rejected_${vehicleId}`,  { 
-      subject : `${COMPANY_NAME} - Vehicle Rejected`, 
+    emailQueue.add(`Vehicle_Rejected_${vehicleId}`, {
+      subject: `${COMPANY_NAME} - Vehicle Rejected`,
       template,
-      to :  data.userEmail,
-      from : `info@${COMPANY_SLUG}`
+      to: data.userEmail,
+      from: `info@${COMPANY_SLUG}`
     })
 
     return AppResponse(req, res, StatusCodes.OK, {
-      message: `Vehicle ${rejectedVehicle._id} has been approved.`,
+      message: `Vehicle ${rejectedVehicle._id} has been rejected.`,
     });
   }
 
@@ -202,7 +214,7 @@ class VehicleController {
       sort?: string;
     } = req.params;
 
-    const { isVerified, status, vehicleId, isArchived} =
+    const { isVerified, status, vehicleId, isArchived } =
       data;
 
     const matchQuery: MatchQuery = {};

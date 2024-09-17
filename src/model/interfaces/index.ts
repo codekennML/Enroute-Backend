@@ -1,4 +1,4 @@
-import {  Types } from "mongoose";
+import { Types } from "mongoose";
 import {
   Paystack,
   EmergencyContact,
@@ -30,7 +30,7 @@ export interface IDocuments {
   rejectionFeedback?: string;
   status?: "pending" | "assessed" | "none";
   approvedBy?: Types.ObjectId;
-  country : Types.ObjectId
+  country: Types.ObjectId
 }
 
 export interface ITripSchedule {
@@ -40,7 +40,7 @@ export interface ITripSchedule {
   departureTime: Date;
   seatAllocationsForTrip: number;
   route: string,
-  routeDistance : number,
+  routeDistance: number,
   status: "created" | "cancelled" | "started"
 }
 
@@ -57,18 +57,18 @@ export interface ISettlements extends Locale {
   processor: "paystack" | "flutterwave" | "stripe";
   driverId: Types.ObjectId;
   driverEmail?: string
-  driverPushId? : string,
+  driverPushId?: string,
   processed: boolean;
   status: "success" | "created" | "failed";
-  currency? : string
+  currency?: string
   data?: Record<string, unknown>;
   rides?: Types.ObjectId[];
   isPaymentInit: boolean
-  refunded : boolean
-  workerCreated : boolean
-  settlements? : { type : "subscription" | "commisison", amount : number }[] //WE need this for when both a us er subscription and commission charges fail at the same time, this beomes the single entry for the combined charge when reevaluating the users payment method 
+  refunded: boolean
+  workerCreated: boolean
+  settlements?: { type: "subscription" | "commisison", amount: number }[] //WE need this for when both a us er subscription and commission charges fail at the same time, this beomes the single entry for the combined charge when reevaluating the users payment method 
 
-  type : "subscription" | "commission" | "both"
+  type: "subscription" | "commission" | "both"
 
 
   //Payment data from processor
@@ -92,31 +92,56 @@ export interface ITown {
   name: string;
   state: Types.ObjectId;
   country: Types.ObjectId;
-  requiredDriverDocs: { name: string, options: string[] }[];
-  requiredRiderDocs: { name: string, options: string[] }[]; //These are required verification docs for the specific town, country or state
+  serviceRequiredDocs?: Record<string, DocsInfo[]>
+  vehicleRequiredDocs?: Record<string, DocsInfo[]>,
+  requiredDriverDocs: DocsInfo[];
+  requiredRiderDocs: DocsInfo[];  //These are required verification docs for the specific town, country or state
 }
 
 export interface IState {
   name: string;
   country: Types.ObjectId;
-  boundary: number[];
-  requiredDriverDocs: { name: string, options: string[] }[];
-  requiredRiderDocs: { name: string, options: string[] }[]; //These are required verification docs for the specific town, country or state
+  location: {
+    type: "Point";
+    coordinates: latLngCoordinates;
+  };
+  boundary: { lat: number, lng: number }[];
 
+  serviceRequiredDocs?: Record<string, DocsInfo[]>
+  vehicleRequiredDocs?: Record<string, DocsInfo[]>,
+  requiredDriverDocs: DocsInfo[];
+  requiredRiderDocs: DocsInfo[];  //These are required verification docs for the specific town, country or state
 }
+
+
+export interface DocsInfo {
+  name: string,
+  displayName: string
+  options: {
+    required: boolean
+    type: "text" | "radio" | "textarea" | "image"
+    options: string[] //for select values eg ["NIN", "PASSPORT"], 
+    schemaType: string
+  }
+  value: string
+}
+
 
 export interface ICountry {
   name: string;
   code: string;
-  boundary: number[];
-  monthlySubscription : number,
-  paymentProcessorbillingPercentage : number, 
+  isoCode: string,
+  boundary: { lat: number, lng: number }[]; //NW && SW
+  monthlySubscription: number,
+  paymentProcessorbillingPercentage: number,
   paymentProcessorbillingExtraAmount: number
-  currency : string,
-  riderCommission : number, 
-  driverPercentage : number
-  requiredDriverDocs: { name: string, options: string[] }[];
-  requiredRiderDocs: { name: string, options: string[] }[]; //These are required verification docs for the specific town, country or state
+  currency: string,
+  riderCommission: number,
+  driverPercentage: number
+  serviceRequiredDocs?: Record<string, DocsInfo[]>
+  vehicleRequiredDocs?: Record<string, DocsInfo[]>,
+  requiredDriverDocs: DocsInfo[];
+  requiredRiderDocs: DocsInfo[]; //These are required verification docs for the specific town, country or state
 }
 
 export interface Locale {
@@ -149,7 +174,7 @@ export interface IRide {
   pickupTime: Date;
   dropOffTime?: Date;
   type: "solo" | "share" | "package";
-  packageCategory?:  "STS" | "HTH";
+  packageCategory?: "STS" | "HTH";
   cancellationData?: CancellationData
   seatsOccupied?: number;
   pickupStation?: IBusStation | Place
@@ -201,7 +226,7 @@ export interface IRide {
 export interface IRideRequest extends Locale {
   tripScheduleId?: Types.ObjectId,
   driverId: Types.ObjectId;
-  driverEmail? : string
+  driverEmail?: string
   riderId: Types.ObjectId;
   destination: IBusStation;
   pickupPoint: IBusStation
@@ -211,12 +236,12 @@ export interface IRideRequest extends Locale {
   cancellationData?: CancellationData
   totalRideDistance: number
   initialStatus: "scheduled" | "live"
-  riderBudget : number
-  driverBudget? : number, 
-  driverDecision? : "accepted" | "rejected" | "riderBudget"
+  riderBudget: number
+  driverBudget?: number,
+  driverDecision?: "accepted" | "rejected" | "riderBudget"
   riderDecision?: "accepted" | "rejected"; //the driver renegotiated the price and the rider has to make a decison
   status: "created" | "cancelled" | "closed";
-  friendData? : { firstname: string; lastname: string; countryCode: string; mobile: string; }[] 
+  friendData?: { firstname: string; lastname: string; countryCode: string; mobile: string; }[]
 
 
 }
@@ -224,25 +249,25 @@ export interface IRideRequest extends Locale {
 export interface IVehicle {
   vehicleModel: string;
   vehicleMake: string;
-  inspection:  { 
-   provider : string, 
-   issueDate : Date
-   expiryDate : Date
-   image : { 
-    front : string, 
-    back?: string
-   } 
+  inspection: {
+    provider: string,
+    issueDate: Date
+    expiryDate: Date
+    image: {
+      front: string,
+      back?: string
+    }
   },
-    insurance: {
-      provider: Date,
-      issueDate: Date
-      expiryDate: Date
-      image: {
-        front: string,
-        back?: string
-      } 
+  insurance: {
+    provider: Date,
+    issueDate: Date
+    expiryDate: Date
+    image: {
+      front: string,
+      back?: string
+    }
   },
-  images : Record<string, string>,
+  images: Record<string, string>,
   licensePlate: string
   year: number;
   hasAC: boolean;
@@ -251,15 +276,15 @@ export interface IVehicle {
   isArchived: boolean;
   status: "pending" | "assessed";
   approvedBy: Types.ObjectId;
- country : Types.ObjectId,
- state : Types.ObjectId
+  country: Types.ObjectId,
+  state: Types.ObjectId
 }
 
-export interface IRating{ 
-  userId : Types.ObjectId, 
-  raterId : Types.ObjectId 
-  rideId : Types.ObjectId
-  rating : number
+export interface IRating {
+  userId: Types.ObjectId,
+  raterId: Types.ObjectId
+  rideId: Types.ObjectId
+  rating: number
 }
 
 export interface IPackageSchedule {
@@ -283,7 +308,7 @@ export interface IPackageSchedule {
   totalDistance: number
   destinationAddress: Place;
   pickupAddress: Place;
-  
+
 }
 
 export interface IPackageScheduleRequest {
@@ -299,14 +324,14 @@ export interface IUser extends Locale {
   firstName?: string;
   email?: string;
   avatar?: string;
-  archived? : boolean,
+  archived?: boolean,
   socialName?: string;
   lastName?: string;
   birthDate?: Date;
   mobile?: number;
   gender?: "male" | "female";
   deviceToken: string;
-  roles: number ;
+  roles: number;
   subRole?: number;
   hasUsedSocialAuth: boolean;
   googleId?: string;
@@ -339,16 +364,16 @@ export interface IUser extends Locale {
     authorization: Paystack.Authorization;
     customer: Paystack.Customer;
     isValid: boolean
-    defaults? : Types.ObjectId[]
+    defaults?: Types.ObjectId[]
 
   };
-  invitedBy? : Types.ObjectId
-  limitedBy? : Types.ObjectId,
-  limitReason? : string,
+  invitedBy?: Types.ObjectId
+  limitedBy?: Types.ObjectId,
+  limitReason?: string,
   about?: string;
   street?: string;
- accessTokenExpiresAt? : Date
-  mobileAuthId : string
+  accessTokenExpiresAt?: Date
+  mobileAuthId: string
   dispatchType?: string[];
   rating: number;
   emergencyContacts?: EmergencyContact[];
@@ -383,24 +408,25 @@ export interface ISOS extends Locale {
     type: "Point";
     coordinates: number[];
   };
-  town : string, 
-  country : string, 
-  state : string
+  town: string,
+  country: string,
+  state: string
 }
 
 export interface IBusStation {
   name: string;
   placeId: string;
-  country : Types.ObjectId
+  country: Types.ObjectId
   state: Types.ObjectId
   town: Types.ObjectId
-  suggestedBy? : Types.ObjectId,
-  status : "active" | "rejected" | "suggested"
-  approvedBy? : Types.ObjectId,
+  suggestedBy?: Types.ObjectId,
+  status: "active" | "rejected" | "suggested"
+  approvedBy?: Types.ObjectId,
   location: {
     type: "Point";
     coordinates: latLngCoordinates;
   };
+  isPopular: boolean
 
 }
 
@@ -456,8 +482,8 @@ export interface IBusStation {
 
 export type IOtp = {
   user?: Types.ObjectId;
-  mobile? : number ,
-  countryCode ? : number
+  mobile?: number,
+  countryCode?: number
   email?: string;
   hash?: string;
   expiry?: Date;
@@ -473,9 +499,9 @@ export interface IRoute {
   vehicleId?: Types.ObjectId;
   timedGeojson: {
     coordinates: latLngCoordinates[];
-    timestamp : Date
+    timestamp: Date
   }
-  
+
   lineString: string;
 }
 
@@ -507,15 +533,15 @@ export interface ITrip {
 }
 
 export interface IRideSchedule {
-  rideRequest : Types.ObjectId,
-  tripId : Types.ObjectId,
-  driverId : Types.ObjectId
-  riderId : Types.ObjectId
-  driverPushId : string, 
-  riderPushId : string,
-  driverEmail : string,  
-  riderEmail : string
-  status : "created" | "closed" | "cancelled", 
-  driverBudget : number 
-  riderAccepted : boolean
+  rideRequest: Types.ObjectId,
+  tripId: Types.ObjectId,
+  driverId: Types.ObjectId
+  riderId: Types.ObjectId
+  driverPushId: string,
+  riderPushId: string,
+  driverEmail: string,
+  riderEmail: string
+  status: "created" | "closed" | "cancelled",
+  driverBudget: number
+  riderAccepted: boolean
 }

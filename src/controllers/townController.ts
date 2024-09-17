@@ -6,6 +6,7 @@ import { ITown } from "../model/interfaces";
 import AppResponse from "../utils/helpers/AppResponse";
 import { MatchQuery, SortQuery } from "../../types/types";
 import { sortRequest } from "../utils/helpers/sortQuery";
+import { Types } from "mongoose";
 
 class TownController {
   private town: TownService;
@@ -23,6 +24,114 @@ class TownController {
       message: "Town created successfully",
       data: createdTown,
     });
+  }
+
+  autoCompleteTownName = async (req: Request, res: Response): Promise<void> => {
+
+    const { townName } = req.query
+
+    // Input validation
+    if (!townName) {
+      throw new AppError("No results matching this request was found.Please try again", StatusCodes.NOT_FOUND)
+    }
+
+
+
+    // if (!Types.ObjectId.isValid(countryId)) {
+    //   res.status(400).json({ error: 'Invalid countryId format' });
+    //   return;
+    // }
+
+    const towns = await this.town.aggregateTowns(
+      {
+        pipeline: [
+          {
+            $search: {
+              index: "townAutocomplete", // Replace with your actual index name
+              compound: {
+                must: [
+                  {
+                    autocomplete: {
+                      query: townName,
+                      path: "name",
+                      fuzzy: {
+                        maxEdits: 1,
+                        prefixLength: 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            $limit: 5
+          },
+          {
+            $lookup: {
+              from: "countries",
+              localField: "country",
+              foreignField: "_id",
+              pipeline: [
+                {
+                  $project: {
+                    _id: 1,
+                    name: 1
+                  }
+                }
+              ],
+              as: "country"
+            }
+          },
+          {
+            $unwind: "$country"
+          },
+          {
+            $lookup: {
+              from: "states",
+              localField: "state",
+              foreignField: "_id",
+              pipeline: [
+                {
+                  $project: {
+                    _id: 1,
+                    name: 1
+                  }
+                }
+              ],
+              as: "state"
+            }
+          },
+          {
+            $unwind: "$state"
+          },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              state: "$state",
+              country: "$country",
+              town: {
+                _id: "$_id",
+                name: "$name"
+              },
+              coordinates: 1,
+            }
+          }
+        ]
+      }
+    );
+
+    if (towns.length === 0) {
+      res.status(404).json({ message: 'No matching towns found' });
+      return;
+    }
+
+    return AppResponse(req, res, StatusCodes.OK, {
+      message: 'Towns retrieved successfully',
+      data: towns
+    })
+
   }
 
   async getTowns(req: Request, res: Response) {
@@ -102,8 +211,8 @@ class TownController {
 
     //This will overwrite the data 
 
-    const updatedtown = await this.town.updateTown ({
-      docToUpdate: {  _id : {  $eq : townId}},
+    const updatedtown = await this.town.updateTown({
+      docToUpdate: { _id: { $eq: townId } },
       updateData: {
         $set: {
           ...rest,

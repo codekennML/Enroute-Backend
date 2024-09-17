@@ -6,10 +6,11 @@ import {
     PutObjectCommand,
     DeleteObjectCommand
 } from "@aws-sdk/client-s3";
+import { Readable } from "stream"
 
 
 
-const R2_ACCESS_KEY =  process.env.R2_ACCESS_KEY as string
+const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY as string
 const R2_SECRET_KEY = process.env.R2_SECRET_KEY as string
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID as string
 
@@ -24,32 +25,33 @@ const S3 = new S3Client({
 
 
 
-export async function putObjectR2 (bucketName : string, fileKey : string, fileContent  : Buffer) {
+export async function putObjectR2(bucketName: string, fileKey: string, fileContent: Readable) {
 
-    const data =  { 
-        Bucket : bucketName, 
-        Key : fileKey, 
+    const data = {
+        Bucket: bucketName,
+        Key: fileKey,
         Body: fileContent
     }
- 
+
     const response = await await S3.send(
         new PutObjectCommand(data)
     )
 
+    console.log(response, "S3 response")
     return response
 }
 
-export async function listR2Buckets(){
+export async function listR2Buckets() {
     const bucketsData = await S3.send(
         new ListBucketsCommand({})
     )
 
-  return bucketsData 
+    return bucketsData
 }
 
-export async function listObjectsInR2Bucket(bucketName : string ){ 
+export async function listObjectsInR2Bucket(bucketName: string) {
 
-    const bucketObjects =  await S3.send(
+    const bucketObjects = await S3.send(
         new ListObjectsV2Command({ Bucket: bucketName })
     )
 
@@ -57,21 +59,21 @@ export async function listObjectsInR2Bucket(bucketName : string ){
 
 }
 
-export async function retrieveObjectFromR2Bucket (bucketName: string, key : string){
+export async function retrieveObjectFromR2Bucket(bucketName: string, key: string) {
     const object = await S3.send(
         new GetObjectCommand({ Bucket: bucketName, Key: key })
     )
-    
-    
+
+
     return object
 }
 
-export async function deleteObjectFromR2Bucket(bucketName : string,  fileName : string, ){
+export async function deleteObjectFromR2Bucket(bucketName: string, fileName: string,) {
 
     const response = await S3.send(
         new DeleteObjectCommand({ Bucket: bucketName, Key: fileName })
     )
-    
+
     return response
 }
 
